@@ -1,20 +1,28 @@
 import Link from 'next/link';
-import { ArrowRight, BookOpen, Sparkles, Terminal } from 'lucide-react';
+import Image from 'next/image';
+import { ArrowRight, BookOpen, ExternalLink, Sparkles, Terminal } from 'lucide-react';
 
 export default function HomePage() {
   return (
     <main className="flex flex-1 flex-col items-center justify-center px-4 py-16 text-center">
-      <div className="inline-flex items-center gap-2 rounded-full border border-fd-border bg-fd-secondary/50 px-3 py-1 text-xs text-fd-muted-foreground mb-6">
-        <Sparkles className="size-3.5 text-fd-primary" />
-        <span>Documentation & Developer Hub</span>
+      <div className="relative mb-6 flex items-center justify-center">
+        <div className="absolute -inset-2 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-purple-600 opacity-25 blur-xl"></div>
+        <Image
+          src="/logo.svg"
+          alt="Farz Logo"
+          width={72}
+          height={72}
+          className="relative drop-shadow-md"
+          priority
+        />
       </div>
 
       <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4 max-w-2xl">
-        Explore Farz Docs
+        Farz Documentation
       </h1>
 
       <p className="text-base md:text-lg text-fd-muted-foreground max-w-xl mb-8">
-        Everything you need to build, integrate, and scale with Farz. Comprehensive guides, architecture references, and API components.
+        Your entire financial life, on autopilot. Explore guides, technical specifications, and API components for Farz Wealth.
       </p>
 
       <div className="flex flex-wrap items-center justify-center gap-4 mb-14">
@@ -32,6 +40,15 @@ export default function HomePage() {
           <BookOpen className="size-4" />
           <span>Quickstart</span>
         </Link>
+        <a
+          href="https://farz.app"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-fd-border bg-fd-card/50 px-4 py-2.5 text-sm font-medium text-fd-muted-foreground transition-colors hover:text-fd-foreground hover:bg-fd-accent"
+        >
+          <span>Farz App</span>
+          <ExternalLink className="size-3.5" />
+        </a>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-w-4xl w-full text-left">
