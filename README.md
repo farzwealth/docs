@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://farzdocs.abdulrahman-maniar.workers.dev">
-    <img src="public/logo.svg" width="72" height="72" alt="Farz Logo" />
+    <img src="public/assets/logo.png" width="72" height="72" alt="Farz Logo" />
   </a>
 </p>
 

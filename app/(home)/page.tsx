@@ -8,11 +8,11 @@ export default function HomePage() {
       <div className="relative mb-6 flex items-center justify-center">
         <div className="absolute -inset-2 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-purple-600 opacity-25 blur-xl"></div>
         <Image
-          src="/logo.svg"
+          src="/assets/logo.png"
           alt="Farz Logo"
           width={72}
           height={72}
-          className="relative drop-shadow-md"
+          className="relative drop-shadow-md rounded-2xl"
           priority
         />
       </div>

@@ -8,7 +8,7 @@ export function baseOptions(): BaseLayoutProps {
       title: (
         <div className="flex items-center gap-2.5 font-bold tracking-tight">
           <Image
-            src="/logo.svg"
+            src="/assets/logo.png"
             alt="Farz Logo"
             width={26}
             height={26}
