@@ -1,0 +1,59 @@
+---
+title: Access & Scopes
+description: Overview of the Farz security model, read-only guarantees, and permissions scope matrix.
+---
+
+Farz follows the **principle of least privilege**. Every user API key and OAuth access token is bound to a specific set of granular read scopes.
+
+---
+
+## Scope Matrix
+
+| Scope | Permitted Resources |
+| :--- | :--- |
+| `profile:read` | Preferred locale, base reporting currency, and IANA timezone. |
+| `accounts:read` | Masked account metadata, status, liquidity, and native balances. |
+| `transactions:read` | Posted transactions, categories, split allocations, and reversal linkages. |
+| `assets:read` | Asset estimates, qualified security/crypto holdings, and purchase lots. |
+| `liabilities:read` | Liabilities, outstanding balances, terms, and installment schedules. |
+| `budgets:read` | Category budget limits, net posted spending, and remaining amounts. |
+| `goals:read` | Savings goal targets, progress indicators, and projection assumptions. |
+| `valuations:read` | Immutable dated valuation snapshots, historic net worth, and revision history. |
+| `reports:read` | Deterministic aggregated report rows (`transactions`, `net_worth`, `cashflow`, `performance`). |
+
+---
+
+## Composite Scopes for Summaries & Reports
+
+When requesting composite portfolio evaluations (`/summary` or `/reports`), you must hold both the parent `reports:read` scope and the scopes for each constituent domain:
+
+### Summary Endpoint (`GET /summary`)
+
+```text
+Required: reports:read
+Plus:
+- accounts:read     (if domains contains "accounts")
+- assets:read       (if domains contains "assets")
+- liabilities:read  (if domains contains "liabilities")
+```
+
+<Callout type="warn" title="No Silent Omissions">
+  If an API key requests `/summary?domains=accounts,assets,liabilities` without holding `assets:read`, the gateway will respond with `403 INSUFFICIENT_SCOPE`. The server will never silently omit assets to present an inaccurate, artificially lowered net worth total.
+</Callout>
+
+### Report Endpoint (`GET /reports`)
+
+| Report Kind | Required Scopes |
+| :--- | :--- |
+| `transactions` | `reports:read`, `transactions:read` |
+| `net_worth` | `reports:read`, `accounts:read`, `assets:read`, `liabilities:read` |
+| `cashflow` | `reports:read`, `accounts:read`, `budgets:read`, `liabilities:read` |
+| `performance` | `reports:read`, `assets:read`, `valuations:read` |
+
+---
+
+## Security Boundaries & Guarantees
+
+- **Personal Workspace Only**: The developer API strictly accesses records owned by the authenticated user in their personal workspace. Joint accounts, family vaults, and guardian settings are excluded.
+- **Strictly Read-Only**: The API contains zero write, modification, or execution endpoints. It is impossible to initiate bank transfers, record transactions, alter budgets, or trade securities via this API.
+- **Data Minimization**: Full bank account numbers, unmasked credit cards, raw statement PDFs, and OCR raw texts are completely absent from API responses.

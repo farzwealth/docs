@@ -1,0 +1,96 @@
+---
+title: Assets & Holdings
+description: List personal assets, track real-time security and crypto unit prices, and inspect purchase tax lots.
+---
+
+Track real estate estimates, vehicles, deposits, precious metals, and publicly qualified investment holdings (stocks, ETFs, cryptocurrencies).
+
+---
+
+## 1. List Assets
+
+`GET /assets`
+
+Returns a paginated list of personal assets, dated estimates, and exchange/chain-qualified holdings.
+
+### Authorization
+- **Scope Required**: `assets:read`
+- **Plan Requirement**: Active Paid subscription
+
+### Query Parameters
+
+| Name | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `kind` | string | No | Filter by asset kind: `property`, `stock`, `etf`, `crypto`, `metal`, `vehicle`, `deposit`, `other`. |
+| `as_of` | date | No | Valuation cutoff date (`YYYY-MM-DD`). Defaults to current date. |
+| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
+| `cursor` | string | No | Opaque continuation cursor from `next_cursor`. |
+
+### Example Request
+
+```bash
+curl --fail-with-body --get \
+  "https://api.farz.app/api/developer/v1/assets" \
+  -H "Authorization: Bearer $FARZ_API_KEY" \
+  -H 'Accept: application/json' \
+  --data-urlencode 'limit=20'
+```
+
+---
+
+## 2. Get an Asset
+
+`GET /assets/{asset_id}`
+
+Retrieves a single asset and its current holding details.
+
+### Path Parameters
+
+| Name | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `asset_id` | UUID | **Yes** | The asset identifier. |
+
+### Example Request
+
+```bash
+curl --fail-with-body \
+  "https://api.farz.app/api/developer/v1/assets/$FARZ_ASSET_ID" \
+  -H "Authorization: Bearer $FARZ_API_KEY" \
+  -H 'Accept: application/json'
+```
+
+Returns a single [Asset](/docs/api/schemas#asset) JSON object with HTTP status `200 OK`.
+
+---
+
+## 3. List Asset Lots
+
+`GET /assets/{asset_id}/lots`
+
+Inspects individual purchase lots, cost basis calculations, and remaining versus disposed quantities for stocks, ETFs, and cryptocurrencies.
+
+### Path Parameters
+
+| Name | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `asset_id` | UUID | **Yes** | Qualified holding asset identifier. |
+
+### Query Parameters
+
+| Name | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `through` | date | No | Include lots acquired through this date (`YYYY-MM-DD`). Defaults to today. |
+| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
+| `cursor` | string | No | Continuation cursor. |
+
+### Example Request
+
+```bash
+curl --fail-with-body --get \
+  "https://api.farz.app/api/developer/v1/assets/$FARZ_ASSET_ID/lots" \
+  -H "Authorization: Bearer $FARZ_API_KEY" \
+  -H 'Accept: application/json' \
+  --data-urlencode 'limit=20'
+```
+
+Returns a paginated [`Page<Lot>`](/docs/api/schemas#lot) collection.

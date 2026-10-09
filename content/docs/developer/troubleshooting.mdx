@@ -1,0 +1,37 @@
+---
+title: Troubleshooting & FAQ
+description: Common issues, troubleshooting checklist, and error resolution guides for the Farz Developer API.
+---
+
+This guide provides diagnosis steps for common errors, discrepancies, and authentication challenges when integrating with the Farz Developer API and MCP server.
+
+---
+
+## Troubleshooting Guide
+
+| Issue / Error | Root Cause & Resolution |
+| :--- | :--- |
+| **`401 Unauthorized` after previous success** | • Your Clerk User API Key reached its 90-day expiration limit.<br />• The key was revoked or rotated in Clerk Account Settings.<br />• For OAuth clients, the refresh token was consumed or revoked.<br />• Verify you are hitting the correct resource endpoint. |
+| **`403 Forbidden` despite active trial** | • **Trial accounts cannot access the Developer API or MCP.**<br />• API access requires an active Paid personal tier.<br />• Ensure your subscription billing is current in Farz settings. |
+| **Scope denial on `/summary` or `/reports`** | • Cross-domain endpoints require composite scopes.<br />• `/summary` requires `reports:read` AND all requested domain scopes (`accounts:read`, `assets:read`, `liabilities:read`).<br />• Either request only the domains your key has access to, or generate a key with all required scopes. |
+| **`404 Not Found` for visible in-app item** | • The record may be part of a shared, joint, or household account.<br />• The Developer API strictly enforces **own-data boundary**; records where you are a shared member rather than the legal owner are hidden. |
+| **Portfolio total differs from web / mobile app** | • Ensure your API query covers all domain categories (`accounts`, `assets`, `liabilities`).<br />• Check valuation date (`as_of`): web app displays real-time live market updates, whereas API defaults to the latest completed valuation snapshot.<br />• Shared household assets are omitted from personal API queries. |
+| **`converted` amount is `null`** | • Historical FX exchange rate was unavailable for the requested currency pair on that historical date.<br />• Always check the `warnings` array in the `ValuationContext` object.<br />• Fall back to displaying the `native` amount and currency. |
+| **Repeated `429 Too Many Requests`** | • You exceeded the 60 requests/minute per-user or 20 requests/minute per-key rate limits.<br />• You attempted more than 2 concurrent heavy report calculations.<br />• Implement exponential backoff and inspect the `Retry-After` header. |
+| **Cursor fails (`FARZ_INVALID_CURSOR`)** | • You modified a query parameter (`start`, `end`, `type`, `kind`) while passing an existing `cursor`.<br />• Cursors are cryptographically bound to the initial query filters. Discard the cursor and start a new pagination run from page 1. |
+| **MCP connected, but tools are missing** | • Tools are dynamically filtered based on the granted OAuth scopes.<br />• If you only granted `accounts:read`, asset and liability tools will not appear in the assistant's tool list.<br />• Re-authenticate your MCP connection and grant the necessary permissions. |
+| **Old integration fails after re-subscribing** | • Lapsed accounts permanently revoke all active API keys and OAuth grants.<br />• Once re-subscribed, you must generate a fresh API key or reconnect your OAuth client. |
+
+---
+
+## Contacting Support
+
+If you encounter unexpected errors or persistent failures:
+
+1. **Check Error Envelope**: Examine the `error.code` and `request_id` fields in the response.
+2. **Collect Diagnostics**: Note the UTC timestamp, HTTP status code, request URL path, and `request_id`.
+3. **Submit Ticket**: Open a ticket via the authenticated support channel within your Farz Web App account dashboard.
+
+<Callout type="warn" title="Do Not Include Sensitive Information in Support Tickets">
+  Never include your Clerk User API Key, OAuth access/refresh tokens, raw bank account numbers, or private financial records in support messages. Farz engineers only need the `request_id` to inspect backend server logs.
+</Callout>

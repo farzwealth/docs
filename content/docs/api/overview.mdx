@@ -1,0 +1,41 @@
+---
+title: REST API Overview
+description: Complete index of all 15 endpoints in the Farz Public Developer API v1.
+---
+
+All developer endpoints are served under the versioned base URL:
+
+```text
+https://api.farz.app/api/developer/v1
+```
+
+---
+
+## Endpoint Directory
+
+| Resource | Method & Path | Required Scopes | Description |
+| :--- | :--- | :--- | :--- |
+| **Profile** | [`GET /profile`](/docs/api/profile) | `profile:read` | Read locale, timezone, and reporting currency. |
+| **Summary** | [`GET /summary`](/docs/api/summary) | `reports:read` + domains | Calculate portfolio net worth and domain totals. |
+| **Accounts** | [`GET /accounts`](/docs/api/accounts) | `accounts:read` | List bank, cash, credit, and investment accounts. |
+| **Account** | [`GET /accounts/{account_id}`](/docs/api/accounts#get-an-account) | `accounts:read` | Retrieve a single account balance and status. |
+| **Transactions** | [`GET /transactions`](/docs/api/transactions) | `transactions:read` | Query posted transactions across date ranges. |
+| **Transaction** | [`GET /transactions/{entry_id}`](/docs/api/transactions#get-a-transaction) | `transactions:read` | Retrieve a single posted transaction. |
+| **Assets** | [`GET /assets`](/docs/api/assets) | `assets:read` | List property, securities, crypto, and metal assets. |
+| **Asset** | [`GET /assets/{asset_id}`](/docs/api/assets#get-an-asset) | `assets:read` | Retrieve an asset and its current valuation. |
+| **Asset Lots** | [`GET /assets/{asset_id}/lots`](/docs/api/assets#list-asset-lots) | `assets:read` | Inspect tax lots, acquisition dates, and cost basis. |
+| **Liabilities** | [`GET /liabilities`](/docs/api/liabilities) | `liabilities:read` | List mortgages, loans, BNPL, and credit obligations. |
+| **Schedule** | [`GET /liabilities/{liability_id}/schedule`](/docs/api/liabilities#list-a-liability-schedule) | `liabilities:read` | Inspect scheduled loan/debt payment installments. |
+| **Budgets** | [`GET /budgets`](/docs/api/budgets) | `budgets:read` | Inspect category budgets and period spending. |
+| **Goals** | [`GET /goals`](/docs/api/goals) | `goals:read` | Track target dates and progress across savings goals. |
+| **Valuations** | [`GET /valuations`](/docs/api/valuations) | `valuations:read` | Query immutable historical monthly valuation snapshots. |
+| **Reports** | [`GET /reports`](/docs/api/reports) | `reports:read` + kind | Generate deterministic financial report rows. |
+
+---
+
+## Common Query Patterns
+
+- **Pagination**: All collection endpoints accept `limit` (default: 50, max: 100) and `cursor`.
+- **Date Ranges**: Endpoints accepting dates require inclusive `start` and `end` parameters (maximum range: 366 days).
+- **As of Date**: Endpoints calculating dated balances accept `as_of=YYYY-MM-DD` (defaults to today).
+- **Response Format**: All successful responses return `200 OK` with JSON bodies.

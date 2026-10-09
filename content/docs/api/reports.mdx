@@ -1,0 +1,79 @@
+---
+title: Reports
+description: Generate deterministic, structured financial report rows across transactions, net worth, cashflow, and performance.
+---
+
+`GET /reports`
+
+Query bounded deterministic financial report rows for data analysis and reporting. This endpoint delivers structured JSON rows (not raw PDF or binary exports).
+
+---
+
+## Authorization
+
+Access requires `reports:read` **plus** the additional scopes corresponding to the selected report `kind`:
+
+| Report Kind | Additional Scopes Required |
+| :--- | :--- |
+| `transactions` | `transactions:read` |
+| `net_worth` | `accounts:read`, `assets:read`, `liabilities:read` |
+| `cashflow` | `accounts:read`, `budgets:read`, `liabilities:read` |
+| `performance` | `assets:read`, `valuations:read` |
+
+---
+
+## Query Parameters
+
+| Name | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `kind` | string | **Yes** | Report kind: `transactions`, `net_worth`, `cashflow`, or `performance`. |
+| `start` | date | **Yes** | Inclusive start date (`YYYY-MM-DD`). |
+| `end` | date | **Yes** | Inclusive end date (`YYYY-MM-DD`). Max range: **366 calendar days**. |
+| `account_id` | UUID | No | Account filter. Valid only when `kind=transactions`. |
+| `currency` | string | No | Desired reporting currency conversion. |
+| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
+| `cursor` | string | No | Continuation cursor from `next_cursor`. |
+
+---
+
+## Example Request
+
+```bash
+curl --fail-with-body --get \
+  "https://api.farz.app/api/developer/v1/reports" \
+  -H "Authorization: Bearer $FARZ_API_KEY" \
+  -H 'Accept: application/json' \
+  --data-urlencode 'kind=cashflow' \
+  --data-urlencode 'start=2026-01-01' \
+  --data-urlencode 'end=2026-10-10' \
+  --data-urlencode 'limit=50'
+```
+
+---
+
+## Report Kinds & Schema Variations
+
+Every row returned conforms to [ReportRow](/docs/api/schemas#reportrow). The `values` object matches the requested kind:
+
+### 1. `transactions` Report Values
+- `type`: Transaction type enum.
+- `amount`: Money object.
+- `category`: Category string or `null`.
+- `reversed`: Boolean reversal flag.
+
+### 2. `net_worth` Report Values
+- `asset_value`: Money object or `null`.
+- `liability_value`: Money object or `null`.
+- `net_worth`: Money object or `null`.
+- `coverage_percent`: Decimal string (`0` to `100`).
+
+### 3. `cashflow` Report Values
+- `income`: Net incoming money.
+- `expenses`: Net outgoing money.
+- `net`: Income minus expenses.
+- `basis`: String describing posted vs forecast assumptions.
+
+### 4. `performance` Report Values
+- `return_percent`: Decimal string or `null` if data points are insufficient.
+- `method`: Calculation methodology (e.g. `time_weighted_return`, `money_weighted`).
+- `status`: Status enum (`available`, `missing_observations`, `nonconvergent`, `unsupported`).

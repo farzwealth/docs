@@ -1,0 +1,97 @@
+---
+title: Financial Summary
+description: Calculate portfolio net worth, aggregated asset and liability totals, and coverage metrics.
+---
+
+`GET /summary`
+
+Calculates a dated financial summary across explicitly requested own-data domains, returning total assets, liabilities, net worth, contributing resources, and exclusion reasons.
+
+---
+
+## Authorization
+
+- **Scopes Required**: `reports:read` **plus** the scope for each domain listed in `domains`:
+  - `accounts:read` (if `accounts` is included)
+  - `assets:read` (if `assets` is included)
+  - `liabilities:read` (if `liabilities` is included)
+- **Plan Requirement**: Active Paid subscription
+
+---
+
+## Query Parameters
+
+| Name | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `domains` | string | **Yes** | Comma-separated list containing `accounts`, `assets`, and/or `liabilities`. |
+| `as_of` | date | No | Valuation cutoff date (`YYYY-MM-DD`). Defaults to current date in user timezone. |
+
+<Callout type="warn" title="Net Worth Availability">
+  The `net_worth` field will be `null` unless all three domains (`accounts,assets,liabilities`) are requested, authorized, and provide sufficient valuation coverage.
+</Callout>
+
+---
+
+## Example Request
+
+```bash
+curl --fail-with-body --get \
+  "https://api.farz.app/api/developer/v1/summary" \
+  -H "Authorization: Bearer $FARZ_API_KEY" \
+  -H 'Accept: application/json' \
+  --data-urlencode 'domains=accounts,assets,liabilities' \
+  --data-urlencode 'as_of=2026-10-10'
+```
+
+---
+
+## Example Response
+
+```json
+{
+  "domains": ["accounts", "assets", "liabilities"],
+  "as_of": "2026-10-10",
+  "timezone": "Asia/Dubai",
+  "base_currency": "AED",
+  "total_assets": {
+    "amount": "452500.00",
+    "currency": "AED"
+  },
+  "total_liabilities": {
+    "amount": "120000.00",
+    "currency": "AED"
+  },
+  "net_worth": {
+    "amount": "332500.00",
+    "currency": "AED"
+  },
+  "coverage_percent": "100.0",
+  "contributions": [
+    {
+      "id": "22222222-2222-4222-8222-222222222222",
+      "kind": "account",
+      "native_value": {"amount": "1250.00", "currency": "AED"},
+      "base_value": {"amount": "1250.00", "currency": "AED"},
+      "valuation": {
+        "as_of": "2026-10-10",
+        "timezone": "Asia/Dubai",
+        "freshness": "current",
+        "source": "recorded_balance",
+        "fx_legs": [],
+        "warnings": []
+      }
+    }
+  ],
+  "excluded": [],
+  "valuation": {
+    "as_of": "2026-10-10",
+    "timezone": "Asia/Dubai",
+    "freshness": "current",
+    "source": null,
+    "fx_legs": [],
+    "warnings": []
+  }
+}
+```
+
+For complete field descriptions, see the [FinancialSummary schema](/docs/api/schemas#financialsummary).

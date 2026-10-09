@@ -1,0 +1,54 @@
+---
+title: Rate Limits & Quotas
+description: Understand request thresholds, concurrent report constraints, and automated 429 backoff handling.
+---
+
+To protect availability and prevent abusive workloads, Farz applies sliding-window rate limits across all public developer interfaces.
+
+---
+
+## Quota Allocations
+
+| Dimension | Threshold | Behavior when Exceeded |
+| :--- | :--- | :--- |
+| **User Aggregate** | **60 requests / minute** | Shared across all user API keys and OAuth connections. |
+| **Per Credential** | **20 requests / minute** | Individual key or OAuth token limit. |
+| **Concurrent Reports** | **2 active queries** | Heavy queries (`/summary`, `/reports`) run in parallel. |
+| **Max Page Size** | **100 records** | Requests exceeding `limit=100` are clamped or rejected with `422`. |
+| **Max Date Range** | **366 calendar days** | Ranges beyond 1 calendar year return `422 INVALID_INPUT`. |
+
+<Callout type="info">
+  Creating additional API keys in Clerk does **not** increase your total per-user allocation. All credentials converge on the 60 requests/minute user ceiling.
+</Callout>
+
+---
+
+## Handling `429 RATE_LIMITED`
+
+When your application exceeds a rate limit, the API responds with HTTP status `429 Too Many Requests` alongside a standard JSON error envelope:
+
+```http
+HTTP/2 429 Too Many Requests
+Content-Type: application/json
+Retry-After: 12
+X-Request-ID: 7e26d15b-216e-4c74-9548-73599a03b824
+```
+
+```json
+{
+  "code": "RATE_LIMITED",
+  "message": "Too many requests. Please wait before retrying.",
+  "request_id": "7e26d15b-216e-4c74-9548-73599a03b824",
+  "field_errors": [],
+  "retry": true
+}
+```
+
+---
+
+## Recommended Retry Strategy
+
+1. **Read `Retry-After`**: Inspect the `Retry-After` header to find the minimum number of seconds to pause.
+2. **Exponential Backoff**: For subsequent retries, increase wait time exponentially (`2^n * base_delay`).
+3. **Add Jitter**: Introduce randomized jitter (e.g., ±20%) to prevent thundering herd spikes against the gateway.
+4. **Queue & Throttle**: Implement an in-memory token bucket or rate limiter in your background jobs to stay comfortably below 20 requests/minute per worker.

@@ -1,0 +1,54 @@
+---
+title: Profile
+description: Retrieve account preferences including language locale, reporting currency, and IANA timezone.
+---
+
+`GET /profile`
+
+Returns the minimum account preferences required by clients to format currencies, dates, and timezones accurately.
+
+---
+
+## Authorization
+
+- **Scope Required**: `profile:read`
+- **Plan Requirement**: Active Paid subscription
+
+---
+
+## Request
+
+This endpoint does not accept query parameters or request bodies.
+
+### Example Request
+
+```bash
+curl --fail-with-body \
+  "https://api.farz.app/api/developer/v1/profile" \
+  -H "Authorization: Bearer $FARZ_API_KEY" \
+  -H 'Accept: application/json'
+```
+
+---
+
+## Response
+
+Returns a single [Profile](/docs/api/schemas#profile) JSON object with status `200 OK`:
+
+```json
+{
+  "locale": "en",
+  "timezone": "Asia/Dubai",
+  "base_currency": "AED",
+  "revision": 3
+}
+```
+
+### Response Fields
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `locale` | string | Preferred language locale (`en`, `ar`, `fr`, `ru`). |
+| `timezone` | string | Canonical IANA timezone identifier (e.g. `Asia/Dubai`). |
+| `base_currency` | string | Primary native reporting currency (e.g. `AED`, `USD`). |
+| `revision` | integer | Incremental revision number for user profile settings. |

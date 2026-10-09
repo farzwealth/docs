@@ -1,0 +1,76 @@
+---
+title: Liabilities & Schedules
+description: Track debts, outstanding balances, payment terms, and scheduled installment obligations.
+---
+
+Query personal debt obligations including loans, mortgages, financing plans, credit cards, and Buy-Now-Pay-Later (BNPL) accounts.
+
+---
+
+## 1. List Liabilities
+
+`GET /liabilities`
+
+Returns a paginated list of personal liabilities, outstanding balances, and net worth inclusion indicators.
+
+### Authorization
+- **Scope Required**: `liabilities:read`
+- **Plan Requirement**: Active Paid subscription
+
+### Query Parameters
+
+| Name | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `kind` | string | No | Filter by obligation type: `loan`, `mortgage`, `financing`, `card`, `bnpl`, `custom`. |
+| `active` | boolean | No | Filter by active state (`true` or `false`). Omission returns both. |
+| `as_of` | date | No | Balance valuation date (`YYYY-MM-DD`). |
+| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
+| `cursor` | string | No | Opaque continuation cursor from `next_cursor`. |
+
+### Example Request
+
+```bash
+curl --fail-with-body --get \
+  "https://api.farz.app/api/developer/v1/liabilities" \
+  -H "Authorization: Bearer $FARZ_API_KEY" \
+  -H 'Accept: application/json' \
+  --data-urlencode 'limit=20' \
+  --data-urlencode 'active=true'
+```
+
+---
+
+## 2. List Liability Installment Schedule
+
+`GET /liabilities/{liability_id}/schedule`
+
+Returns the scheduled, paid, and remaining installment obligations for an active debt across a date window.
+
+### Path Parameters
+
+| Name | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `liability_id` | UUID | **Yes** | The liability identifier. |
+
+### Query Parameters
+
+| Name | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `start` | date | **Yes** | Inclusive schedule start date (`YYYY-MM-DD`). |
+| `end` | date | **Yes** | Inclusive schedule end date (`YYYY-MM-DD`). Max range: **366 calendar days**. |
+| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
+| `cursor` | string | No | Continuation cursor. |
+
+### Example Request
+
+```bash
+curl --fail-with-body --get \
+  "https://api.farz.app/api/developer/v1/liabilities/$FARZ_LIABILITY_ID/schedule" \
+  -H "Authorization: Bearer $FARZ_API_KEY" \
+  -H 'Accept: application/json' \
+  --data-urlencode 'start=2026-10-01' \
+  --data-urlencode 'end=2026-10-10' \
+  --data-urlencode 'limit=50'
+```
+
+Returns a paginated [`Page<Installment>`](/docs/api/schemas#installment) collection with status `200 OK`.

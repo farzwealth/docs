@@ -1,0 +1,56 @@
+---
+title: Connect an MCP Client
+description: Connect Claude, Cursor, and remote Model Context Protocol (MCP) clients to query your Farz data via Streamable HTTP.
+---
+
+Farz provides a native remote **Model Context Protocol (MCP)** server endpoint. This allows compliant AI assistants (such as Claude Desktop, Cursor, or autonomous agent workflows) to retrieve your personal financial accounts, transactions, and balances.
+
+---
+
+## Service Coordinates
+
+| Property | Value |
+| :--- | :--- |
+| **Endpoint URL** | `https://api.farz.app/mcp` |
+| **Transport** | **Streamable HTTP** (SSE / JSON-RPC) |
+| **Authentication** | OAuth 2.0 with PKCE S256 |
+| **Access Model** | Read-Only |
+
+<Callout type="warn" title="Do Not Paste API Keys Into Chat Prompts">
+  Never paste your Clerk User API Key directly into a chat window or assistant prompt. MCP connections use an approved, out-of-band OAuth consent workflow with scoped permission grants.
+</Callout>
+
+---
+
+## Connecting Your Assistant
+
+<Steps>
+  <Step>
+    ### Add the Remote Server
+    In your MCP client settings (e.g. Claude Desktop or Cursor MCP settings), add a new remote server:
+    - **URL**: `https://api.farz.app/mcp`
+    - **Transport**: `Streamable HTTP`
+  </Step>
+
+  <Step>
+    ### Authorize via OAuth
+    When prompted by your client, complete the Farz OAuth redirect in your web browser. Review the requested read permissions and click **Authorize**.
+  </Step>
+
+  <Step>
+    ### Query Your Finances
+    Once connected, you can interact with your financial records naturally:
+    
+    > "List my Farz accounts and show me my current balances by currency."
+    
+    > "What were my top expense categories over the last 30 days?"
+  </Step>
+</Steps>
+
+---
+
+## MCP Session Lifecycle
+
+- **Transport Session**: The server utilizes standard `Mcp-Session-Id` headers to route stateful streaming connections.
+- **Disconnecting**: Ending a chat session closes the HTTP stream. To permanently revoke access, visit **Farz Settings → Connected Apps** to revoke the OAuth grant.
+- **Strict Read-Only Guarantee**: MCP tools do not execute payments, modify accounts, adjust transactions, or place trades.

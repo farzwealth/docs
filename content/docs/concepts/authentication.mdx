@@ -1,0 +1,54 @@
+---
+title: Authentication
+description: Learn how user API keys, Bearer tokens, and Clerk credentials authenticate your Farz integrations.
+---
+
+The Farz Public Developer API uses **Bearer token authentication**. Every request must include an authorized credential in the standard HTTP header:
+
+```http
+Authorization: Bearer <your_api_key_or_access_token>
+```
+
+---
+
+## User API Keys from Clerk
+
+Your primary authentication credentials are user API keys issued directly from your **Clerk account settings** within the Farz application.
+
+### Key Lifecycle & Policies
+
+- **Maximum Lifetime**: Farz enforces a maximum key lifetime of **90 days**. Keys expire automatically after this window.
+- **Paid Tier Requirement**: Access requires an active **Paid** Farz subscription. Upgrading or downgrading immediately impacts key validity; trials do not grant developer access.
+- **Single-Workspace Binding**: A user API key is cryptographically bound to your single personal workspace. It cannot access records belonging to other users or multi-user family/household vaults.
+- **Scope Restriction**: You define explicit read scopes at creation time. An API key can never perform operations beyond its issued permissions.
+
+<Callout type="warn" title="Credential Hygiene">
+  Never include your API key in client-side code bundles, mobile apps, Git repositories, or URL query parameters. Always supply it via runtime environment variables on a secure backend or private CLI environment.
+</Callout>
+
+---
+
+## Token Revocation & Rotation
+
+When rotating credentials:
+
+1. Generate a new User API Key in Clerk with the identical (or refined) scopes.
+2. Update your local environment variables or configuration secret.
+3. Test connectivity against `GET /profile`.
+4. Delete the previous key in your Clerk settings.
+
+<Callout type="info">
+  Revoking an API key takes effect immediately across all global edge points.
+</Callout>
+
+---
+
+## REST vs. MCP / OAuth Authentication
+
+| Integration Mode | Recommended Authentication | Typical Use Case |
+| :--- | :--- | :--- |
+| **Private Scripts & Backends** | User API Key (Clerk) | Custom dashboards, Python automations, data export pipelines |
+| **Model Context Protocol (MCP)** | OAuth 2.0 with PKCE S256 | Connecting Claude Desktop, Cursor, or remote agent assistants |
+| **Third-Party Connectors** | OAuth 2.0 with PKCE S256 | Delegated access without sharing static long-lived keys |
+
+For details on setting up OAuth connections, see the [OAuth Guide](/docs/oauth).

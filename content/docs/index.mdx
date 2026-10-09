@@ -1,98 +1,88 @@
 ---
-title: System Vision & Documentation Portal
-description: Multi-Store Retail & Central Warehouse Management System — Vision, Architecture, and Operational Specifications.
+title: Overview
+description: Introduction to the Farz Public Developer API, base URLs, contract status, and core capabilities.
 ---
 
-## Executive Overview
+Use the **Farz API** to read your personal accounts, transactions, assets, and financial reports from a private application. Get started with a user API key from your Clerk account settings, or connect an AI assistant with Model Context Protocol (MCP) and OAuth.
 
-Welcome to the **System Vision Document (SVD)** and operational specification repository for the **Multi-Store Retail & Central Warehouse Management Platform**. 
-
-This system unifies five retail store locations in Dubai with a central distribution hub at **Al Quoz Industrial Area**, eliminating inventory data lag, modernizing point-of-sale checkout through integrated payment terminals, and enforcing strict regulatory compliance under UAE Federal Tax Authority (FTA) mandates.
-
-<Callout type="info" title="Academic & Industry Alignment">
-  This documentation addresses the requirements for **Deliverable 1: System Vision Document**, incorporating rigorous problem formulation, an exhaustive capabilities matrix, traceable baseline assumptions, a mathematical financial return model in AED, and Harvard-formatted references.
+<Callout type="warn" title="Contract Status: Pre-release">
+  This guide describes the intended public API contract for the finished product. The developer REST and MCP surfaces are currently in active development. Endpoint paths, response models, and examples below represent proposed contracts; please confirm them against the published OpenAPI specification and release notes when the API becomes generally available.
 </Callout>
 
+## Service Coordinates
+
+| Property | Value |
+| :--- | :--- |
+| **REST Base URL** | `https://api.farz.app/api/developer/v1` |
+| **MCP URL** | `https://api.farz.app/mcp` |
+| **API Version** | `v1` |
+| **Access Model** | Read-only, single-user personal workspace |
+| **Last Updated** | 9 October 2026 |
+
 ---
 
-## Core Documentation Sections
+## Core Capabilities
+
+The Farz Public Developer API provides deterministic, read-only visibility into your financial life:
 
 <Cards>
-  <Card 
-    title="Problem Statement & Context" 
-    href="/docs/system-vision/problem-statement" 
-    description="Formal problem statement, stakeholder analysis, and operational bottlenecks across the five stores and Al Quoz warehouse." 
+  <Card
+    title="Accounts & Balances"
+    href="/docs/api/accounts"
+    description="Query bank accounts, cash, credit, and investment accounts with exact native balances."
   />
-  <Card 
-    title="System Capabilities" 
-    href="/docs/system-vision/capabilities" 
-    description="The ten core functional capabilities: real-time sync, POS terminal connectivity, RBAC, loyalty, and FTA tax engine." 
+  <Card
+    title="Transactions"
+    href="/docs/api/transactions"
+    description="Filter posted expenses, income, transfers, and split allocations across dates."
   />
-  <Card 
-    title="Business Benefits & Financials" 
-    href="/docs/system-vision/business-benefits" 
-    description="Reconciled time savings, AED financial model, tangible ROI, payback period, and intangible strategic benefits." 
+  <Card
+    title="Assets & Holdings"
+    href="/docs/api/assets"
+    description="Track property estimates, stock and crypto holdings, unit pricing, and tax lots."
   />
-  <Card 
-    title="Assumptions & References" 
-    href="/docs/system-vision/assumptions" 
-    description="Traceable baseline parameters, terminal counts, labor rates, and Harvard academic citations." 
+  <Card
+    title="Liabilities & Schedules"
+    href="/docs/api/liabilities"
+    description="Monitor loans, mortgages, financing schedules, and payment obligations."
+  />
+  <Card
+    title="Budgets & Goals"
+    href="/docs/api/budgets"
+    description="Track period spending limits, net remaining budget, and savings goal projections."
+  />
+  <Card
+    title="Valuations & Reports"
+    href="/docs/api/reports"
+    description="Inspect dated historical net worth snapshots, cashflow breakdowns, and performance."
   />
 </Cards>
 
 ---
 
-## Architecture & Workflows
+## Getting Started
+
+Follow the guides below to authenticate and build your first integration:
 
 <Cards>
-  <Card 
-    title="Multi-Store Sync Architecture" 
-    href="/docs/architecture/multi-store-sync" 
-    description="Hub-and-spoke topology, offline-first local database resilience, and conflict resolution rules." 
+  <Card
+    title="Quickstart Guide"
+    href="/docs/quickstart"
+    description="Generate a Clerk user API key and fetch your accounts in under 5 minutes."
   />
-  <Card 
-    title="Security & RBAC Matrix" 
-    href="/docs/architecture/security-rbac" 
-    description="5-tier role hierarchy, manager override authorization workflows, and audit trail specifications." 
+  <Card
+    title="Working with Your Data"
+    href="/docs/working-with-data"
+    description="Step-by-step tutorial for filtering transactions, handling pagination, and running Python readers."
   />
-  <Card 
-    title="UAE FTA & VAT Compliance" 
-    href="/docs/architecture/fta-vat-compliance" 
-    description="Statutory Tax Invoice formats, TRN validation, and automated FTA Audit File (FAF) generation." 
+  <Card
+    title="Connect an MCP Client"
+    href="/docs/mcp"
+    description="Connect Claude, Cursor, or remote MCP agents to query your finances with natural language."
   />
-  <Card 
-    title="Grading Rubric Audit" 
-    href="/docs/evaluation/rubric-audit" 
-    description="Complete traceability audit resolving all evaluative deductions from 8.2 to 10.0 standard." 
+  <Card
+    title="API Reference"
+    href="/docs/api/overview"
+    description="Detailed endpoint parameters, error codes, and complete JSON response schemas."
   />
 </Cards>
-
----
-
-## Operational Blueprint
-
-```mermaid
-graph TD
-    subgraph Central Operations
-        HQ[Central ERP & Cloud Ledger]
-        WH[Al Quoz Central Warehouse Hub]
-    end
-    subgraph Retail Outlets (Dubai)
-        S1[Store 1: Dubai Mall]
-        S2[Store 2: Mall of the Emirates]
-        S3[Store 3: City Centre Deira]
-        S4[Store 4: Dubai Hills]
-        S5[Store 5: Dubai Marina]
-    end
-    HQ <-->|Sub-Second Sync| WH
-    HQ <-->|Real-Time State| S1
-    HQ <-->|Real-Time State| S2
-    HQ <-->|Real-Time State| S3
-    HQ <-->|Real-Time State| S4
-    HQ <-->|Real-Time State| S5
-    WH -->|Scheduled Stock Transfers| S1
-    WH -->|Scheduled Stock Transfers| S2
-    WH -->|Scheduled Stock Transfers| S3
-    WH -->|Scheduled Stock Transfers| S4
-    WH -->|Scheduled Stock Transfers| S5
-```

@@ -1,0 +1,75 @@
+---
+title: Budgets
+description: Inspect category spending limits, posted expenses, and remaining budgets for any monthly period.
+---
+
+`GET /budgets`
+
+Read category budgets alongside exact posted spending and remaining amounts for a specified monthly period.
+
+---
+
+## Authorization
+
+- **Scope Required**: `budgets:read`
+- **Plan Requirement**: Active Paid subscription
+
+---
+
+## Query Parameters
+
+| Name | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `period` | date | **Yes** | The first day of the target month in `YYYY-MM-DD` format (e.g. `2026-10-01`). |
+| `category` | string | No | Exact category key filter (e.g. `dining`, `utilities`). |
+| `currency` | string | No | Filter by a specific supported launch currency code (e.g. `AED`). |
+| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
+| `cursor` | string | No | Continuation cursor from `next_cursor`. |
+
+---
+
+## Example Request
+
+```bash
+curl --fail-with-body --get \
+  "https://api.farz.app/api/developer/v1/budgets" \
+  -H "Authorization: Bearer $FARZ_API_KEY" \
+  -H 'Accept: application/json' \
+  --data-urlencode 'period=2026-10-01' \
+  --data-urlencode 'limit=50'
+```
+
+---
+
+## Example Response
+
+```json
+{
+  "items": [
+    {
+      "id": "55555555-5555-4555-8555-555555555555",
+      "revision": 2,
+      "period": "2026-10-01",
+      "category": "dining",
+      "amount": {
+        "amount": "2000.00",
+        "currency": "AED"
+      },
+      "spent": {
+        "amount": "850.25",
+        "currency": "AED"
+      },
+      "remaining": {
+        "amount": "1149.75",
+        "currency": "AED"
+      }
+    }
+  ],
+  "next_cursor": null,
+  "has_more": false
+}
+```
+
+<Callout type="info">
+  The `remaining` amount can be negative if period expenditures exceed the allocated category budget.
+</Callout>

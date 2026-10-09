@@ -1,0 +1,106 @@
+---
+title: Accounts
+description: List personal financial accounts and query individual account balances and metadata.
+---
+
+Manage and inspect bank accounts, cash wallets, credit balances, and investment accounts.
+
+---
+
+## 1. List Accounts
+
+`GET /accounts`
+
+Returns a paginated list of masked personal accounts, native currency balances, and reporting currency conversions.
+
+### Authorization
+- **Scope Required**: `accounts:read`
+- **Plan Requirement**: Active Paid subscription
+
+### Query Parameters
+
+| Name | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `kind` | string | No | Filter by account type: `bank`, `cash`, `credit`, or `investment`. |
+| `archived` | boolean | No | Filter by archived status (`true` or `false`). Omission includes both. |
+| `as_of` | date | No | Balance valuation date (`YYYY-MM-DD`). Defaults to current date. |
+| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
+| `cursor` | string | No | Opaque continuation cursor from `next_cursor`. |
+
+### Example Request
+
+```bash
+curl --fail-with-body --get \
+  "https://api.farz.app/api/developer/v1/accounts" \
+  -H "Authorization: Bearer $FARZ_API_KEY" \
+  -H 'Accept: application/json' \
+  --data-urlencode 'limit=20' \
+  --data-urlencode 'archived=false'
+```
+
+### Example Response
+
+```json
+{
+  "items": [
+    {
+      "id": "22222222-2222-4222-8222-222222222222",
+      "revision": 4,
+      "name": "Primary Checking",
+      "kind": "bank",
+      "masked_reference": "4021",
+      "archived": false,
+      "liquidity": "liquid",
+      "balance": {
+        "amount": "14820.50",
+        "currency": "AED"
+      },
+      "base_balance": {
+        "amount": "14820.50",
+        "currency": "AED"
+      },
+      "valuation": {
+        "as_of": "2026-10-10",
+        "timezone": "Asia/Dubai",
+        "freshness": "current",
+        "source": "recorded_balance",
+        "fx_legs": [],
+        "warnings": []
+      }
+    }
+  ],
+  "next_cursor": null,
+  "has_more": false
+}
+```
+
+---
+
+## 2. Get an Account
+
+`GET /accounts/{account_id}`
+
+Retrieves a single authorized personal account by its UUID.
+
+### Path Parameters
+
+| Name | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `account_id` | UUID | **Yes** | The account identifier. |
+
+### Query Parameters
+
+| Name | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `as_of` | date | No | Balance valuation date (`YYYY-MM-DD`). |
+
+### Example Request
+
+```bash
+curl --fail-with-body \
+  "https://api.farz.app/api/developer/v1/accounts/22222222-2222-4222-8222-222222222222" \
+  -H "Authorization: Bearer $FARZ_API_KEY" \
+  -H 'Accept: application/json'
+```
+
+Returns a single [Account](/docs/api/schemas#account) JSON object with HTTP status `200 OK`.

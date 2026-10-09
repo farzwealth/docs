@@ -1,0 +1,200 @@
+---
+title: Working with Your Data
+description: Step-by-step guides for querying accounts, filtering transactions, traversing cursors, and writing Python readers.
+---
+
+Once you have completed the [Quickstart](/docs/quickstart), use these workflows to query specific records, filter date ranges, follow pagination, and automate reads with Python.
+
+---
+
+## 1. Retrieve a Single Account
+
+To inspect a specific account by its UUID, pass the identifier in the URL path:
+
+```bash
+read -r -p 'Paste one of your account IDs: ' FARZ_ACCOUNT_ID
+export FARZ_ACCOUNT_ID
+
+curl --fail-with-body \
+  "$FARZ_API_BASE/accounts/$FARZ_ACCOUNT_ID" \
+  -H "Authorization: Bearer $FARZ_API_KEY" \
+  -H 'Accept: application/json'
+```
+
+<Callout type="info">
+  Single-resource reads return a single JSON object (not wrapped in `items: []`). If you receive a `404 NOT_FOUND`, confirm the UUID belongs to your personal workspace. Shared household records cannot be queried through the personal API.
+</Callout>
+
+---
+
+## 2. Filter Transactions by Date & Type
+
+Transaction queries require inclusive `start` and `end` dates (maximum span: 366 calendar days):
+
+```bash
+export FARZ_START='2026-10-01'
+export FARZ_END='2026-10-10'
+
+curl --fail-with-body --get \
+  "$FARZ_API_BASE/transactions" \
+  -H "Authorization: Bearer $FARZ_API_KEY" \
+  -H 'Accept: application/json' \
+  --data-urlencode "start=$FARZ_START" \
+  --data-urlencode "end=$FARZ_END" \
+  --data-urlencode "account_id=$FARZ_ACCOUNT_ID" \
+  --data-urlencode 'limit=50'
+```
+
+### Filtering by Type
+
+To isolate expenses from income, adjustments, and transfers:
+
+```bash
+curl --fail-with-body --get \
+  "$FARZ_API_BASE/transactions" \
+  -H "Authorization: Bearer $FARZ_API_KEY" \
+  -H 'Accept: application/json' \
+  --data-urlencode "start=$FARZ_START" \
+  --data-urlencode "end=$FARZ_END" \
+  --data-urlencode "account_id=$FARZ_ACCOUNT_ID" \
+  --data-urlencode 'type=expense' \
+  --data-urlencode 'limit=50'
+```
+
+<Callout type="tip">
+  Transfers are tracked separately and do not represent ordinary income or spending. Draft transactions and future projections do not appear in the posted transactions endpoint.
+</Callout>
+
+---
+
+## 3. Retrieve the Next Page with Cursors
+
+When a response returns `"has_more": true`, copy the value of `next_cursor` (without quotation marks) and pass it in the `cursor` query parameter:
+
+```bash
+read -r -p 'Paste next_cursor from your previous response: ' FARZ_NEXT_CURSOR
+
+curl --fail-with-body --get \
+  "$FARZ_API_BASE/transactions" \
+  -H "Authorization: Bearer $FARZ_API_KEY" \
+  -H 'Accept: application/json' \
+  --data-urlencode "start=$FARZ_START" \
+  --data-urlencode "end=$FARZ_END" \
+  --data-urlencode "account_id=$FARZ_ACCOUNT_ID" \
+  --data-urlencode 'limit=50' \
+  --data-urlencode "cursor=$FARZ_NEXT_CURSOR"
+```
+
+<Callout type="warn">
+  Never modify or decode the cursor string. Cursors represent an immutable snapshot boundary tied to your original filter parameters. If you change filters, restart your query from the beginning without a cursor.
+</Callout>
+
+---
+
+## 4. Read Accounts with Python
+
+To automate pagination and sum account balances safely without floating-point inaccuracies, use `httpx` and Python's standard `Decimal` library:
+
+### Setup Environment
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install httpx
+```
+
+### Python Script (`read_accounts.py`)
+
+```python
+import os
+from decimal import Decimal, localcontext
+import httpx
+
+headers = {
+    "Authorization": f"Bearer {os.environ['FARZ_API_KEY']}",
+    "Accept": "application/json",
+}
+cursor = None
+seen = set()
+totals = {}
+
+with localcontext() as arithmetic, httpx.Client(
+    base_url="https://api.farz.app/api/developer/v1/",
+    headers=headers,
+    timeout=20,
+) as client:
+    arithmetic.prec = 80
+    while True:
+        params = {"limit": 50}
+        if cursor is not None:
+            params["cursor"] = cursor
+        response = client.get("accounts", params=params)
+        response.raise_for_status()
+        page = response.json()
+        
+        for account in page["items"]:
+            if account["id"] in seen:
+                continue
+            seen.add(account["id"])
+            money = account["balance"]
+            currency = money["currency"]
+            totals[currency] = totals.get(currency, Decimal("0")) + Decimal(money["amount"])
+            
+        cursor = page["next_cursor"]
+        if cursor is None:
+            break
+
+# Print aggregated summary safely without leaking raw balances
+print(f"Read {len(seen)} accounts across {len(totals)} native currencies.")
+```
+
+Run the script:
+
+```bash
+python read_accounts.py
+```
+
+---
+
+## 5. Request Summaries & Reports
+
+For a portfolio-wide summary, your API key requires `reports:read`, `accounts:read`, `assets:read`, and `liabilities:read`:
+
+```bash
+curl --fail-with-body --get \
+  "$FARZ_API_BASE/summary" \
+  -H "Authorization: Bearer $FARZ_API_KEY" \
+  -H 'Accept: application/json' \
+  --data-urlencode 'domains=accounts,assets,liabilities' \
+  --data-urlencode "as_of=$FARZ_END"
+```
+
+### Generating Transaction Reports
+
+To fetch aggregated report rows:
+
+```bash
+curl --fail-with-body --get \
+  "$FARZ_API_BASE/reports" \
+  -H "Authorization: Bearer $FARZ_API_KEY" \
+  -H 'Accept: application/json' \
+  --data-urlencode 'kind=transactions' \
+  --data-urlencode "start=$FARZ_START" \
+  --data-urlencode "end=$FARZ_END" \
+  --data-urlencode "account_id=$FARZ_ACCOUNT_ID" \
+  --data-urlencode 'limit=50'
+```
+
+---
+
+## 6. Close Your Session
+
+When you have completed your integration session, clean up your environment variables:
+
+```bash
+unset FARZ_API_KEY FARZ_API_BASE FARZ_ACCOUNT_ID FARZ_START FARZ_END FARZ_NEXT_CURSOR
+```
+
+<Callout type="info">
+  Clearing your local terminal environment does not revoke your key. When a script or integration is decommissioned, return to your **Clerk Account Settings** to permanently revoke the token.
+</Callout>

@@ -1,0 +1,17 @@
+{
+  "title": "REST API Reference",
+  "pages": [
+    "overview",
+    "profile",
+    "summary",
+    "accounts",
+    "transactions",
+    "assets",
+    "liabilities",
+    "budgets",
+    "goals",
+    "valuations",
+    "reports",
+    "schemas"
+  ]
+}

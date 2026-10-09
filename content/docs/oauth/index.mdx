@@ -1,0 +1,153 @@
+---
+title: OAuth 2.0 Integration
+description: Connect user agents and third-party applications to Farz using OAuth 2.0 with PKCE S256.
+---
+
+Farz provides RFC 8414-compliant OAuth 2.0 authorization for client applications, browser-based tools, and Model Context Protocol (MCP) clients.
+
+<Callout type="info" title="Grant Type Support">
+  Farz supports the **Authorization Code flow with PKCE (RFC 7636)**. 
+  
+  For security reasons, `client_credentials`, resource owner password credentials (`password`), and `implicit` grants are strictly **not supported**.
+</Callout>
+
+---
+
+## Protected Resource Discovery
+
+Clients should discover endpoint capabilities dynamically via RFC 9207 / RFC 8414 Protected Resource Metadata:
+
+| Resource | Discovery URL |
+| :--- | :--- |
+| **REST API** | `https://api.farz.app/.well-known/oauth-protected-resource/api/developer/v1` |
+| **MCP Server** | `https://api.farz.app/.well-known/oauth-protected-resource/mcp` |
+
+### Resource Identifiers
+
+When initiating OAuth authorization, pass the exact canonical `resource` parameter corresponding to the surface you are requesting:
+- **REST**: `https://api.farz.app/api/developer/v1`
+- **MCP**: `https://api.farz.app/mcp`
+
+<Callout type="warn" title="Do Not Hardcode Unpublished OAuth Paths">
+  The actual authorization, token, and revocation endpoints are resolved dynamically from the advertised issuer metadata discovered above. Do not hardcode internal endpoints.
+</Callout>
+
+---
+
+## 1. Authorization Request
+
+Direct the user's browser to the discovered authorization URL with the following query parameters:
+
+| Parameter | Value / Description |
+| :--- | :--- |
+| `response_type` | `code` (Fixed) |
+| `client_id` | Your approved registered client ID |
+| `redirect_uri` | Exact registered redirect URI |
+| `scope` | Space-separated list of read scopes (e.g. `accounts:read transactions:read`) |
+| `state` | Cryptographically random, unguessable state string (verified upon return) |
+| `code_challenge` | Base64URL-encoded SHA-256 hash of your generated `code_verifier` |
+| `code_challenge_method` | `S256` (Mandatory) |
+| `resource` | Canonical resource URI (`https://api.farz.app/api/developer/v1` or `https://api.farz.app/mcp`) |
+
+### Example Authorization URL
+
+```http
+GET https://auth.farz.app/oauth/authorize?
+  response_type=code
+  &client_id=client_01J8F9...
+  &redirect_uri=https%3A%2F%2Fmyapp.com%2Foauth%2Fcallback
+  &scope=accounts%3Aread%20transactions%3Aread
+  &state=xyzSecureRandomState123
+  &code_challenge=E9Melhoa2OwvFrGMTJguCH5rtG64DTb3Ag6...
+  &code_challenge_method=S256
+  &resource=https%3A%2F%2Fapi.farz.app%2Fapi%2Fdeveloper%2Fv1 HTTP/1.1
+Host: auth.farz.app
+```
+
+The user signs in to Farz, passes multi-factor verification if required, and reviews the client name, privacy disclosure, and explicitly requested scopes before granting access.
+
+---
+
+## 2. Token Exchange
+
+Upon authorization, the user is redirected to your `redirect_uri` with `code` and `state`:
+
+1. Validate that the returned `state` matches your saved session state.
+2. Send a `POST` request with `Content-Type: application/x-www-form-urlencoded` to the discovered token endpoint.
+
+```http
+POST /oauth/token HTTP/1.1
+Host: auth.farz.app
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code
+&code=SplxlOBeZQQYbYS6WxSbIA
+&client_id=client_01J8F9...
+&redirect_uri=https%3A%2F%2Fmyapp.com%2Foauth%2Fcallback
+&code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk
+&resource=https%3A%2F%2Fapi.farz.app%2Fapi%2Fdeveloper%2Fv1
+```
+
+### Successful Token Response
+
+```json
+{
+  "access_token": "farz_at_01J9...",
+  "token_type": "Bearer",
+  "expires_in": 900,
+  "scope": "accounts:read transactions:read",
+  "refresh_token": "farz_rt_01J9..."
+}
+```
+
+- **`access_token`**: Short-lived opaque Bearer token (typically expires in 900 seconds / 15 minutes).
+- **`refresh_token`**: Single-use rotating refresh token used to request new access tokens.
+
+---
+
+## 3. Refreshing Access Tokens
+
+When an access token expires, use the refresh token to obtain a new pair:
+
+```http
+POST /oauth/token HTTP/1.1
+Host: auth.farz.app
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=refresh_token
+&refresh_token=farz_rt_01J9...
+&client_id=client_01J8F9...
+&resource=https%3A%2F%2Fapi.farz.app%2Fapi%2Fdeveloper%2Fv1
+```
+
+<Callout type="warn" title="Atomic Refresh Token Rotation">
+  Farz enforces strict refresh token rotation. Each refresh token can only be used once. Store the new `refresh_token` and `access_token` atomically and discard the previous token immediately.
+</Callout>
+
+---
+
+## 4. Revocation & Disconnection
+
+Tokens can be revoked by sending a request to the discovered revocation endpoint, or by the user directly within **Farz Settings → Connected Apps**.
+
+- Revocation is **non-enumerating**: a `200 OK` response acknowledges revocation without revealing whether the credential existed.
+- Revocation, subscription lapse, or account closure permanently disables all active access tokens and refresh tokens.
+
+---
+
+## Error Handling
+
+OAuth errors conform to RFC 6749 standard error responses (they are **not** wrapped in the REST `ApiError` format):
+
+```json
+{
+  "error": "invalid_grant",
+  "error_description": "The authorization code has expired or has already been consumed."
+}
+```
+
+Common error codes:
+- `invalid_request`: Missing required parameters or malformed syntax.
+- `invalid_grant`: Code/verifier mismatch, expired code, or consumed refresh token.
+- `invalid_scope`: Requested scope exceeds approved client permissions.
+- `access_denied`: The user declined the authorization request.

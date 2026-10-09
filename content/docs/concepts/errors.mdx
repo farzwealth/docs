@@ -1,0 +1,53 @@
+---
+title: Error Handling & Status Codes
+description: Understand the standardized API error envelope, error codes, and recovery procedures.
+---
+
+When an API call fails, the gateway responds with an appropriate HTTP error status code and a standardized JSON `ApiError` envelope.
+
+---
+
+## The Error Envelope
+
+```json
+{
+  "code": "INSUFFICIENT_SCOPE",
+  "message": "This request requires accounts:read.",
+  "request_id": "11111111-1111-4111-8111-111111111111",
+  "field_errors": [],
+  "retry": false
+}
+```
+
+### Schema Attributes
+
+- **`code`**: A stable, machine-readable uppercase error string.
+- **`message`**: A human-readable description of the error.
+- **`request_id`**: A unique UUID identifying the request across backend logs. Include this ID when contacting support.
+- **`field_errors`**: An array of parameter validation issues with `field` and `message` properties (e.g. `[{"field": "query.end", "message": "Invalid date range"}]`).
+- **`retry`**: Boolean advisory indicating if immediate exponential backoff retry may succeed.
+
+---
+
+## Error Code Reference
+
+| HTTP Status | Error Code | Description & Recovery Guidance |
+| :--- | :--- | :--- |
+| **401** | `UNAUTHENTICATED` | The user API key is invalid, missing, revoked, or expired. Re-authenticate via Clerk. |
+| **403** | `PAID_REQUIRED` | The account is on a Free or Trial plan. Upgrade to an active Paid plan. |
+| **403** | `INSUFFICIENT_SCOPE` | The token lacks one or more required permissions. Issue a key with the needed scopes. |
+| **403** | `ACCESS_RESTRICTED` | Account access has been limited by security or administrative policies. |
+| **404** | `NOT_FOUND` | The requested resource ID does not exist in your personal workspace. Foreign records are never disclosed. |
+| **409** | `CURSOR_EXPIRED` | The pagination cursor is no longer valid. Restart the query without a cursor. |
+| **409** | `CURSOR_MISMATCH` | Filter parameters were modified mid-traversal. Restart the query from the beginning. |
+| **422** | `INVALID_INPUT` | Parameter formatting or date range constraints violated. Check `field_errors`. |
+| **429** | `RATE_LIMITED` | Request threshold exceeded. Check the `Retry-After` header before retrying. |
+| **503** | `UNAVAILABLE` | Gateway or backend service unavailable. Retry with bounded exponential backoff. |
+
+---
+
+## Confidentiality Guarantees
+
+<Callout type="info" title="Opaque Security Responses">
+  To prevent enumeration and privacy leaks, requesting an ID belonging to another user or an inaccessible shared household vault returns a standard `404 NOT_FOUND` rather than a `403 FORBIDDEN`. The API never confirms the existence of records outside your personal workspace.
+</Callout>

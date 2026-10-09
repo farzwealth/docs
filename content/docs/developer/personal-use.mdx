@@ -1,0 +1,52 @@
+---
+title: Personal Use & Privacy Guidelines
+description: Developer guidelines for personal data handling, security boundaries, and permitted API usage.
+---
+
+The Farz Developer API is designed exclusively for personal financial automation, self-hosted analytics, and private AI assistant integrations. 
+
+Review these policies to ensure your applications handle personal wealth data responsibly and securely.
+
+---
+
+## Permitted & Prohibited Use Cases
+
+<Accordions>
+  <Accordion title="Permitted Use Cases">
+    - **Personal Financial Dashboards**: Syncing your accounts and investments to private self-hosted tools (e.g. Grafana, private PostgreSQL instances, custom scripts).
+    - **Personal AI Workflows**: Connecting your personal AI assistant (Claude Desktop, Cursor, local agent runners) via MCP to query your personal balances.
+    - **Automated Bookkeeping**: Exporting tax and income transaction records to personal spreadsheets or local files.
+  </Accordion>
+
+  <Accordion title="Strictly Prohibited Activities">
+    - **Multi-Tenant SaaS / Commercial Pooling**: You may not build a commercial application that routes multiple end-users through a single Farz developer subscription or user API key.
+    - **Reselling or White-Labeling**: You may not redistribute, repackage, or re-brand Farz data services.
+    - **Public Credential Embedding**: Never embed personal API keys in open-source repositories, mobile app packages, client-side browser extensions, or public web applications.
+    - **Credential Sublicensing**: User API keys are non-transferable and strictly tied to your authenticated Clerk account.
+  </Accordion>
+</Accordions>
+
+---
+
+## Data Handling & Security Standards
+
+### 1. Transport & Storage Security
+- **Strict HTTPS**: All traffic must occur over TLS 1.3/1.2. Unencrypted plain HTTP requests will be refused.
+- **Client Credential Secrecy**: User API keys and OAuth tokens must be stored in secure operating system keyrings, encrypted environment stores, or dedicated vault services.
+- **Sanitized Logging**: Ensure application logs never record authorization headers, raw API keys, OAuth tokens, or bank account numbers.
+
+### 2. Client-Side & Browser Applications
+- If you build a browser-based extension or single-page web app, **never hardcode a Clerk User API key**.
+- Browser clients must authenticate via the **OAuth 2.0 PKCE flow** using registered, verified redirect origins.
+
+### 3. Data Retention & Privacy Boundaries
+- Financial records retrieved via the API must not be sent to unreviewed third-party data aggregators, public analytics pipelines, or unauthenticated cloud buckets.
+- Implement data retention limits on locally cached financial records.
+
+---
+
+## Disconnection & Data Deletion
+
+- **Revoking Access**: You can revoke individual API keys at any time in Clerk Account Settings, or disconnect authorized OAuth / MCP clients under **Farz Settings → Connected Apps**.
+- **Data Persistence**: Disconnecting an application immediately blocks all future API requests. It does not delete historical data already downloaded to your local script, database, or external client.
+- **Account Deletion**: Farz's global data deletion and export workflows remain available in the app settings, allowing you to permanently wipe all cloud data upon request.

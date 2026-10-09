@@ -1,0 +1,90 @@
+---
+title: Valuation History
+description: Inspect immutable historical net worth snapshots, correction revisions, and asset/liability valuations.
+---
+
+`GET /valuations`
+
+Reads original, immutable monthly portfolio valuation snapshots and correction lineage without recomputing against present-day market prices.
+
+---
+
+## Authorization
+
+- **Scope Required**: `valuations:read`
+- **Plan Requirement**: Active Paid subscription
+
+---
+
+## Query Parameters
+
+| Name | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `start` | date | **Yes** | Inclusive beginning of saved cutoff date range (`YYYY-MM-DD`). |
+| `end` | date | **Yes** | Inclusive end of saved cutoff date range (`YYYY-MM-DD`). Max range: **366 calendar days**. |
+| `period` | date | No | First-of-month date matching the selected range (`YYYY-MM-DD`). |
+| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
+| `cursor` | string | No | Continuation cursor from `next_cursor`. |
+
+---
+
+## Example Request
+
+```bash
+curl --fail-with-body --get \
+  "https://api.farz.app/api/developer/v1/valuations" \
+  -H "Authorization: Bearer $FARZ_API_KEY" \
+  -H 'Accept: application/json' \
+  --data-urlencode 'start=2026-01-01' \
+  --data-urlencode 'end=2026-10-10' \
+  --data-urlencode 'limit=50'
+```
+
+---
+
+## Example Response
+
+```json
+{
+  "items": [
+    {
+      "id": "77777777-7777-4777-8777-777777777777",
+      "revision": 1,
+      "period": "2026-09-01",
+      "through": "2026-09-30",
+      "recorded_at": "2026-10-01T00:05:00Z",
+      "previous_snapshot_id": null,
+      "reason": "monthly_close",
+      "total_assets": {
+        "amount": "430000.00",
+        "currency": "AED"
+      },
+      "total_liabilities": {
+        "amount": "125000.00",
+        "currency": "AED"
+      },
+      "net_worth": {
+        "amount": "305000.00",
+        "currency": "AED"
+      },
+      "coverage_percent": "100.0",
+      "contributions": [],
+      "excluded": [],
+      "valuation": {
+        "as_of": "2026-09-30",
+        "timezone": "Asia/Dubai",
+        "freshness": "current",
+        "source": "recorded_snapshot",
+        "fx_legs": [],
+        "warnings": []
+      }
+    }
+  ],
+  "next_cursor": null,
+  "has_more": false
+}
+```
+
+<Callout type="info">
+  Valuation snapshots preserve the exact market prices and exchange rates that were active on the historical cutoff date. They are never updated retroactively with modern market data.
+</Callout>

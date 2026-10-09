@@ -1,0 +1,100 @@
+---
+title: Transactions
+description: Query posted financial transactions, filter by date ranges and types, and retrieve individual entries.
+---
+
+Query posted transactions, inspect categorized spending and income, and track transfers between accounts.
+
+---
+
+## 1. List Transactions
+
+`GET /transactions`
+
+Returns a paginated list of posted transactions within a date range.
+
+### Authorization
+- **Scope Required**: `transactions:read`
+- **Plan Requirement**: Active Paid subscription
+
+### Query Parameters
+
+| Name | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `start` | date | **Yes** | Inclusive start date (`YYYY-MM-DD`). |
+| `end` | date | **Yes** | Inclusive end date (`YYYY-MM-DD`). Max range: **366 calendar days**. |
+| `account_id` | UUID | No | Filter by an account you own. Transfers match either participating account. |
+| `type` | string | No | Filter by type: `opening`, `income`, `expense`, `transfer`, `adjustment`, `refund`, `debt_principal`, `investment`, `reversal`. |
+| `category` | string | No | Exact category key (e.g. `groceries`, `housing`). |
+| `reviewed` | boolean | No | Filter by user-reviewed status. |
+| `reversed` | boolean | No | Filter by reversal status. |
+| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
+| `cursor` | string | No | Opaque continuation cursor from `next_cursor`. |
+
+### Example Request
+
+```bash
+curl --fail-with-body --get \
+  "https://api.farz.app/api/developer/v1/transactions" \
+  -H "Authorization: Bearer $FARZ_API_KEY" \
+  -H 'Accept: application/json' \
+  --data-urlencode 'start=2026-10-01' \
+  --data-urlencode 'end=2026-10-10' \
+  --data-urlencode 'type=expense' \
+  --data-urlencode 'limit=50'
+```
+
+### Example Response
+
+```json
+{
+  "items": [
+    {
+      "id": "33333333-3333-4333-8333-333333333333",
+      "revision": 1,
+      "account_id": "22222222-2222-4222-8222-222222222222",
+      "destination_account_id": null,
+      "type": "expense",
+      "description": "Weekly Groceries",
+      "occurred_on": "2026-10-09",
+      "amount": {
+        "amount": "142.50",
+        "currency": "AED"
+      },
+      "category": "groceries",
+      "allocations": [],
+      "tags": [],
+      "reviewed": true,
+      "reversed": false,
+      "reversal_of": null
+    }
+  ],
+  "next_cursor": null,
+  "has_more": false
+}
+```
+
+---
+
+## 2. Get a Transaction
+
+`GET /transactions/{entry_id}`
+
+Retrieves a single posted transaction entry and its detailed category allocations and tags.
+
+### Path Parameters
+
+| Name | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `entry_id` | UUID | **Yes** | The transaction entry identifier. |
+
+### Example Request
+
+```bash
+curl --fail-with-body \
+  "https://api.farz.app/api/developer/v1/transactions/33333333-3333-4333-8333-333333333333" \
+  -H "Authorization: Bearer $FARZ_API_KEY" \
+  -H 'Accept: application/json'
+```
+
+Returns a single [Transaction](/docs/api/schemas#transaction) JSON object with HTTP status `200 OK`.

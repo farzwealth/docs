@@ -1,0 +1,143 @@
+---
+title: Quickstart
+description: Create a user API key in Clerk, configure your terminal, and make your first read request to the Farz API.
+---
+
+Create a user API key, configure your terminal, and request your accounts. All requests are strictly read-only. Example responses below use synthetic data; use IDs and balances returned by your own live requests.
+
+---
+
+## 1. Before You Begin
+
+Ensure you have the following prerequisites ready:
+
+- **Active Paid Farz Account**: Free and Trial accounts do not include developer API or MCP access.
+- **Clerk Account Settings Access**: User API keys are provisioned directly in your Clerk profile settings for Farz.
+- **Terminal with curl**: A Bash, Zsh, or compatible shell (Git Bash or WSL on Windows).
+- **Python 3 (Optional)**: If you wish to run the automated [account reader script](/docs/working-with-data#read-accounts-with-python).
+
+<Callout type="info">
+  Open Farz and verify that you have at least one account created. If your portfolio is empty, you can still authenticate and receive an empty `items: []` list.
+</Callout>
+
+---
+
+## 2. Create an API Key
+
+<Steps>
+  <Step>
+    ### Open Clerk Profile Settings
+    In the Farz application, navigate to your **Account Settings** (powered by Clerk), then select the **Developer API Keys** controls.
+  </Step>
+
+  <Step>
+    ### Name Your Key
+    Create a new key and assign it a descriptive label (e.g., `Personal CLI Dashboard`).
+  </Step>
+
+  <Step>
+    ### Select Scopes
+    Select the minimum read permissions needed to get started:
+
+    | Scope | Access Granted |
+    | :--- | :--- |
+    | `accounts:read` | List accounts and read balances |
+    | `transactions:read` | Read posted transactions |
+  </Step>
+
+  <Step>
+    ### Set Expiration & Copy Secret
+    Choose an expiry duration within Farz's allowable maximum of **90 days**. Complete any step-up identity verification, then copy the generated secret into your secure password manager or runtime environment.
+  </Step>
+</Steps>
+
+<Callout type="warn">
+  Always use your personal **User API Key**. A Clerk application secret key, publishable key, or standard web session token will be rejected by the developer gateway.
+</Callout>
+
+---
+
+## 3. Configure Your Terminal
+
+Paste this command into your terminal to securely export your environment variables:
+
+```bash
+export FARZ_API_BASE='https://api.farz.app/api/developer/v1'
+read -r -s -p 'Paste your Farz user API key: ' FARZ_API_KEY
+printf '\n'
+export FARZ_API_KEY
+```
+
+Paste your key when prompted and press Enter. The silent prompt prevents your key from leaking into your terminal history or screen buffer.
+
+---
+
+## 4. Make Your First Request
+
+Run the following command to retrieve up to 20 of your own accounts:
+
+```bash
+curl --fail-with-body --include \
+  "$FARZ_API_BASE/accounts?limit=20" \
+  -H "Authorization: Bearer $FARZ_API_KEY" \
+  -H 'Accept: application/json'
+```
+
+Look for HTTP status **`200 OK`**. A successful response body resembles:
+
+```json
+{
+  "items": [
+    {
+      "id": "22222222-2222-4222-8222-222222222222",
+      "revision": 4,
+      "name": "Personal Cash",
+      "kind": "cash",
+      "masked_reference": "",
+      "archived": false,
+      "liquidity": "liquid",
+      "balance": {
+        "amount": "1250.00",
+        "currency": "AED"
+      },
+      "base_balance": {
+        "amount": "1250.00",
+        "currency": "AED"
+      },
+      "valuation": {
+        "as_of": "2026-10-10",
+        "timezone": "Asia/Dubai",
+        "freshness": "current",
+        "source": "recorded_balance",
+        "fx_legs": [],
+        "warnings": []
+      }
+    }
+  ],
+  "next_cursor": null,
+  "has_more": false
+}
+```
+
+### Understanding the Response
+
+1. **`items`**: Contains your array of Account objects. `[]` indicates success with no matching records.
+2. **`id`**: Unique UUID for this account, used when fetching single resources.
+3. **`balance.amount`**: A decimal **string** (e.g. `"1250.00"`) paired with its native `currency`. Never parse this as a float.
+4. **`base_balance`**: Converted amount in your reporting currency. If currency conversion is missing, this is `null` (not zero).
+5. **`valuation`**: Describes the date, timezone, freshness, and calculation lineage.
+6. **`next_cursor` & `has_more`**: Pagination indicators. `null` and `false` mean you have reached the end of the collection.
+
+---
+
+## Troubleshooting First Requests
+
+If your request fails, consult this resolution table:
+
+| Status & Code | Likely Cause | Solution |
+| :--- | :--- | :--- |
+| `401 UNAUTHENTICATED` | Invalid, expired, or revoked API key | Re-generate your key in Clerk and re-export `FARZ_API_KEY`. |
+| `403 PAID_REQUIRED` | Account is on Free or Trial tier | Ensure your Farz subscription is on an active Paid plan. |
+| `403 INSUFFICIENT_SCOPE` | Missing `accounts:read` scope | Issue a new key in Clerk with `accounts:read` selected. |
+| `429 RATE_LIMITED` | Throttling threshold exceeded | Wait for the number of seconds in the `Retry-After` header. |
+| `503 UNAVAILABLE` | Service maintenance or pre-release hold | Implement exponential backoff and check API status. |

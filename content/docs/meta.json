@@ -1,16 +1,17 @@
 {
-  "title": "Documentation",
+  "title": "Farz Developer Docs",
   "pages": [
     "index",
-    "---System Vision Document---",
-    "system-vision",
-    "---Architecture---",
-    "architecture",
-    "---Operations & Workflows---",
-    "operations",
-    "---Audit & Rubric---",
-    "evaluation",
-    "---Developer Tools---",
-    "components"
+    "quickstart",
+    "working-with-data",
+    "---Architecture & Concepts---",
+    "concepts",
+    "---REST API---",
+    "api",
+    "---Integrations---",
+    "mcp",
+    "oauth",
+    "---SDKs & Guides---",
+    "developer"
   ]
 }

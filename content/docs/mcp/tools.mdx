@@ -1,0 +1,201 @@
+---
+title: MCP Tools Reference
+description: Complete specification of all 9 read-only Model Context Protocol (MCP) tools provided by Farz.
+---
+
+Farz exposes **9 dedicated tools** over the Model Context Protocol endpoint (`https://api.farz.app/mcp`). 
+
+All tools return the exact same public data transfer objects (DTOs), strict own-only visibility boundaries, and precision conventions as the REST API. Unknown input arguments are rejected with a validation error.
+
+<Callout type="info" title="Strict Read-Only Enforcement">
+  MCP tools can never create transactions, modify balances, initiate bank transfers, place trades, or invoke Farz's internal generative AI features. They are purely deterministic data querying functions.
+</Callout>
+
+---
+
+## Tool Directory
+
+| Tool | Inputs | Required Scopes | Output Model |
+| :--- | :--- | :--- | :--- |
+| [`get_financial_summary`](#get_financial_summary) | `domains` (array), `as_of` (date) | `reports:read` + selected domains | `FinancialSummary` |
+| [`list_accounts`](#list_accounts) | `limit`, `cursor`, `kind`, `archived`, `as_of` | `accounts:read` | `Page<Account>` |
+| [`list_transactions`](#list_transactions) | `start`, `end`, `limit`, `cursor`, `account_id`, `type`, `category`, `reviewed`, `reversed` | `transactions:read` | `Page<Transaction>` |
+| [`list_assets`](#list_assets) | `limit`, `cursor`, `kind`, `as_of` | `assets:read` | `Page<Asset>` |
+| [`list_liabilities`](#list_liabilities) | `limit`, `cursor`, `kind`, `active`, `as_of` | `liabilities:read` | `Page<Liability>` |
+| [`get_budget`](#get_budget) | `period`, `limit`, `cursor`, `category`, `currency` | `budgets:read` | `Page<Budget>` |
+| [`list_goals`](#list_goals) | `limit`, `cursor`, `active` | `goals:read` | `Page<Goal>` |
+| [`get_valuation_history`](#get_valuation_history) | `start`, `end`, `limit`, `cursor`, `period` | `valuations:read` | `Page<ValuationSnapshot>` |
+| [`get_report_data`](#get_report_data) | `kind`, `start`, `end`, `limit`, `cursor`, `account_id`, `currency` | `reports:read` + kind-specific scopes | `Page<ReportRow>` |
+
+---
+
+## Detailed Tool Specifications
+
+### `get_financial_summary`
+
+Fetches a consolidated cross-domain snapshot across requested financial dimensions for a specific date.
+
+- **Required Scope**: `reports:read` AND the scopes corresponding to each domain in `domains`.
+- **Inputs**:
+  - `domains` *(string array, required)*: Domains to compute. Allowed values: `accounts`, `assets`, `liabilities`, `net_worth`.
+  - `as_of` *(string, optional)*: ISO 8601 date (`YYYY-MM-DD`). Defaults to current date. Cannot be more than 366 days in the past or future.
+- **Output**: [`FinancialSummary`](/docs/api/schemas#financialsummary)
+
+```json title="Example Tool Arguments"
+{
+  "domains": ["accounts", "assets", "liabilities", "net_worth"],
+  "as_of": "2026-10-10"
+}
+```
+
+---
+
+### `list_accounts`
+
+Lists liquid cash accounts, checking, savings, wallets, and custody cash balances.
+
+- **Required Scope**: `accounts:read`
+- **Inputs**:
+  - `limit` *(integer, optional)*: Results per page (1–100, default `50`).
+  - `cursor` *(string, optional)*: Opaque pagination cursor.
+  - `kind` *(string, optional)*: Filter by account type (`checking`, `savings`, `cash_wallet`, `brokerage_cash`, `custody`).
+  - `archived` *(boolean, optional)*: Include archived accounts (`false` by default).
+  - `as_of` *(string, optional)*: Date for historical balance computation (`YYYY-MM-DD`).
+- **Output**: `Page<Account>` (See [`Account` schema](/docs/api/schemas#account))
+
+---
+
+### `list_transactions`
+
+Retrieves itemized double-entry transaction records over a specific date window.
+
+- **Required Scope**: `transactions:read`
+- **Inputs**:
+  - `start` *(string, required)*: Start date (`YYYY-MM-DD`).
+  - `end` *(string, required)*: End date (`YYYY-MM-DD`). Range cannot exceed 366 days.
+  - `limit` *(integer, optional)*: Results per page (1–100, default `50`).
+  - `cursor` *(string, optional)*: Pagination cursor.
+  - `account_id` *(string / UUID, optional)*: Filter by specific account.
+  - `type` *(string, optional)*: Transaction classification (`income`, `expense`, `transfer`, `fee`, `adjustment`).
+  - `category` *(string, optional)*: Filter by category identifier.
+  - `reviewed` *(boolean, optional)*: Filter by review status.
+  - `reversed` *(boolean, optional)*: Include or filter reversed postings.
+- **Output**: `Page<Transaction>` (See [`Transaction` schema](/docs/api/schemas#transaction))
+
+---
+
+### `list_assets`
+
+Retrieves investment portfolios, real estate, precious metals, and private holdings with lot-level cost bases.
+
+- **Required Scope**: `assets:read`
+- **Inputs**:
+  - `limit` *(integer, optional)*: Results per page (1–100, default `50`).
+  - `cursor` *(string, optional)*: Pagination cursor.
+  - `kind` *(string, optional)*: Filter asset classification (`public_equity`, `fixed_income`, `fund`, `crypto`, `real_estate`, `vehicle`, `precious_metal`, `private_equity`, `other`).
+  - `as_of` *(string, optional)*: Valuation date (`YYYY-MM-DD`).
+- **Output**: `Page<Asset>` (See [`Asset` schema](/docs/api/schemas#asset))
+
+---
+
+### `list_liabilities`
+
+Lists outstanding debt obligations, mortgages, personal loans, credit balances, and payment schedules.
+
+- **Required Scope**: `liabilities:read`
+- **Inputs**:
+  - `limit` *(integer, optional)*: Results per page (1–100, default `50`).
+  - `cursor` *(string, optional)*: Pagination cursor.
+  - `kind` *(string, optional)*: Classification (`mortgage`, `auto_loan`, `student_loan`, `personal_loan`, `credit_card`, `line_of_credit`, `other`).
+  - `active` *(boolean, optional)*: Filter only active/unsettled loans.
+  - `as_of` *(string, optional)*: Date for interest balance computation.
+- **Output**: `Page<Liability>` (See [`Liability` schema](/docs/api/schemas#liability))
+
+---
+
+### `get_budget`
+
+Fetches active spending limits, target thresholds, and actual expenditures for a specified calendar period.
+
+- **Required Scope**: `budgets:read`
+- **Inputs**:
+  - `period` *(string, required)*: Month or year in format `YYYY-MM` or `YYYY`.
+  - `limit` *(integer, optional)*: Results per page (1–100, default `50`).
+  - `cursor` *(string, optional)*: Pagination cursor.
+  - `category` *(string, optional)*: Filter by specific category identifier.
+  - `currency` *(string, optional)*: Desired currency code.
+- **Output**: `Page<Budget>` (See [`Budget` schema](/docs/api/schemas#budget))
+
+---
+
+### `list_goals`
+
+Retrieves financial savings and milestone goals with target amounts, dates, and calculated progress.
+
+- **Required Scope**: `goals:read`
+- **Inputs**:
+  - `limit` *(integer, optional)*: Results per page (1–100, default `50`).
+  - `cursor` *(string, optional)*: Pagination cursor.
+  - `active` *(boolean, optional)*: Filter by active status (`true` / `false`).
+- **Output**: `Page<Goal>` (See [`Goal` schema](/docs/api/schemas#goal))
+
+---
+
+### `get_valuation_history`
+
+Returns historic net worth and domain valuation snapshots calculated daily, weekly, or monthly.
+
+- **Required Scope**: `valuations:read`
+- **Inputs**:
+  - `start` *(string, required)*: Start date (`YYYY-MM-DD`).
+  - `end` *(string, required)*: End date (`YYYY-MM-DD`). Maximum span is 366 days.
+  - `limit` *(integer, optional)*: Results per page (1–100, default `50`).
+  - `cursor` *(string, optional)*: Pagination cursor.
+  - `period` *(string, optional)*: Grouping frequency (`daily`, `weekly`, `monthly`).
+- **Output**: `Page<ValuationSnapshot>` (See [`ValuationSnapshot` schema](/docs/api/schemas#valuationsnapshot))
+
+---
+
+### `get_report_data`
+
+Calculates comprehensive reports such as Cash Flow, Net Worth Progression, and Income Statement statements.
+
+- **Required Scope**: `reports:read` AND relevant domain scopes:
+  - `net_worth`: requires `accounts:read`, `assets:read`, `liabilities:read`.
+  - `cash_flow` / `income_statement`: requires `transactions:read`.
+- **Inputs**:
+  - `kind` *(string, required)*: Report type (`net_worth`, `cash_flow`, `income_statement`).
+  - `start` *(string, required)*: Start date (`YYYY-MM-DD`).
+  - `end` *(string, required)*: End date (`YYYY-MM-DD`).
+  - `limit` *(integer, optional)*: Results per page (1–100, default `50`).
+  - `cursor` *(string, optional)*: Pagination cursor.
+  - `account_id` *(string, optional)*: Constrain calculations to one account.
+  - `currency` *(string, optional)*: Convert report output into target currency.
+- **Output**: `Page<ReportRow>` (See [`ReportRow` schema](/docs/api/schemas#reportrow))
+
+---
+
+## Prompt Injection & Data Safety
+
+<Callout type="warn" title="Safety Guidelines for AI Client Implementations">
+  Financial transaction notes, merchant names, counterparty labels, and asset descriptions are **user-generated and bank-provided data**, not system instructions. 
+  
+  Clients and LLM orchestrators must treat all returned text as untrusted string content and must never evaluate descriptions as instructions (Prompt Injection protection).
+</Callout>
+
+### Error Format in MCP
+
+- **Protocol Failures**: Handled via standard JSON-RPC 2.0 error codes (`-32600 Invalid Request`, `-32601 Method not found`, `-32602 Invalid params`).
+- **Domain & Application Failures**: Return standard MCP tool failure responses with `isError: true` containing a sanitized error object:
+  ```json
+  {
+    "isError": true,
+    "content": [
+      {
+        "type": "text",
+        "text": "FARZ_SCOPE_INSUFFICIENT: Missing required scope 'assets:read' for this tool."
+      }
+    ]
+  }
+  ```
+- **Diagnostics Confidentiality**: No access tokens, authorization secrets, or private financial records are ever printed in MCP debug logs or RPC diagnostic envelopes.

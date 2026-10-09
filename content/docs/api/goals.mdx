@@ -1,0 +1,79 @@
+---
+title: Goals
+description: Monitor target amounts, current progress, monthly contributions, and estimated projections for savings goals.
+---
+
+`GET /goals`
+
+Inspect personal financial savings goals, target dates, recorded progress, and projected completion estimates.
+
+---
+
+## Authorization
+
+- **Scope Required**: `goals:read`
+- **Plan Requirement**: Active Paid subscription
+
+---
+
+## Query Parameters
+
+| Name | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `active` | boolean | No | Filter by active planning status (`true` or `false`). Omission returns both. |
+| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
+| `cursor` | string | No | Continuation cursor from `next_cursor`. |
+
+---
+
+## Example Request
+
+```bash
+curl --fail-with-body --get \
+  "https://api.farz.app/api/developer/v1/goals" \
+  -H "Authorization: Bearer $FARZ_API_KEY" \
+  -H 'Accept: application/json' \
+  --data-urlencode 'active=true' \
+  --data-urlencode 'limit=20'
+```
+
+---
+
+## Example Response
+
+```json
+{
+  "items": [
+    {
+      "id": "66666666-6666-4666-8666-666666666666",
+      "revision": 3,
+      "title": "Emergency Fund",
+      "target": {
+        "amount": "50000.00",
+        "currency": "AED"
+      },
+      "saved": {
+        "amount": "32000.00",
+        "currency": "AED"
+      },
+      "monthly_contribution": {
+        "amount": "3000.00",
+        "currency": "AED"
+      },
+      "target_date": "2027-04-30",
+      "active": true,
+      "projected_by_target": {
+        "amount": "50000.00",
+        "currency": "AED"
+      },
+      "assumptions": ["straight_line_monthly", "zero_yield"]
+    }
+  ],
+  "next_cursor": null,
+  "has_more": false
+}
+```
+
+<Callout type="info">
+  Goal `saved` amounts represent progress indicators and are not treated as duplicate assets in portfolio net worth calculations.
+</Callout>

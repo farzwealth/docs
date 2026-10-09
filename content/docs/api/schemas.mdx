@@ -1,0 +1,310 @@
+---
+title: Response Schemas & DTOs
+description: Exhaustive specification of public data transfer objects, types, and model definitions.
+---
+
+These public Data Transfer Objects (DTOs) contain strictly the fields permitted by the personal integration scope. All fields documented below are present in responses unless explicitly marked **optional**.
+
+---
+
+## Core Containers
+
+### `Page<T>`
+Generic collection container returned by all list endpoints.
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `items` | `T[]` | Array of authorized entities up to the requested `limit`. |
+| `next_cursor` | `string \| null` | Opaque continuation cursor, or `null` if completed. |
+| `has_more` | `boolean` | Flag indicating whether additional pages exist. |
+| `meta` | `PageMetadata` (optional) | Report contextual information and warnings. |
+
+### `PageMetadata`
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `as_of` | date | Reporting snapshot date (`YYYY-MM-DD`). |
+| `timezone` | string | Canonical IANA reporting timezone. |
+| `base_currency` | string | Reporting currency code. |
+| `warnings` | `string[]` | Warnings regarding valuation or missing data limitations. |
+| `algorithm` | `string` (optional) | Versioned methodology tag. |
+
+### `Money`
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `amount` | decimal string | Exact signed monetary amount (e.g. `"1250.00"`). |
+| `currency` | string | Standard 3-letter currency identifier (e.g. `"AED"`). |
+
+### `ValuationContext`
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `as_of` | date | Effective valuation date (`YYYY-MM-DD`). |
+| `timezone` | string | IANA timezone for the valuation cutoff. |
+| `freshness` | enum | `current`, `stale`, `estimated`, or `missing`. |
+| `source` | `string \| null` | Provenance label (`recorded_balance`, `manual_estimate`, etc.). |
+| `fx_legs` | `FxLeg[]` | Conversion chain for multicurrency conversions. |
+| `warnings` | `string[]` | Missing or delayed quote warnings. |
+
+### `FxLeg`
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `base_currency` | string | Base currency code. |
+| `quote_currency` | string | Target quote currency code. |
+| `rate` | decimal string | Units of quote currency per 1 base unit. |
+| `observed_on` | date | Date the rate was captured (`YYYY-MM-DD`). |
+| `source` | string | Rate source or provider attribution. |
+| `inverted` | boolean | True if the inverse rate was applied. |
+
+---
+
+## Account & Transaction Models
+
+### `Account`
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `id` | UUID | Unique account identifier. |
+| `revision` | integer | Record version number. |
+| `name` | string | Sanitized account label. |
+| `kind` | enum | `bank`, `cash`, `credit`, or `investment`. |
+| `masked_reference` | string | Masked reference number (last 4 digits only). |
+| `archived` | boolean | Whether the account is archived. |
+| `liquidity` | enum | `liquid`, `illiquid`, or `unknown`. |
+| `balance` | Money | Current native balance. |
+| `base_balance` | `Money \| null` | Reporting currency balance, or `null` if unconvertible. |
+| `valuation` | ValuationContext | Balance date and provenance. |
+
+### `Transaction`
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `id` | UUID | Unique transaction identifier. |
+| `revision` | integer | Record version number. |
+| `account_id` | UUID | Originating/primary account identifier. |
+| `destination_account_id` | `UUID \| null` | Destination account identifier for transfers. |
+| `type` | enum | `opening`, `income`, `expense`, `transfer`, `adjustment`, `refund`, `debt_principal`, `investment`, or `reversal`. |
+| `description` | string | Sanitized entry text. |
+| `occurred_on` | date | Recorded transaction date (`YYYY-MM-DD`). |
+| `amount` | Money | Entry amount. |
+| `category` | `string \| null` | Primary classification key. |
+| `allocations` | `Allocation[]` | Category split breakdown, if split. |
+| `tags` | `Tag[]` | Attached tags. |
+| `reviewed` | boolean | Review completion flag. |
+| `reversed` | boolean | True if this entry was negated by a reversal. |
+| `reversal_of` | `UUID \| null` | Original transaction ID if this entry is a reversal. |
+
+### `Allocation`
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `category` | string | Sub-split category key. |
+| `amount` | Money | Positive allocation amount. |
+
+### `Tag`
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `id` | UUID | Tag identifier. |
+| `name` | string | Tag name label. |
+
+---
+
+## Assets & Investments
+
+### `Asset`
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `id` | UUID | Asset identifier. |
+| `revision` | integer | Record version number. |
+| `name` | string | Asset label. |
+| `kind` | enum | `property`, `stock`, `etf`, `crypto`, `metal`, `vehicle`, `deposit`, `other`. |
+| `state` | enum | `active` or `disposed`. |
+| `owned_value` | `Money \| null` | Net owned valuation estimate. |
+| `base_value` | `Money \| null` | Valuation converted to reporting currency. |
+| `holding` | `Holding \| null` | Securities/crypto holdings metadata, if applicable. |
+| `valuation` | ValuationContext | Pricing timestamp and limitations. |
+
+### `Holding`
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `instrument_id` | string | Exchange-qualified ticker or token identifier. |
+| `quantity` | decimal string | Owned unit quantity (e.g. `"25.5"`). |
+| `quantity_unit` | string | Unit description (e.g. `shares`, `units`, `oz`). |
+| `price_per_unit` | `decimal string \| null` | Market unit price. |
+| `quote_currency` | string | Listing currency for unit price. |
+| `price_unit` | string | Listing denomination (e.g. `GBp` vs `GBP`). |
+| `price_on` | `date \| null` | Observation date for quote. |
+
+### `Lot`
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `id` | UUID | Purchase lot identifier. |
+| `asset_id` | UUID | Associated holding asset ID. |
+| `instrument_id` | string | Qualified instrument identifier. |
+| `acquired_on` | date | Original purchase date (`YYYY-MM-DD`). |
+| `original_quantity` | decimal string | Split-adjusted purchase quantity. |
+| `remaining_quantity` | decimal string | Remaining open units in this lot. |
+| `remaining_cost` | Money | Total unallocated cost basis. |
+| `disposed_cost` | Money | Cost basis allocated to sold units. |
+| `cost_basis_method` | string | Accounting method (e.g. `FIFO`, `AverageCost`). |
+| `revision` | integer | Lot version. |
+
+---
+
+## Liabilities & Installments
+
+### `Liability`
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `id` | UUID | Liability identifier. |
+| `revision` | integer | Record version number. |
+| `name` | string | Liability label. |
+| `kind` | enum | `loan`, `mortgage`, `financing`, `card`, `bnpl`, `custom`. |
+| `active` | boolean | Active status. |
+| `outstanding` | `Money \| null` | Current native outstanding debt principal. |
+| `base_outstanding` | `Money \| null` | Converted debt balance. |
+| `net_worth_included` | boolean | Flag preventing double-counting with account debts. |
+| `exclusion_reason` | `string \| null` | Explanation if excluded from net worth. |
+| `valuation` | ValuationContext | Balance date and provenance. |
+
+### `Installment`
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `liability_id` | UUID | Parent liability identifier. |
+| `index` | integer | Sequential installment number. |
+| `schedule_revision` | integer | Schedule revision version. |
+| `original_due_on` | date | Forecast due date (`YYYY-MM-DD`). |
+| `effective_due_on` | date | Actual/adjusted due date. |
+| `scheduled_amount` | Money | Forecast installment amount. |
+| `paid_amount` | Money | Sum of recorded payments matching this installment. |
+| `remaining_amount` | Money | Unpaid remaining balance. |
+| `state` | enum | `scheduled`, `rescheduled`, `skipped`, `partial`, `paid`. |
+| `past_due` | boolean | True if unpaid past `effective_due_on`. |
+
+---
+
+## Budgets & Goals
+
+### `Budget`
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `id` | UUID | Budget identifier. |
+| `revision` | integer | Definition version. |
+| `period` | date | First day of month (`YYYY-MM-01`). |
+| `category` | string | Category key. |
+| `amount` | Money | Target monthly budget limit. |
+| `spent` | Money | Net posted spending in period. |
+| `remaining` | Money | Unspent allowance (`amount - spent`). |
+
+### `Goal`
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `id` | UUID | Goal identifier. |
+| `revision` | integer | Goal version. |
+| `title` | string | Goal title. |
+| `target` | Money | Target goal amount. |
+| `saved` | Money | Current recorded progress. |
+| `monthly_contribution` | Money | Planned monthly contribution. |
+| `target_date` | date | Goal completion deadline. |
+| `active` | boolean | Active planning flag. |
+| `projected_by_target` | Money | Expected total at target date. |
+| `assumptions` | `string[]` | Calculation assumptions list. |
+
+---
+
+## Valuations & Reports
+
+### `FinancialSummary`
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `domains` | `string[]` | Domains requested (`accounts`, `assets`, `liabilities`). |
+| `as_of` | date | Snapshot cutoff date. |
+| `timezone` | string | Reporting timezone. |
+| `base_currency` | string | Base currency code. |
+| `total_assets` | `Money \| null` | Aggregate asset value. |
+| `total_liabilities` | `Money \| null` | Aggregate liability value. |
+| `net_worth` | `Money \| null` | Net worth (`assets - liabilities`). |
+| `coverage_percent` | decimal string | Contributing data completeness percentage (`0`–`100`). |
+| `contributions` | `Contribution[]` | Included entities breakdown. |
+| `excluded` | `ExcludedValue[]` | Excluded entities with explicit rationale. |
+| `valuation` | ValuationContext | Provenance and warning notes. |
+
+### `Contribution`
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `id` | UUID | Entity identifier. |
+| `kind` | enum | `account`, `asset`, or `liability`. |
+| `native_value` | Money | Value in original currency. |
+| `base_value` | Money | Value in base currency. |
+| `valuation` | ValuationContext | Individual valuation provenance. |
+
+### `ExcludedValue`
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `id` | UUID | Excluded entity identifier. |
+| `kind` | enum | `account`, `asset`, or `liability`. |
+| `reason` | enum | `missing_observation`, `missing_fx`, `duplicate_representation`, `not_applicable`. |
+
+### `ValuationSnapshot`
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `id` | UUID | Snapshot identifier. |
+| `revision` | integer | Sequence revision. |
+| `period` | date | Month start date (`YYYY-MM-01`). |
+| `through` | date | Month end cutoff date (`YYYY-MM-DD`). |
+| `recorded_at` | timestamp | UTC ISO-8601 creation timestamp. |
+| `previous_snapshot_id`| `UUID \| null` | Previous revision identifier. |
+| `reason` | string | Revision rationale. |
+| `total_assets` | Money | Historical total assets. |
+| `total_liabilities` | Money | Historical total liabilities. |
+| `net_worth` | `Money \| null` | Historical net worth. |
+| `coverage_percent` | decimal string | Coverage completeness score. |
+| `contributions` | `Contribution[]` | Historical contribution array. |
+| `excluded` | `ExcludedValue[]` | Historical exclusions. |
+| `valuation` | ValuationContext | Historical context. |
+
+### `ReportRow`
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `key` | string | Stable unique row key. |
+| `kind` | enum | `transactions`, `net_worth`, `cashflow`, `performance`. |
+| `on` | date | Row observation date (`YYYY-MM-DD`). |
+| `resource_id` | `UUID \| null` | Associated resource ID, if applicable. |
+| `values` | object | Kind-specific data attributes. |
+| `valuation` | ValuationContext | Observation context. |
+
+---
+
+## Errors
+
+### `ApiError`
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `code` | string | Standard uppercase machine-readable error code. |
+| `message` | string | Safe human-readable explanation. |
+| `request_id` | UUID | Correlation UUID for error reporting. |
+| `field_errors` | `FieldError[]` | Parameter validation error details. |
+| `retry` | boolean | Recommendation on retry safety. |
+
+### `FieldError`
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `field` | string | Parameter location (e.g. `query.end`). |
+| `message` | string | Parameter validation error explanation. |

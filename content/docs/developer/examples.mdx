@@ -1,0 +1,192 @@
+---
+title: Code Examples
+description: Production-ready Python and TypeScript examples for querying the Farz Developer API with precise decimal handling.
+---
+
+These examples demonstrate how to authenticate, paginate through large datasets, and handle high-precision monetary strings safely using standard libraries in Python and TypeScript.
+
+<Callout type="warn" title="Never Use Floating Point Numbers for Financial Math">
+  Farz encodes all currency amounts as exact decimal strings (e.g., `"12450.50"` or `"0.00004523"`). Never convert them to standard 64-bit IEEE-754 floats (`float` in Python or `Number()` in JavaScript). Always use arbitrary-precision decimal types.
+</Callout>
+
+---
+
+## Python: Pagination & Exact Precision
+
+This script queries the `GET /accounts` endpoint, traverses all pagination pages via `cursor`, deduplicates records, and calculates native currency balance totals using Python's standard `decimal.Decimal` module.
+
+```python title="farz_accounts.py"
+import os
+from decimal import Decimal, localcontext
+import httpx
+
+API_KEY = os.environ.get("FARZ_API_KEY")
+if not API_KEY:
+    raise ValueError("FARZ_API_KEY environment variable is required")
+
+headers = {
+    "Authorization": f"Bearer {API_KEY}",
+    "Accept": "application/json",
+}
+
+cursor = None
+seen_ids = set()
+native_totals = {}
+
+# Set 80-digit precision context for all arithmetic operations
+with localcontext() as ctx, httpx.Client(
+    base_url="https://api.farz.app/api/developer/v1/",
+    headers=headers,
+    timeout=20.0,
+) as client:
+    ctx.prec = 80
+
+    while True:
+        params = {"limit": 50}
+        if cursor is not None:
+            params["cursor"] = cursor
+
+        response = client.get("accounts", params=params)
+
+        # Handle rate limits and transient errors gracefully
+        if response.status_code == 429:
+            retry_after = int(response.headers.get("Retry-After", "10"))
+            print(f"Rate limited. Waiting {retry_after} seconds...")
+            import time
+            time.sleep(retry_after)
+            continue
+
+        response.raise_for_status()
+        page = response.json()
+
+        for account in page["items"]:
+            account_id = account["id"]
+            if account_id in seen_ids:
+                continue
+            seen_ids.add(account_id)
+
+            balance = account["balance"]
+            currency = balance["currency"]
+            amount = Decimal(balance["amount"])
+
+            native_totals[currency] = native_totals.get(currency, Decimal("0")) + amount
+
+        cursor = page["next_cursor"]
+        if not cursor or not page.get("has_more", False):
+            break
+
+# Print native sums without cross-currency conversions
+print(f"Retrieved {len(seen_ids)} accounts across {len(native_totals)} currencies:")
+for curr, total in native_totals.items():
+    print(f"  {curr}: {total}")
+```
+
+---
+
+## TypeScript / Node.js: Safe API Query
+
+This TypeScript script demonstrates querying the `GET /transactions` endpoint with date window filters, strict typing, and timeout handling using native `fetch`.
+
+```ts title="farz_transactions.ts"
+interface Money {
+  amount: string;
+  currency: string;
+}
+
+interface Page<T> {
+  items: T[];
+  next_cursor: string | null;
+  has_more: boolean;
+}
+
+interface Transaction {
+  id: string;
+  account_id: string;
+  type: 'income' | 'expense' | 'transfer' | 'fee' | 'adjustment';
+  occurred_on: string;
+  description: string;
+  category?: string;
+  amount: Money;
+  is_reviewed: boolean;
+  is_reversed: boolean;
+}
+
+async function fetchTransactions(): Promise<void> {
+  const token = process.env.FARZ_API_KEY;
+  if (!token) {
+    throw new Error('FARZ_API_KEY environment variable is not defined');
+  }
+
+  const url = new URL('https://api.farz.app/api/developer/v1/transactions');
+  url.searchParams.set('start', '2026-10-01');
+  url.searchParams.set('end', '2026-10-10');
+  url.searchParams.set('limit', '50');
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(20_000), // 20-second timeout
+    });
+
+    if (!response.ok) {
+      if (response.status === 429) {
+        const retryAfter = response.headers.get('Retry-After');
+        throw new Error(`Rate limit exceeded. Retry after ${retryAfter}s`);
+      }
+      
+      const errorBody = await response.json().catch(() => null);
+      throw new Error(
+        `Farz API error (${response.status}): ${errorBody?.error?.message || response.statusText}`
+      );
+    }
+
+    const page = (await response.json()) as Page<Transaction>;
+
+    console.log(`Fetched ${page.items.length} transactions:`);
+    for (const tx of page.items) {
+      // NOTE: Do not use Number(tx.amount.amount) for calculations.
+      // Use BigNumber or a dedicated decimal library like 'decimal.js'.
+      console.log(
+        `- [${tx.occurred_on}] ${tx.description}: ${tx.amount.currency} ${tx.amount.amount}`
+      );
+    }
+
+    if (page.has_more && page.next_cursor) {
+      console.log(`Next cursor for subsequent pages: ${page.next_cursor}`);
+    }
+  } catch (err: unknown) {
+    // Avoid logging credentials or full error query strings that may contain tokens
+    if (err instanceof Error) {
+      console.error(`Request failed: ${err.message}`);
+    }
+  }
+}
+
+fetchTransactions();
+```
+
+---
+
+## Best Practices
+
+<Tabs items={["Error Handling", "Pagination", "Security"]}>
+  <Tab value="Error Handling">
+    - Always check the HTTP status code before parsing the JSON body.
+    - Inspect the `Retry-After` header when receiving a `429 Too Many Requests` response.
+    - Retrying read operations is safe (idempotent), but implement exponential backoff.
+  </Tab>
+  <Tab value="Pagination">
+    - Do not construct cursors manually; always pass the verbatim string returned in `next_cursor`.
+    - If you change any filter parameters (`start`, `end`, `type`), discard your saved cursor and restart pagination from page 1.
+    - Ensure your loop checks `has_more === false` or `next_cursor === null` to terminate.
+  </Tab>
+  <Tab value="Security">
+    - Store `FARZ_API_KEY` in environment secrets or secret managers.
+    - Never hardcode keys in client-side bundles (React, iOS, Android).
+    - Rotate user API keys periodically within your Clerk account settings (keys expire after 90 days).
+  </Tab>
+</Tabs>
