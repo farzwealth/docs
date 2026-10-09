@@ -1,0 +1,71 @@
+---
+title: Multi-Store Network & Sync Architecture
+description: Distributed architecture, offline-first synchronization engine, and transaction conflict resolution.
+---
+
+## Network Architecture Overview
+
+The system architecture connects the **five retail branch nodes** with the **central warehouse node at Al Quoz** using a hybrid hub-and-spoke topology designed for high availability and offline operational resilience.
+
+```mermaid
+graph TD
+    Cloud[Central Cloud Ledger & API Gateway]
+    AlQuoz[Al Quoz Central Warehouse Server]
+    S1[Store 1: Dubai Mall]
+    S2[Store 2: Mall of the Emirates]
+    S3[Store 3: City Centre Deira]
+    S4[Store 4: Dubai Hills]
+    S5[Store 5: Dubai Marina]
+
+    AlQuoz <-->|Encrypted WebSocket / TLS 1.3| Cloud
+    S1 <-->|Sub-Second Sync| Cloud
+    S2 <-->|Sub-Second Sync| Cloud
+    S3 <-->|Sub-Second Sync| Cloud
+    S4 <-->|Sub-Second Sync| Cloud
+    S5 <-->|Sub-Second Sync| Cloud
+
+    subgraph Branch Node Components
+        POS1[POS Terminal 1] <--> LocalDB[(Local SQLite / CouchDB)]
+        POS2[POS Terminal 2] <--> LocalDB
+        LocalDB <--> SyncDaemon[Sync Agent Service]
+    end
+```
+
+---
+
+## 1. Local-First Resilience (Offline Capability)
+
+Retail stores cannot tolerate point-of-sale interruptions due to intermittent internet connectivity:
+
+- **Local Embedded Database**: Each branch maintains a localized, synchronized replica of active SKU catalogs, prices, promotions, and customer indexes using an embedded database.
+- **Continuous Checkout**: If the broadband connection between the branch and the cloud gateway drops:
+  1. The checkout terminal transitions seamlessly to **Offline Mode**.
+  2. Cash, card, and barcode scanning continue operating normally.
+  3. Transactions are cryptographically signed and stored in a secure local transaction journal.
+  4. The UI displays an ambient offline warning badge to inform store supervisors.
+
+---
+
+## 2. Synchronization & Conflict Resolution Protocol
+
+Upon reconnection, the localized Sync Agent establishes a secure TLS 1.3 session with the cloud API gateway and executes bidirectional state synchronization:
+
+```mermaid
+sequenceDiagram
+    participant POS as Store POS Terminal
+    participant Local as Local Store Cache
+    participant Cloud as Central Cloud Gateway
+    participant Warehouse as Al Quoz Warehouse Node
+
+    POS->>Local: Complete Checkout (Item A sold)
+    Local->>Local: Decrement Local Stock
+    Local->>Cloud: Dispatch Sync Packet (Event: StockSold)
+    Cloud->>Cloud: Update Central Stock Ledger
+    Cloud->>Warehouse: Stream Inventory Update
+    Cloud->>OtherStores: Broadcast Live Inventory Delta
+```
+
+### Conflict Resolution Strategy
+When simultaneous transactions occur across branches for low-quantity inventory:
+- **Timestamp Ordering**: Transactions utilize monotonically increasing, NTP-synchronized vectors to order concurrent operations.
+- **Safety Threshold Reservation**: The system maintains a 2-unit safety buffer per SKU. When stock drops to `<= 2`, cross-branch remote selling requires an active cloud handshake to prevent accidental double-sales.

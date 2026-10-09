@@ -2,8 +2,15 @@
   "title": "Documentation",
   "pages": [
     "index",
-    "---Guides---",
-    "getting-started",
+    "---System Vision Document---",
+    "system-vision",
+    "---Architecture---",
+    "architecture",
+    "---Operations & Workflows---",
+    "operations",
+    "---Audit & Rubric---",
+    "evaluation",
+    "---Developer Tools---",
     "components"
   ]
 }
