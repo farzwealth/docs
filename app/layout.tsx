@@ -9,21 +9,21 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL || 'https://farzdocs.abdulrahman-maniar.workers.dev'
+    process.env.NEXT_PUBLIC_SITE_URL || 'https://docs.api.farz.app'
   ),
   title: {
     template: '%s | Farz Docs',
     default: 'Farz Docs — Official Documentation & Developer Guides',
   },
-  description: 'Official documentation for Farz Wealth — track spending, budgets, investments, net worth, and automate your financial life.',
+  description: 'Official documentation for Farz Wealth — verified API contracts, authentication, money tracking, lending, and integration availability.',
   icons: {
     icon: '/favicon.png',
     apple: '/favicon.png',
   },
   openGraph: {
     title: 'Farz Docs — Official Documentation & Developer Guides',
-    description: 'Official documentation for Farz Wealth — track spending, budgets, investments, net worth, and automate your financial life.',
-    url: 'https://farzdocs.abdulrahman-maniar.workers.dev',
+    description: 'Official documentation for Farz Wealth — verified API contracts, authentication, money tracking, lending, and integration availability.',
+    url: 'https://docs.api.farz.app',
     siteName: 'Farz Docs',
     images: [
       {

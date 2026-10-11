@@ -1,106 +1,186 @@
 ---
 title: Accounts
-description: List personal financial accounts and query individual account balances and metadata.
+description: Verified unified API routes and exact declared models.
 ---
 
-Manage and inspect bank accounts, cash wallets, credit balances, and investment accounts.
+GET accounts returns `AccountResponse[]`, with decimal-string `balance` and separate `currency`; no `items`, `base_balance`, `valuation`, `has_more` or universal Money envelope. It declares no pagination/kind/archive/as-of filters. Account creation returns201 and requires the declared idempotency header. Account status/liquidity mutations require reviewed revisions; do not guess a GET single-account alias.
 
----
+Private operations require an authorized Clerk user bearer and workspace membership. Optional/sensitive services retain their policy/entitlement/fresh-authentication gates.
 
-## 1. List Accounts
+| Complete route | Required operation headers (besides authentication) | Declared success |
+| --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/accounts` | — | 200 application/json AccountResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/accounts` | `Idempotency-Key` | 201 application/json AccountResponse |
 
-`GET /accounts`
+## Exact request/response models
 
-Returns a paginated list of masked personal accounts, native currency balances, and reporting currency conversions.
+These JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).
 
-### Authorization
-- **Scope Required**: `accounts:read`
-- **Plan Requirement**: Active Paid subscription
-
-### Query Parameters
-
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `kind` | string | No | Filter by account type: `bank`, `cash`, `credit`, or `investment`. |
-| `archived` | boolean | No | Filter by archived status (`true` or `false`). Omission includes both. |
-| `as_of` | date | No | Balance valuation date (`YYYY-MM-DD`). Defaults to current date. |
-| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
-| `cursor` | string | No | Opaque continuation cursor from `next_cursor`. |
-
-### Example Request
-
-```bash
-curl --fail-with-body --get \
-  "https://api.farz.app/api/developer/v1/accounts" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json' \
-  --data-urlencode 'limit=20' \
-  --data-urlencode 'archived=false'
-```
-
-### Example Response
+### AccountCreate
 
 ```json
 {
-  "items": [
-    {
-      "id": "22222222-2222-4222-8222-222222222222",
-      "revision": 4,
-      "name": "Primary Checking",
-      "kind": "bank",
-      "masked_reference": "4021",
-      "archived": false,
-      "liquidity": "liquid",
-      "balance": {
-        "amount": "14820.50",
-        "currency": "AED"
-      },
-      "base_balance": {
-        "amount": "14820.50",
-        "currency": "AED"
-      },
-      "valuation": {
-        "as_of": "2026-10-10",
-        "timezone": "Asia/Dubai",
-        "freshness": "current",
-        "source": "recorded_balance",
-        "fx_legs": [],
-        "warnings": []
-      }
+  "properties": {
+    "name": {
+      "type": "string",
+      "maxLength": 100,
+      "minLength": 1,
+      "title": "Name"
+    },
+    "institution": {
+      "type": "string",
+      "maxLength": 100,
+      "title": "Institution",
+      "default": ""
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "bank",
+        "cash",
+        "credit",
+        "investment"
+      ],
+      "title": "Kind",
+      "default": "bank"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency",
+      "default": "AED"
+    },
+    "opening_balance": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Opening Balance"
+    },
+    "opening_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Opening Date"
+    },
+    "masked_reference": {
+      "type": "string",
+      "pattern": "^[0-9]{0,4}$",
+      "title": "Masked Reference",
+      "default": ""
     }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "name",
+    "opening_balance",
+    "opening_date"
   ],
-  "next_cursor": null,
-  "has_more": false
+  "title": "AccountCreate"
 }
 ```
 
----
+### AccountResponse
 
-## 2. Get an Account
-
-`GET /accounts/{account_id}`
-
-Retrieves a single authorized personal account by its UUID.
-
-### Path Parameters
-
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `account_id` | UUID | **Yes** | The account identifier. |
-
-### Query Parameters
-
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `as_of` | date | No | Balance valuation date (`YYYY-MM-DD`). |
-
-### Example Request
-
-```bash
-curl --fail-with-body \
-  "https://api.farz.app/api/developer/v1/accounts/22222222-2222-4222-8222-222222222222" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json'
+```json
+{
+  "properties": {
+    "liquidity": {
+      "type": "string",
+      "enum": [
+        "liquid",
+        "illiquid",
+        "unknown"
+      ],
+      "title": "Liquidity",
+      "default": "unknown"
+    },
+    "archived": {
+      "type": "boolean",
+      "title": "Archived",
+      "default": false
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "name": {
+      "type": "string",
+      "title": "Name"
+    },
+    "institution": {
+      "type": "string",
+      "title": "Institution"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "bank",
+        "cash",
+        "credit",
+        "investment"
+      ],
+      "title": "Kind"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "balance": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Balance"
+    },
+    "masked_reference": {
+      "type": "string",
+      "title": "Masked Reference"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "opening_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Opening Date"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "institution",
+    "kind",
+    "currency",
+    "balance",
+    "masked_reference",
+    "revision",
+    "opening_date"
+  ],
+  "title": "AccountResponse"
+}
 ```
-
-Returns a single [Account](/docs/api/schemas#account) JSON object with HTTP status `200 OK`.

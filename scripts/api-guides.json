@@ -1,0 +1,60 @@
+{
+  "valuations": [
+    "/api/v1/workspaces/{workspace_id}/valuation-snapshots/preview",
+    "/api/v1/workspaces/{workspace_id}/valuation-snapshots",
+    "/api/v1/workspaces/{workspace_id}/valuation-snapshots/{snapshot_id}",
+    "/api/v1/workspaces/{workspace_id}/valuation-snapshots/{snapshot_id}/report.csv",
+    "/api/v1/workspaces/{workspace_id}/valuation-snapshots/{snapshot_id}/report.html"
+  ],
+  "reports": [
+    "/api/v1/workspaces/{workspace_id}/exports",
+    "/api/v1/workspaces/{workspace_id}/exports/{task_id}",
+    "/api/v1/workspaces/{workspace_id}/exports/{task_id}/execute",
+    "/api/v1/workspaces/{workspace_id}/exports/{task_id}/cancel",
+    "/api/v1/workspaces/{workspace_id}/exports/{task_id}/download.csv",
+    "/api/v1/workspaces/{workspace_id}/exports/{task_id}/download.json"
+  ],
+  "lending": [
+    "/api/v1/workspaces/{workspace_id}/lending",
+    "/api/v1/workspaces/{workspace_id}/lending/{loan_id}",
+    "/api/v1/workspaces/{workspace_id}/lending/{loan_id}/repayments",
+    "/api/v1/workspaces/{workspace_id}/lending/{loan_id}/reclaim",
+    "/api/v1/workspaces/{workspace_id}/lending/{loan_id}/correct-advance",
+    "/api/v1/workspaces/{workspace_id}/lending/{loan_id}/repayments/{repayment_id}/reversal"
+  ],
+  "assets": [
+    "/api/v1/workspaces/{workspace_id}/assets",
+    "/api/v1/workspaces/{workspace_id}/assets/{asset_id}/valuations",
+    "/api/v1/workspaces/{workspace_id}/assets/{asset_id}/investment-position"
+  ],
+  "summary": [
+    "/api/v1/workspaces/{workspace_id}/dashboard",
+    "/api/v1/workspaces/{workspace_id}/cashflow"
+  ],
+  "accounts": [
+    "/api/v1/workspaces/{workspace_id}/accounts"
+  ],
+  "liabilities": [
+    "/api/v1/workspaces/{workspace_id}/debts",
+    "/api/v1/workspaces/{workspace_id}/debts/{debt_id}/observations",
+    "/api/v1/workspaces/{workspace_id}/debts/{debt_id}/repayments",
+    "/api/v1/workspaces/{workspace_id}/debts/{debt_id}/installment-overrides"
+  ],
+  "budgets": [
+    "/api/v1/workspaces/{workspace_id}/budgets"
+  ],
+  "profile": [
+    "/api/v1/me",
+    "/api/v1/eligibility/check",
+    "/api/v1/onboarding",
+    "/api/v1/workspaces/{workspace_id}/preferences",
+    "/api/v1/workspaces/{workspace_id}/setup"
+  ],
+  "goals": [
+    "/api/v1/workspaces/{workspace_id}/goals"
+  ],
+  "transactions": [
+    "/api/v1/workspaces/{workspace_id}/transactions",
+    "/api/v1/workspaces/{workspace_id}/journal/reversals"
+  ]
+}

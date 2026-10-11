@@ -1,97 +1,284 @@
 ---
-title: Financial Summary
-description: Calculate portfolio net worth, aggregated asset and liability totals, and coverage metrics.
+title: Dashboard and summary
+description: Verified unified API routes and exact declared models.
 ---
 
-`GET /summary`
+Use these actual workspace routes instead of the former `/summary` alias. Net worth, income and spending are decimal strings. Missing FX and valuation coverage remain explicit; lending exchanges cash and receivable without inventing income/spending.
 
-Calculates a dated financial summary across explicitly requested own-data domains, returning total assets, liabilities, net worth, contributing resources, and exclusion reasons.
+Private operations require an authorized Clerk user bearer and workspace membership. Optional/sensitive services retain their policy/entitlement/fresh-authentication gates.
 
----
+| Complete route | Required operation headers (besides authentication) | Declared success |
+| --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/dashboard` | — | 200 application/json DashboardResponse |
+| `GET /api/v1/workspaces/{workspace_id}/cashflow` | — | 200 application/json CashflowResponse |
 
-## Authorization
+## Exact request/response models
 
-- **Scopes Required**: `reports:read` **plus** the scope for each domain listed in `domains`:
-  - `accounts:read` (if `accounts` is included)
-  - `assets:read` (if `assets` is included)
-  - `liabilities:read` (if `liabilities` is included)
-- **Plan Requirement**: Active Paid subscription
+These JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).
 
----
-
-## Query Parameters
-
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `domains` | string | **Yes** | Comma-separated list containing `accounts`, `assets`, and/or `liabilities`. |
-| `as_of` | date | No | Valuation cutoff date (`YYYY-MM-DD`). Defaults to current date in user timezone. |
-
-<Callout type="warn" title="Net Worth Availability">
-  The `net_worth` field will be `null` unless all three domains (`accounts,assets,liabilities`) are requested, authorized, and provide sufficient valuation coverage.
-</Callout>
-
----
-
-## Example Request
-
-```bash
-curl --fail-with-body --get \
-  "https://api.farz.app/api/developer/v1/summary" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json' \
-  --data-urlencode 'domains=accounts,assets,liabilities' \
-  --data-urlencode 'as_of=2026-10-10'
-```
-
----
-
-## Example Response
+### CashflowResponse
 
 ```json
 {
-  "domains": ["accounts", "assets", "liabilities"],
-  "as_of": "2026-10-10",
-  "timezone": "Asia/Dubai",
-  "base_currency": "AED",
-  "total_assets": {
-    "amount": "452500.00",
-    "currency": "AED"
-  },
-  "total_liabilities": {
-    "amount": "120000.00",
-    "currency": "AED"
-  },
-  "net_worth": {
-    "amount": "332500.00",
-    "currency": "AED"
-  },
-  "coverage_percent": "100.0",
-  "contributions": [
-    {
-      "id": "22222222-2222-4222-8222-222222222222",
-      "kind": "account",
-      "native_value": {"amount": "1250.00", "currency": "AED"},
-      "base_value": {"amount": "1250.00", "currency": "AED"},
-      "valuation": {
-        "as_of": "2026-10-10",
-        "timezone": "Asia/Dubai",
-        "freshness": "current",
-        "source": "recorded_balance",
-        "fx_legs": [],
-        "warnings": []
-      }
+  "properties": {
+    "start": {
+      "type": "string",
+      "format": "date",
+      "title": "Start"
+    },
+    "end": {
+      "type": "string",
+      "format": "date",
+      "title": "End"
+    },
+    "months": {
+      "items": {
+        "$ref": "#/components/schemas/CashflowMonth"
+      },
+      "type": "array",
+      "title": "Months"
+    },
+    "totals": {
+      "items": {
+        "$ref": "#/components/schemas/CashflowMonth"
+      },
+      "type": "array",
+      "title": "Totals"
+    },
+    "skipped": {
+      "type": "integer",
+      "title": "Skipped"
+    },
+    "basis": {
+      "type": "string",
+      "const": "recurring_and_rent_plans",
+      "title": "Basis",
+      "default": "recurring_and_rent_plans"
+    },
+    "forecast_only": {
+      "type": "boolean",
+      "const": true,
+      "title": "Forecast Only",
+      "default": true
+    },
+    "payment_recorded": {
+      "type": "boolean",
+      "const": false,
+      "title": "Payment Recorded",
+      "default": false
     }
+  },
+  "type": "object",
+  "required": [
+    "start",
+    "end",
+    "months",
+    "totals",
+    "skipped"
   ],
-  "excluded": [],
-  "valuation": {
-    "as_of": "2026-10-10",
-    "timezone": "Asia/Dubai",
-    "freshness": "current",
-    "source": null,
-    "fx_legs": [],
-    "warnings": []
-  }
+  "title": "CashflowResponse"
 }
 ```
 
-For complete field descriptions, see the [FinancialSummary schema](/docs/api/schemas#financialsummary).
+### DashboardResponse
+
+```json
+{
+  "properties": {
+    "spending_comparison": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/SpendingComparison"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "allocation": {
+      "items": {
+        "$ref": "#/components/schemas/AllocationGroup"
+      },
+      "type": "array",
+      "title": "Allocation"
+    },
+    "worth_contributions": {
+      "items": {
+        "$ref": "#/components/schemas/WorthContribution"
+      },
+      "type": "array",
+      "title": "Worth Contributions"
+    },
+    "stale_worth_items": {
+      "type": "integer",
+      "title": "Stale Worth Items",
+      "default": 0
+    },
+    "manual_debt_count": {
+      "type": "integer",
+      "title": "Manual Debt Count",
+      "default": 0
+    },
+    "excluded_debts": {
+      "type": "integer",
+      "title": "Excluded Debts",
+      "default": 0
+    },
+    "base_currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Base Currency"
+    },
+    "total_assets": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Total Assets"
+    },
+    "total_debts": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Total Debts"
+    },
+    "net_worth": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Net Worth"
+    },
+    "monthly_income": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Monthly Income",
+      "default": "0"
+    },
+    "monthly_budget": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Monthly Budget"
+    },
+    "budget_categories": {
+      "type": "integer",
+      "title": "Budget Categories",
+      "default": 0
+    },
+    "upcoming": {
+      "items": {
+        "$ref": "#/components/schemas/ForecastOccurrence"
+      },
+      "type": "array",
+      "title": "Upcoming"
+    },
+    "upcoming_truncated": {
+      "type": "boolean",
+      "title": "Upcoming Truncated",
+      "default": false
+    },
+    "monthly_spending": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Monthly Spending"
+    },
+    "last_month_spending": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Last Month Spending"
+    },
+    "manual_asset_count": {
+      "type": "integer",
+      "title": "Manual Asset Count",
+      "default": 0
+    },
+    "excluded_assets": {
+      "type": "integer",
+      "title": "Excluded Assets",
+      "default": 0
+    },
+    "excluded_accounts": {
+      "type": "integer",
+      "title": "Excluded Accounts"
+    },
+    "coverage_percent": {
+      "type": "integer",
+      "title": "Coverage Percent"
+    },
+    "as_of": {
+      "type": "string",
+      "format": "date-time",
+      "title": "As Of"
+    },
+    "history": {
+      "items": {
+        "$ref": "#/components/schemas/HistoryPoint"
+      },
+      "type": "array",
+      "title": "History"
+    },
+    "spending": {
+      "items": {
+        "$ref": "#/components/schemas/SpendingPoint"
+      },
+      "type": "array",
+      "title": "Spending"
+    },
+    "categories": {
+      "items": {
+        "$ref": "#/components/schemas/CategoryTotal"
+      },
+      "type": "array",
+      "title": "Categories"
+    },
+    "to_review": {
+      "items": {
+        "$ref": "#/components/schemas/TransactionResponse"
+      },
+      "type": "array",
+      "title": "To Review"
+    },
+    "account_count": {
+      "type": "integer",
+      "title": "Account Count"
+    },
+    "synthetic": {
+      "type": "boolean",
+      "title": "Synthetic"
+    }
+  },
+  "type": "object",
+  "required": [
+    "base_currency",
+    "total_assets",
+    "total_debts",
+    "net_worth",
+    "monthly_spending",
+    "last_month_spending",
+    "excluded_accounts",
+    "coverage_percent",
+    "as_of",
+    "history",
+    "spending",
+    "categories",
+    "to_review",
+    "account_count",
+    "synthetic"
+  ],
+  "title": "DashboardResponse"
+}
+```

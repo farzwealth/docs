@@ -1,100 +1,378 @@
 ---
 title: Transactions
-description: Query posted financial transactions, filter by date ranges and types, and retrieve individual entries.
+description: Verified unified API routes and exact declared models.
 ---
 
-Query posted transactions, inspect categorized spending and income, and track transfers between accounts.
+GET transactions uses `TransactionPage` with items/next_offset/next_cursor; limit defaults100, max100. Optional loan_id/lending_repayment_id identify lending records. Generic reversals refuse linked lending; use lending-specific correction routes. See [pagination](/docs/concepts/pagination).
 
----
+Private operations require an authorized Clerk user bearer and workspace membership. Optional/sensitive services retain their policy/entitlement/fresh-authentication gates.
 
-## 1. List Transactions
+| Complete route | Required operation headers (besides authentication) | Declared success |
+| --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/transactions` | — | 200 application/json TransactionPage |
+| `POST /api/v1/workspaces/{workspace_id}/journal/reversals` | `Idempotency-Key` | 201 application/json TransactionResponse |
 
-`GET /transactions`
+## Exact request/response models
 
-Returns a paginated list of posted transactions within a date range.
+These JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).
 
-### Authorization
-- **Scope Required**: `transactions:read`
-- **Plan Requirement**: Active Paid subscription
-
-### Query Parameters
-
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `start` | date | **Yes** | Inclusive start date (`YYYY-MM-DD`). |
-| `end` | date | **Yes** | Inclusive end date (`YYYY-MM-DD`). Max range: **366 calendar days**. |
-| `account_id` | UUID | No | Filter by an account you own. Transfers match either participating account. |
-| `type` | string | No | Filter by type: `opening`, `income`, `expense`, `transfer`, `adjustment`, `refund`, `debt_principal`, `investment`, `reversal`. |
-| `category` | string | No | Exact category key (e.g. `groceries`, `housing`). |
-| `reviewed` | boolean | No | Filter by user-reviewed status. |
-| `reversed` | boolean | No | Filter by reversal status. |
-| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
-| `cursor` | string | No | Opaque continuation cursor from `next_cursor`. |
-
-### Example Request
-
-```bash
-curl --fail-with-body --get \
-  "https://api.farz.app/api/developer/v1/transactions" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json' \
-  --data-urlencode 'start=2026-10-01' \
-  --data-urlencode 'end=2026-10-10' \
-  --data-urlencode 'type=expense' \
-  --data-urlencode 'limit=50'
-```
-
-### Example Response
+### ReversalCommand
 
 ```json
 {
-  "items": [
-    {
-      "id": "33333333-3333-4333-8333-333333333333",
-      "revision": 1,
-      "account_id": "22222222-2222-4222-8222-222222222222",
-      "destination_account_id": null,
-      "type": "expense",
-      "description": "Weekly Groceries",
-      "occurred_on": "2026-10-09",
-      "amount": {
-        "amount": "142.50",
-        "currency": "AED"
-      },
-      "category": "groceries",
-      "allocations": [],
-      "tags": [],
-      "reviewed": true,
-      "reversed": false,
-      "reversal_of": null
+  "properties": {
+    "entry_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Entry Id"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
     }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "entry_id",
+    "reason"
   ],
-  "next_cursor": null,
-  "has_more": false
+  "title": "ReversalCommand"
 }
 ```
 
----
+### TransactionPage
 
-## 2. Get a Transaction
-
-`GET /transactions/{entry_id}`
-
-Retrieves a single posted transaction entry and its detailed category allocations and tags.
-
-### Path Parameters
-
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `entry_id` | UUID | **Yes** | The transaction entry identifier. |
-
-### Example Request
-
-```bash
-curl --fail-with-body \
-  "https://api.farz.app/api/developer/v1/transactions/33333333-3333-4333-8333-333333333333" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json'
+```json
+{
+  "properties": {
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Cursor"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/TransactionResponse"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "next_offset": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Offset"
+    }
+  },
+  "type": "object",
+  "required": [
+    "items",
+    "next_offset"
+  ],
+  "title": "TransactionPage"
+}
 ```
 
-Returns a single [Transaction](/docs/api/schemas#transaction) JSON object with HTTP status `200 OK`.
+### TransactionResponse
+
+```json
+{
+  "properties": {
+    "loan_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Loan Id"
+    },
+    "lending_repayment_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Lending Repayment Id"
+    },
+    "fx_transfer": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/FXTransferMetadata"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "fx_rounding": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/FXRoundingMetadata"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "cash_delta": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Cash Delta"
+    },
+    "investment_settlement_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Investment Settlement Id"
+    },
+    "deposit_payout_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Deposit Payout Id"
+    },
+    "refund_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Refund Id"
+    },
+    "original_expense_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Original Expense Id"
+    },
+    "investment_event_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Investment Event Id"
+    },
+    "asset_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Asset Id"
+    },
+    "debt_repayment_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Debt Repayment Id"
+    },
+    "debt_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Debt Id"
+    },
+    "rule_snapshot": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/MerchantRuleResponse"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "classification_revision": {
+      "type": "integer",
+      "title": "Classification Revision",
+      "default": 0
+    },
+    "tags": {
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "type": "array",
+      "title": "Tags"
+    },
+    "allocations": {
+      "items": {
+        "$ref": "#/components/schemas/TransactionAllocation"
+      },
+      "type": "array",
+      "title": "Allocations"
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "description": {
+      "type": "string",
+      "title": "Description"
+    },
+    "amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Amount"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "category": {
+      "type": "string",
+      "title": "Category"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "expense",
+        "income",
+        "transfer",
+        "opening",
+        "reversal",
+        "adjustment",
+        "debt_principal",
+        "asset_purchase",
+        "asset_sale",
+        "asset_redemption",
+        "refund",
+        "fx_rounding",
+        "loan_advance",
+        "loan_repayment"
+      ],
+      "title": "Type"
+    },
+    "occurred_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Occurred On"
+    },
+    "reviewed": {
+      "type": "boolean",
+      "title": "Reviewed",
+      "default": false
+    },
+    "reversal_of": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Reversal Of"
+    },
+    "reversed": {
+      "type": "boolean",
+      "title": "Reversed",
+      "default": false
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "account_id",
+    "description",
+    "amount",
+    "currency",
+    "category",
+    "type",
+    "occurred_on"
+  ],
+  "title": "TransactionResponse"
+}
+```

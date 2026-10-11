@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://farzdocs.abdulrahman-maniar.workers.dev">
+  <a href="https://docs.api.farz.app">
     <img src="public/assets/logo.png" width="72" height="72" alt="Farz Logo" />
   </a>
 </p>
@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <a href="https://farzdocs.abdulrahman-maniar.workers.dev">
+  <a href="https://docs.api.farz.app">
     <img src="https://img.shields.io/badge/Live_Site-Cloudflare_Workers-F38020?style=for-the-badge&logo=cloudflare&logoColor=white" alt="Live Site" />
   </a>
   <a href="https://farz.app">
@@ -27,10 +27,10 @@
 
 ## 🔗 Quick Links
 
-- 📖 **Documentation**: [https://farzdocs.abdulrahman-maniar.workers.dev/docs](https://farzdocs.abdulrahman-maniar.workers.dev/docs)
+- 📖 **Documentation**: [https://docs.api.farz.app/docs](https://docs.api.farz.app/docs)
 - 🚀 **Farz App**: [https://farz.app](https://farz.app)
-- 🤖 **LLMs Index**: [https://farzdocs.abdulrahman-maniar.workers.dev/llms.txt](https://farzdocs.abdulrahman-maniar.workers.dev/llms.txt)
-- 📑 **LLMs Full Content**: [https://farzdocs.abdulrahman-maniar.workers.dev/llms-full.txt](https://farzdocs.abdulrahman-maniar.workers.dev/llms-full.txt)
+- 🤖 **LLMs Index**: [https://docs.api.farz.app/llms.txt](https://docs.api.farz.app/llms.txt)
+- 📑 **LLMs Full Content**: [https://docs.api.farz.app/llms-full.txt](https://docs.api.farz.app/llms-full.txt)
 
 ---
 
@@ -150,3 +150,18 @@ npm run preview
 ## 📄 License
 
 Internal documentation repository for Farz Wealth. All rights reserved.
+
+## API accuracy verification — 11 October 2026
+
+The published site previously presented deferred developer-key, OAuth and MCP features as available. Current docs use the live unified `/api/v1` contract, supported Clerk user authentication and workspace-scoped read/write routes. Optional integrations remain explicitly unconfigured. Farz does not use Clerk Billing.
+
+`public/openapi.json` matches the independently verified backend schema. Generate the complete route index from a reviewed contract:
+
+```bash
+node scripts/sync-api-reference.mjs /path/to/verified/backend/openapi.json
+node scripts/verify-api-docs.mjs
+npm run types:check
+npm run build
+```
+
+Review runtime capabilities and authorization separately; schema declarations do not prove external-provider or native activation. The retained MCP/OAuth URLs describe their unavailable status and contain no invented setup instructions.

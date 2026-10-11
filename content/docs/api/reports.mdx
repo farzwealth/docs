@@ -1,79 +1,118 @@
 ---
-title: Reports
-description: Generate deterministic, structured financial report rows across transactions, net worth, cashflow, and performance.
+title: Transaction reports
+description: Verified unified API routes and exact declared models.
 ---
 
-`GET /reports`
+Create a scoped export task, inspect/execute its state according to the declared contract, then download a ready result. Fresh signed authentication, encrypted consistent snapshots, expiry and bounded export allowance apply. Lending-linked reports conditionally use version5 with loan/repayment IDs; older shapes remain when lending is absent. This is a transaction report, not complete privacy portability or the former generic `/reports?kind=...` service.
 
-Query bounded deterministic financial report rows for data analysis and reporting. This endpoint delivers structured JSON rows (not raw PDF or binary exports).
+Private operations require an authorized Clerk user bearer and workspace membership. Optional/sensitive services retain their policy/entitlement/fresh-authentication gates.
 
----
+| Complete route | Required operation headers (besides authentication) | Declared success |
+| --- | --- | --- |
+| `POST /api/v1/workspaces/{workspace_id}/exports` | `Idempotency-Key` | 202 application/json ExportStatus |
+| `GET /api/v1/workspaces/{workspace_id}/exports/{task_id}` | — | 200 application/json ExportStatus |
+| `POST /api/v1/workspaces/{workspace_id}/exports/{task_id}/execute` | — | 200 application/json ExportStatus |
+| `POST /api/v1/workspaces/{workspace_id}/exports/{task_id}/cancel` | — | 200 application/json ExportStatus |
+| `GET /api/v1/workspaces/{workspace_id}/exports/{task_id}/download.csv` | — | 200 text/csv |
+| `GET /api/v1/workspaces/{workspace_id}/exports/{task_id}/download.json` | — | 200 application/json |
 
-## Authorization
+## Exact request/response models
 
-Access requires `reports:read` **plus** the additional scopes corresponding to the selected report `kind`:
+These JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).
 
-| Report Kind | Additional Scopes Required |
-| :--- | :--- |
-| `transactions` | `transactions:read` |
-| `net_worth` | `accounts:read`, `assets:read`, `liabilities:read` |
-| `cashflow` | `accounts:read`, `budgets:read`, `liabilities:read` |
-| `performance` | `assets:read`, `valuations:read` |
+### ExportSpec
 
----
-
-## Query Parameters
-
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `kind` | string | **Yes** | Report kind: `transactions`, `net_worth`, `cashflow`, or `performance`. |
-| `start` | date | **Yes** | Inclusive start date (`YYYY-MM-DD`). |
-| `end` | date | **Yes** | Inclusive end date (`YYYY-MM-DD`). Max range: **366 calendar days**. |
-| `account_id` | UUID | No | Account filter. Valid only when `kind=transactions`. |
-| `currency` | string | No | Desired reporting currency conversion. |
-| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
-| `cursor` | string | No | Continuation cursor from `next_cursor`. |
-
----
-
-## Example Request
-
-```bash
-curl --fail-with-body --get \
-  "https://api.farz.app/api/developer/v1/reports" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json' \
-  --data-urlencode 'kind=cashflow' \
-  --data-urlencode 'start=2026-01-01' \
-  --data-urlencode 'end=2026-10-10' \
-  --data-urlencode 'limit=50'
+```json
+{
+  "properties": {
+    "format": {
+      "type": "string",
+      "enum": [
+        "csv",
+        "json"
+      ],
+      "title": "Format",
+      "default": "csv"
+    },
+    "start": {
+      "type": "string",
+      "format": "date",
+      "title": "Start"
+    },
+    "end": {
+      "type": "string",
+      "format": "date",
+      "title": "End"
+    },
+    "account_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Account Id"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "start",
+    "end"
+  ],
+  "title": "ExportSpec"
+}
 ```
 
----
+### ExportStatus
 
-## Report Kinds & Schema Variations
-
-Every row returned conforms to [ReportRow](/docs/api/schemas#reportrow). The `values` object matches the requested kind:
-
-### 1. `transactions` Report Values
-- `type`: Transaction type enum.
-- `amount`: Money object.
-- `category`: Category string or `null`.
-- `reversed`: Boolean reversal flag.
-
-### 2. `net_worth` Report Values
-- `asset_value`: Money object or `null`.
-- `liability_value`: Money object or `null`.
-- `net_worth`: Money object or `null`.
-- `coverage_percent`: Decimal string (`0` to `100`).
-
-### 3. `cashflow` Report Values
-- `income`: Net incoming money.
-- `expenses`: Net outgoing money.
-- `net`: Income minus expenses.
-- `basis`: String describing posted vs forecast assumptions.
-
-### 4. `performance` Report Values
-- `return_percent`: Decimal string or `null` if data points are insufficient.
-- `method`: Calculation methodology (e.g. `time_weighted_return`, `money_weighted`).
-- `status`: Status enum (`available`, `missing_observations`, `nonconvergent`, `unsupported`).
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "running",
+        "succeeded",
+        "failed",
+        "canceled",
+        "expired"
+      ],
+      "title": "State"
+    },
+    "attempt": {
+      "type": "integer",
+      "title": "Attempt"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Expires At"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "id",
+    "state",
+    "attempt",
+    "created_at",
+    "expires_at"
+  ],
+  "title": "ExportStatus"
+}
+```

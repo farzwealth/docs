@@ -1,54 +1,513 @@
 ---
-title: Profile
-description: Retrieve account preferences including language locale, reporting currency, and IANA timezone.
+title: Profile and onboarding
+description: Verified unified API routes and exact declared models.
 ---
 
-`GET /profile`
+Use `/me.workspace_id`; it is null before onboarding. Current personal signup uses self-declared age13+ throughout AE/SA/BH/KW/QA/OM, with no guardian verification. Store age band/policy version rather than exact age/DOB; legacy DOB input remains compatible. Backend-owned setup completion survives reload/direct links. This does not certify MFA, AI or billing activation.
 
-Returns the minimum account preferences required by clients to format currencies, dates, and timezones accurately.
+Private operations require an authorized Clerk user bearer and workspace membership. Optional/sensitive services retain their policy/entitlement/fresh-authentication gates.
 
----
+| Complete route | Required operation headers (besides authentication) | Declared success |
+| --- | --- | --- |
+| `GET /api/v1/me` | — | 200 application/json ProfileResponse |
+| `POST /api/v1/eligibility/check` | — | 200 application/json EligibilityResponse |
+| `POST /api/v1/onboarding` | — | 200 application/json ProfileResponse |
+| `PATCH /api/v1/workspaces/{workspace_id}/preferences` | — | 200 application/json ProfileResponse |
+| `POST /api/v1/workspaces/{workspace_id}/setup` | `Idempotency-Key` | 200 application/json SetupState |
 
-## Authorization
+## Exact request/response models
 
-- **Scope Required**: `profile:read`
-- **Plan Requirement**: Active Paid subscription
+These JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).
 
----
-
-## Request
-
-This endpoint does not accept query parameters or request bodies.
-
-### Example Request
-
-```bash
-curl --fail-with-body \
-  "https://api.farz.app/api/developer/v1/profile" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json'
-```
-
----
-
-## Response
-
-Returns a single [Profile](/docs/api/schemas#profile) JSON object with status `200 OK`:
+### EligibilityInput
 
 ```json
 {
-  "locale": "en",
-  "timezone": "Asia/Dubai",
-  "base_currency": "AED",
-  "revision": 3
+  "properties": {
+    "born_on": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Born On"
+    },
+    "age": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "maximum": 120,
+          "minimum": 0
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Age"
+    },
+    "residence": {
+      "type": "string",
+      "pattern": "^[A-Z]{2}$",
+      "title": "Residence"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "residence"
+  ],
+  "title": "EligibilityInput"
 }
 ```
 
-### Response Fields
+### EligibilityResponse
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `locale` | string | Preferred language locale (`en`, `ar`, `fr`, `ru`). |
-| `timezone` | string | Canonical IANA timezone identifier (e.g. `Asia/Dubai`). |
-| `base_currency` | string | Primary native reporting currency (e.g. `AED`, `USD`). |
-| `revision` | integer | Incremental revision number for user profile settings. |
+```json
+{
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "blocked_under_13",
+        "guardian_required",
+        "eligible",
+        "suspended_review"
+      ],
+      "title": "Status"
+    },
+    "policy_version": {
+      "type": "string",
+      "title": "Policy Version"
+    }
+  },
+  "type": "object",
+  "required": [
+    "status",
+    "policy_version"
+  ],
+  "title": "EligibilityResponse"
+}
+```
+
+### OnboardingInput
+
+```json
+{
+  "properties": {
+    "born_on": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Born On"
+    },
+    "age": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "maximum": 120,
+          "minimum": 0
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Age"
+    },
+    "residence": {
+      "type": "string",
+      "pattern": "^[A-Z]{2}$",
+      "title": "Residence"
+    },
+    "locale": {
+      "type": "string",
+      "enum": [
+        "en",
+        "ar",
+        "fr",
+        "ru"
+      ],
+      "title": "Locale",
+      "default": "en"
+    },
+    "base_currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Base Currency",
+      "default": "AED"
+    },
+    "timezone": {
+      "type": "string",
+      "title": "Timezone",
+      "default": "Asia/Dubai"
+    },
+    "terms_accepted": {
+      "type": "boolean",
+      "const": true,
+      "title": "Terms Accepted"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "residence",
+    "terms_accepted"
+  ],
+  "title": "OnboardingInput"
+}
+```
+
+### Preferences
+
+```json
+{
+  "properties": {
+    "terminology": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "conventional",
+            "islamic"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Terminology"
+    },
+    "theme": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "light",
+            "dark"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Theme"
+    },
+    "locale": {
+      "type": "string",
+      "enum": [
+        "en",
+        "ar",
+        "fr",
+        "ru"
+      ],
+      "title": "Locale"
+    },
+    "hide_balances": {
+      "type": "boolean",
+      "title": "Hide Balances"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision"
+    },
+    "base_currency": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "AED",
+            "USD",
+            "GBP",
+            "EUR",
+            "SAR",
+            "BHD",
+            "KWD",
+            "QAR",
+            "OMR",
+            "JOD",
+            "TRY"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Base Currency"
+    },
+    "timezone": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 100
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Timezone"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "locale",
+    "hide_balances",
+    "expected_revision"
+  ],
+  "title": "Preferences"
+}
+```
+
+### ProfileResponse
+
+```json
+{
+  "properties": {
+    "terminology": {
+      "type": "string",
+      "enum": [
+        "conventional",
+        "islamic"
+      ],
+      "title": "Terminology",
+      "default": "conventional"
+    },
+    "theme": {
+      "type": "string",
+      "enum": [
+        "light",
+        "dark"
+      ],
+      "title": "Theme",
+      "default": "light"
+    },
+    "workspace_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Workspace Id"
+    },
+    "onboarding_required": {
+      "type": "boolean",
+      "title": "Onboarding Required"
+    },
+    "locale": {
+      "type": "string",
+      "enum": [
+        "en",
+        "ar",
+        "fr",
+        "ru"
+      ],
+      "title": "Locale",
+      "default": "en"
+    },
+    "base_currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Base Currency",
+      "default": "AED"
+    },
+    "timezone": {
+      "type": "string",
+      "title": "Timezone",
+      "default": "Asia/Dubai"
+    },
+    "hide_balances": {
+      "type": "boolean",
+      "title": "Hide Balances",
+      "default": false
+    },
+    "synthetic": {
+      "type": "boolean",
+      "title": "Synthetic",
+      "default": false
+    },
+    "change_sequence": {
+      "type": "integer",
+      "title": "Change Sequence",
+      "default": 0
+    },
+    "preferences_revision": {
+      "type": "integer",
+      "title": "Preferences Revision",
+      "default": 0
+    },
+    "setup": {
+      "$ref": "#/components/schemas/SetupState"
+    }
+  },
+  "type": "object",
+  "required": [
+    "workspace_id",
+    "onboarding_required"
+  ],
+  "title": "ProfileResponse"
+}
+```
+
+### SetupProgress
+
+```json
+{
+  "properties": {
+    "step": {
+      "type": "string",
+      "enum": [
+        "security",
+        "import",
+        "accounts",
+        "transactions",
+        "subscription",
+        "review",
+        "survey"
+      ],
+      "title": "Step"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision"
+    },
+    "complete": {
+      "type": "boolean",
+      "title": "Complete",
+      "default": false
+    },
+    "referral": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "article",
+            "search",
+            "social",
+            "video",
+            "assistant",
+            "store",
+            "friend"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Referral"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "step",
+    "expected_revision"
+  ],
+  "title": "SetupProgress"
+}
+```
+
+### SetupState
+
+```json
+{
+  "properties": {
+    "step": {
+      "type": "string",
+      "enum": [
+        "security",
+        "import",
+        "accounts",
+        "transactions",
+        "subscription",
+        "review",
+        "survey"
+      ],
+      "title": "Step",
+      "default": "security"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision",
+      "default": 0
+    },
+    "complete": {
+      "type": "boolean",
+      "title": "Complete",
+      "default": false
+    },
+    "referral": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "article",
+            "search",
+            "social",
+            "video",
+            "assistant",
+            "store",
+            "friend"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Referral"
+    },
+    "completed_at": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Completed At"
+    }
+  },
+  "type": "object",
+  "title": "SetupState"
+}
+```

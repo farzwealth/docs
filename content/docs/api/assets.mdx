@@ -1,96 +1,668 @@
 ---
-title: Assets & Holdings
-description: List personal assets, track real-time security and crypto unit prices, and inspect purchase tax lots.
+title: Assets and investment records
+description: Verified unified API routes and exact declared models.
 ---
 
-Track real estate estimates, vehicles, deposits, precious metals, and publicly qualified investment holdings (stocks, ETFs, cryptocurrencies).
+These are recorded owned asset estimates and qualified event/history workflows. They do not certify ownership, licensed prices, live brokerage connections or a generic tax-lot/cost-basis service. See the complete index for investment/deposit settlement and correction routes. Do not guess the old `/assets/{asset_id}/lots` endpoint.
 
----
+Private operations require an authorized Clerk user bearer and workspace membership. Optional/sensitive services retain their policy/entitlement/fresh-authentication gates.
 
-## 1. List Assets
+| Complete route | Required operation headers (besides authentication) | Declared success |
+| --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/assets` | — | 200 application/json AssetResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/assets` | `Idempotency-Key` | 200 application/json AssetResponse |
+| `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}/valuations` | — | 200 application/json AssetValuationResponse[] |
+| `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}/investment-position` | — | 200 application/json InvestmentPosition |
 
-`GET /assets`
+## Exact request/response models
 
-Returns a paginated list of personal assets, dated estimates, and exchange/chain-qualified holdings.
+These JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).
 
-### Authorization
-- **Scope Required**: `assets:read`
-- **Plan Requirement**: Active Paid subscription
+### AssetResponse
 
-### Query Parameters
-
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `kind` | string | No | Filter by asset kind: `property`, `stock`, `etf`, `crypto`, `metal`, `vehicle`, `deposit`, `other`. |
-| `as_of` | date | No | Valuation cutoff date (`YYYY-MM-DD`). Defaults to current date. |
-| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
-| `cursor` | string | No | Opaque continuation cursor from `next_cursor`. |
-
-### Example Request
-
-```bash
-curl --fail-with-body --get \
-  "https://api.farz.app/api/developer/v1/assets" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json' \
-  --data-urlencode 'limit=20'
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "name": {
+      "type": "string",
+      "title": "Name"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "property",
+        "vehicle",
+        "metal",
+        "deposit",
+        "stock",
+        "etf",
+        "crypto",
+        "other"
+      ],
+      "title": "Kind"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "ownership_note": {
+      "type": "string",
+      "title": "Ownership Note"
+    },
+    "reference_note": {
+      "type": "string",
+      "title": "Reference Note"
+    },
+    "liquidity": {
+      "type": "string",
+      "enum": [
+        "liquid",
+        "illiquid",
+        "unknown"
+      ],
+      "title": "Liquidity"
+    },
+    "valuation": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/AssetValuationResponse"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "lifecycle": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/AssetLifecycleResponse"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "as_of": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "As Of"
+    },
+    "manual": {
+      "type": "boolean",
+      "title": "Manual",
+      "default": true
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "revision",
+    "name",
+    "kind",
+    "currency",
+    "ownership_note",
+    "reference_note",
+    "liquidity",
+    "valuation"
+  ],
+  "title": "AssetResponse"
+}
 ```
 
----
+### AssetValuationResponse
 
-## 2. Get an Asset
-
-`GET /assets/{asset_id}`
-
-Retrieves a single asset and its current holding details.
-
-### Path Parameters
-
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `asset_id` | UUID | **Yes** | The asset identifier. |
-
-### Example Request
-
-```bash
-curl --fail-with-body \
-  "https://api.farz.app/api/developer/v1/assets/$FARZ_ASSET_ID" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json'
+```json
+{
+  "properties": {
+    "ownership_estimate": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/OwnershipEstimate"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "descriptor": {
+      "anyOf": [
+        {
+          "oneOf": [
+            {
+              "$ref": "#/components/schemas/PropertyDescriptor"
+            },
+            {
+              "$ref": "#/components/schemas/VehicleDescriptor"
+            },
+            {
+              "$ref": "#/components/schemas/DepositDescriptor"
+            }
+          ],
+          "discriminator": {
+            "propertyName": "kind",
+            "mapping": {
+              "deposit": "#/components/schemas/DepositDescriptor",
+              "property": "#/components/schemas/PropertyDescriptor",
+              "vehicle": "#/components/schemas/VehicleDescriptor"
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Descriptor"
+    },
+    "acquisition": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/AssetAcquisition"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "value_minus_acquisition_cost": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Value Minus Acquisition Cost"
+    },
+    "estimated_unrealized_gain": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Estimated Unrealized Gain"
+    },
+    "basis": {
+      "type": "string",
+      "enum": [
+        "manual_owned_value",
+        "metal_spot_v1",
+        "holding_unit_v1",
+        "ownership_fraction_v1"
+      ],
+      "title": "Basis",
+      "default": "manual_owned_value"
+    },
+    "holding_estimate": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/HoldingEstimateInput"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "metal_estimate": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/MetalEstimateInput"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "deposit_assumptions": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/DepositAssumptions"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "deposit_projection": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/DepositProjection"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "fine_weight_grams": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Fine Weight Grams"
+    },
+    "asset_revision": {
+      "type": "integer",
+      "title": "Asset Revision"
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "asset_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Asset Id"
+    },
+    "owned_value": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Owned Value"
+    },
+    "valued_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Valued On"
+    },
+    "source": {
+      "type": "string",
+      "title": "Source"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    }
+  },
+  "type": "object",
+  "required": [
+    "asset_revision",
+    "id",
+    "asset_id",
+    "owned_value",
+    "valued_on",
+    "source",
+    "recorded_at"
+  ],
+  "title": "AssetValuationResponse"
+}
 ```
 
-Returns a single [Asset](/docs/api/schemas#asset) JSON object with HTTP status `200 OK`.
+### AssetWrite
 
----
-
-## 3. List Asset Lots
-
-`GET /assets/{asset_id}/lots`
-
-Inspects individual purchase lots, cost basis calculations, and remaining versus disposed quantities for stocks, ETFs, and cryptocurrencies.
-
-### Path Parameters
-
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `asset_id` | UUID | **Yes** | Qualified holding asset identifier. |
-
-### Query Parameters
-
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `through` | date | No | Include lots acquired through this date (`YYYY-MM-DD`). Defaults to today. |
-| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
-| `cursor` | string | No | Continuation cursor. |
-
-### Example Request
-
-```bash
-curl --fail-with-body --get \
-  "https://api.farz.app/api/developer/v1/assets/$FARZ_ASSET_ID/lots" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json' \
-  --data-urlencode 'limit=20'
+```json
+{
+  "properties": {
+    "ownership_estimate": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/OwnershipEstimate"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "descriptor": {
+      "anyOf": [
+        {
+          "oneOf": [
+            {
+              "$ref": "#/components/schemas/PropertyDescriptor"
+            },
+            {
+              "$ref": "#/components/schemas/VehicleDescriptor"
+            },
+            {
+              "$ref": "#/components/schemas/DepositDescriptor"
+            }
+          ],
+          "discriminator": {
+            "propertyName": "kind",
+            "mapping": {
+              "deposit": "#/components/schemas/DepositDescriptor",
+              "property": "#/components/schemas/PropertyDescriptor",
+              "vehicle": "#/components/schemas/VehicleDescriptor"
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Descriptor"
+    },
+    "acquisition": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/AssetAcquisition"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Id"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision",
+      "default": 0
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Name"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "property",
+        "vehicle",
+        "metal",
+        "deposit",
+        "stock",
+        "etf",
+        "crypto",
+        "other"
+      ],
+      "title": "Kind",
+      "default": "other"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "owned_value": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Owned Value"
+    },
+    "holding_estimate": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/HoldingEstimateInput"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "metal_estimate": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/MetalEstimateInput"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "deposit_assumptions": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/DepositAssumptions"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "valued_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Valued On"
+    },
+    "source": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Source"
+    },
+    "ownership_note": {
+      "type": "string",
+      "maxLength": 200,
+      "title": "Ownership Note",
+      "default": ""
+    },
+    "reference_note": {
+      "type": "string",
+      "maxLength": 500,
+      "title": "Reference Note",
+      "default": ""
+    },
+    "liquidity": {
+      "type": "string",
+      "enum": [
+        "liquid",
+        "illiquid",
+        "unknown"
+      ],
+      "title": "Liquidity",
+      "default": "unknown"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "name",
+    "currency",
+    "valued_on",
+    "source"
+  ],
+  "title": "AssetWrite"
+}
 ```
 
-Returns a paginated [`Page<Lot>`](/docs/api/schemas#lot) collection.
+### InvestmentPosition
+
+```json
+{
+  "properties": {
+    "algorithm": {
+      "type": "string",
+      "const": "manual_fifo_native_v1",
+      "title": "Algorithm",
+      "default": "manual_fifo_native_v1"
+    },
+    "asset_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Asset Id"
+    },
+    "instrument_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Instrument Id"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "through": {
+      "type": "string",
+      "format": "date",
+      "title": "Through"
+    },
+    "owned_quantity": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Owned Quantity"
+    },
+    "remaining_cost": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Remaining Cost"
+    },
+    "disposed_cost": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Disposed Cost"
+    },
+    "sale_net_proceeds": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Sale Net Proceeds"
+    },
+    "estimated_realized_gain": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Estimated Realized Gain"
+    },
+    "dividend_net_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Dividend Net Amount"
+    },
+    "lots": {
+      "items": {
+        "$ref": "#/components/schemas/RemainingLot"
+      },
+      "type": "array",
+      "title": "Lots"
+    },
+    "allocations": {
+      "items": {
+        "$ref": "#/components/schemas/DisposalAllocation"
+      },
+      "type": "array",
+      "title": "Allocations"
+    },
+    "evidence": {
+      "type": "string",
+      "const": "owner_recorded_unverified",
+      "title": "Evidence",
+      "default": "owner_recorded_unverified"
+    },
+    "cash_posted": {
+      "type": "boolean",
+      "const": false,
+      "title": "Cash Posted",
+      "default": false
+    },
+    "valuation_updated": {
+      "type": "boolean",
+      "const": false,
+      "title": "Valuation Updated",
+      "default": false
+    },
+    "quantity_rounding": {
+      "type": "string",
+      "const": "half_even_18_with_exact_ratios",
+      "title": "Quantity Rounding",
+      "default": "half_even_18_with_exact_ratios"
+    }
+  },
+  "type": "object",
+  "required": [
+    "asset_id",
+    "instrument_id",
+    "currency",
+    "revision",
+    "through",
+    "owned_quantity",
+    "remaining_cost",
+    "disposed_cost",
+    "sale_net_proceeds",
+    "estimated_realized_gain",
+    "dividend_net_amount",
+    "lots",
+    "allocations"
+  ],
+  "title": "InvestmentPosition"
+}
+```

@@ -1,79 +1,218 @@
 ---
 title: Goals
-description: Monitor target amounts, current progress, monthly contributions, and estimated projections for savings goals.
+description: Verified unified API routes and exact declared models.
 ---
 
-`GET /goals`
+Goal reads and writes use the actual GoalResponse/GoalCreate schemas. Projections and estimates are not guaranteed investment returns. Do not invent a universal progress-envelope shape.
 
-Inspect personal financial savings goals, target dates, recorded progress, and projected completion estimates.
+Private operations require an authorized Clerk user bearer and workspace membership. Optional/sensitive services retain their policy/entitlement/fresh-authentication gates.
 
----
+| Complete route | Required operation headers (besides authentication) | Declared success |
+| --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/goals` | — | 200 application/json GoalResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/goals` | `Idempotency-Key` | 200 application/json GoalResponse |
 
-## Authorization
+## Exact request/response models
 
-- **Scope Required**: `goals:read`
-- **Plan Requirement**: Active Paid subscription
+These JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).
 
----
-
-## Query Parameters
-
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `active` | boolean | No | Filter by active planning status (`true` or `false`). Omission returns both. |
-| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
-| `cursor` | string | No | Continuation cursor from `next_cursor`. |
-
----
-
-## Example Request
-
-```bash
-curl --fail-with-body --get \
-  "https://api.farz.app/api/developer/v1/goals" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json' \
-  --data-urlencode 'active=true' \
-  --data-urlencode 'limit=20'
-```
-
----
-
-## Example Response
+### GoalResponse
 
 ```json
 {
-  "items": [
-    {
-      "id": "66666666-6666-4666-8666-666666666666",
-      "revision": 3,
-      "title": "Emergency Fund",
-      "target": {
-        "amount": "50000.00",
-        "currency": "AED"
-      },
-      "saved": {
-        "amount": "32000.00",
-        "currency": "AED"
-      },
-      "monthly_contribution": {
-        "amount": "3000.00",
-        "currency": "AED"
-      },
-      "target_date": "2027-04-30",
-      "active": true,
-      "projected_by_target": {
-        "amount": "50000.00",
-        "currency": "AED"
-      },
-      "assumptions": ["straight_line_monthly", "zero_yield"]
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "title": {
+      "type": "string",
+      "title": "Title"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "target": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Target"
+    },
+    "saved": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Saved"
+    },
+    "monthly_contribution": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Monthly Contribution"
+    },
+    "target_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Target Date"
+    },
+    "active": {
+      "type": "boolean",
+      "title": "Active"
+    },
+    "remaining": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Remaining"
+    },
+    "projected_by_target": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Projected By Target"
+    },
+    "contribution_months": {
+      "type": "integer",
+      "title": "Contribution Months"
+    },
+    "as_of": {
+      "type": "string",
+      "format": "date",
+      "title": "As Of"
+    },
+    "achieved": {
+      "type": "boolean",
+      "title": "Achieved"
+    },
+    "on_track": {
+      "type": "boolean",
+      "title": "On Track"
+    },
+    "basis": {
+      "type": "string",
+      "const": "manual_progress_no_returns",
+      "title": "Basis",
+      "default": "manual_progress_no_returns"
     }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "revision",
+    "title",
+    "currency",
+    "target",
+    "saved",
+    "monthly_contribution",
+    "target_date",
+    "active",
+    "remaining",
+    "projected_by_target",
+    "contribution_months",
+    "as_of",
+    "achieved",
+    "on_track"
   ],
-  "next_cursor": null,
-  "has_more": false
+  "title": "GoalResponse"
 }
 ```
 
-<Callout type="info">
-  Goal `saved` amounts represent progress indicators and are not treated as duplicate assets in portfolio net worth calculations.
-</Callout>
+### GoalWrite
+
+```json
+{
+  "properties": {
+    "id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Id"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision",
+      "default": 0
+    },
+    "title": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Title"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "target": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Target"
+    },
+    "saved": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Saved",
+      "default": "0"
+    },
+    "monthly_contribution": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Monthly Contribution",
+      "default": "0"
+    },
+    "target_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Target Date"
+    },
+    "active": {
+      "type": "boolean",
+      "title": "Active",
+      "default": true
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "title",
+    "currency",
+    "target",
+    "target_date"
+  ],
+  "title": "GoalWrite"
+}
+```
