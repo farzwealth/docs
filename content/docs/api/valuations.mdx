@@ -1,90 +1,537 @@
 ---
-title: Valuation History
-description: Inspect immutable historical net worth snapshots, correction revisions, and asset/liability valuations.
+title: Valuation snapshots
+description: Verified unified API routes and exact declared models.
 ---
 
-`GET /valuations`
+Use `/valuation-snapshots`, not the former `/valuations` alias. Previewing, recording and downloading are separate operations; recorded snapshots preserve their dated basis. Private report downloads require recent signed authentication and export allowance. CSV/HTML are actual response types.
 
-Reads original, immutable monthly portfolio valuation snapshots and correction lineage without recomputing against present-day market prices.
+Private operations require an authorized Clerk user bearer and workspace membership. Optional/sensitive services retain their policy/entitlement/fresh-authentication gates.
 
----
+Snapshot jobs expose explicit creation/status/run/cancel contracts. Job admission or forecast completion is not an external valuation or automatic background scheduling guarantee.
 
-## Authorization
+| Complete route | Authentication | Required operation headers | Declared success |
+| --- | --- | --- | --- |
+| `POST /api/v1/workspaces/{workspace_id}/valuation-snapshot-jobs` | Clerk user bearer | `Idempotency-Key` | 202 application/json SnapshotJobsResponse |
+| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshot-jobs/{task_id}` | Clerk user bearer | — | 200 application/json SnapshotJobStatus |
+| `POST /api/v1/workspaces/{workspace_id}/valuation-snapshot-jobs/{task_id}/run` | Clerk user bearer | — | 200 application/json SnapshotJobStatus |
+| `POST /api/v1/workspaces/{workspace_id}/valuation-snapshot-jobs/{task_id}/cancel` | Clerk user bearer | — | 200 application/json SnapshotJobStatus |
+| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshots/preview` | Clerk user bearer | — | 200 application/json ValuationPreview |
+| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshots` | Clerk user bearer | — | 200 application/json ValuationSnapshotSummary[] |
+| `POST /api/v1/workspaces/{workspace_id}/valuation-snapshots` | Clerk user bearer | `Idempotency-Key` | 200 application/json ValuationSnapshotResponse |
+| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshots/{snapshot_id}` | Clerk user bearer | — | 200 application/json ValuationSnapshotResponse |
+| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshots/{snapshot_id}/report.csv` | Clerk user bearer | — | 200 text/csv |
+| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshots/{snapshot_id}/report.html` | Clerk user bearer | — | 200 text/html |
 
-- **Scope Required**: `valuations:read`
-- **Plan Requirement**: Active Paid subscription
+## Exact request/response models
 
----
+These JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).
 
-## Query Parameters
-
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `start` | date | **Yes** | Inclusive beginning of saved cutoff date range (`YYYY-MM-DD`). |
-| `end` | date | **Yes** | Inclusive end of saved cutoff date range (`YYYY-MM-DD`). Max range: **366 calendar days**. |
-| `period` | date | No | First-of-month date matching the selected range (`YYYY-MM-DD`). |
-| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
-| `cursor` | string | No | Continuation cursor from `next_cursor`. |
-
----
-
-## Example Request
-
-```bash
-curl --fail-with-body --get \
-  "https://api.farz.app/api/developer/v1/valuations" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json' \
-  --data-urlencode 'start=2026-01-01' \
-  --data-urlencode 'end=2026-10-10' \
-  --data-urlencode 'limit=50'
-```
-
----
-
-## Example Response
+### SnapshotJobRun
 
 ```json
 {
-  "items": [
-    {
-      "id": "77777777-7777-4777-8777-777777777777",
-      "revision": 1,
-      "period": "2026-09-01",
-      "through": "2026-09-30",
-      "recorded_at": "2026-10-01T00:05:00Z",
-      "previous_snapshot_id": null,
-      "reason": "monthly_close",
-      "total_assets": {
-        "amount": "430000.00",
-        "currency": "AED"
-      },
-      "total_liabilities": {
-        "amount": "125000.00",
-        "currency": "AED"
-      },
-      "net_worth": {
-        "amount": "305000.00",
-        "currency": "AED"
-      },
-      "coverage_percent": "100.0",
-      "contributions": [],
-      "excluded": [],
-      "valuation": {
-        "as_of": "2026-09-30",
-        "timezone": "Asia/Dubai",
-        "freshness": "current",
-        "source": "recorded_snapshot",
-        "fx_legs": [],
-        "warnings": []
-      }
+  "properties": {
+    "expected_attempt": {
+      "type": "integer",
+      "maximum": 3,
+      "minimum": 0,
+      "title": "Expected Attempt"
     }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expected_attempt"
   ],
-  "next_cursor": null,
-  "has_more": false
+  "title": "SnapshotJobRun"
 }
 ```
 
-<Callout type="info">
-  Valuation snapshots preserve the exact market prices and exchange rates that were active on the historical cutoff date. They are never updated retroactively with modern market data.
-</Callout>
+### SnapshotJobStatus
+
+```json
+{
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Task Id"
+    },
+    "period": {
+      "type": "string",
+      "format": "date",
+      "title": "Period"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "running",
+        "succeeded",
+        "failed",
+        "canceled",
+        "expired"
+      ],
+      "title": "State"
+    },
+    "attempt": {
+      "type": "integer",
+      "title": "Attempt"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Expires At"
+    },
+    "snapshot_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Snapshot Id"
+    },
+    "outcome": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "captured",
+            "already_saved"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Outcome"
+    },
+    "failure_code": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Failure Code"
+    }
+  },
+  "type": "object",
+  "required": [
+    "task_id",
+    "period",
+    "state",
+    "attempt",
+    "expires_at"
+  ],
+  "title": "SnapshotJobStatus"
+}
+```
+
+### SnapshotJobsResponse
+
+```json
+{
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/SnapshotJobItem"
+      },
+      "type": "array",
+      "title": "Items"
+    }
+  },
+  "type": "object",
+  "required": [
+    "items"
+  ],
+  "title": "SnapshotJobsResponse"
+}
+```
+
+### SnapshotJobsWrite
+
+```json
+{
+  "properties": {
+    "from_period": {
+      "type": "string",
+      "format": "date",
+      "title": "From Period"
+    },
+    "through_period": {
+      "type": "string",
+      "format": "date",
+      "title": "Through Period"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "from_period",
+    "through_period"
+  ],
+  "title": "SnapshotJobsWrite"
+}
+```
+
+### ValuationPreview
+
+```json
+{
+  "properties": {
+    "period": {
+      "type": "string",
+      "format": "date",
+      "title": "Period"
+    },
+    "through": {
+      "type": "string",
+      "format": "date",
+      "title": "Through"
+    },
+    "base_currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Base Currency"
+    },
+    "timezone": {
+      "type": "string",
+      "title": "Timezone"
+    },
+    "change_sequence": {
+      "type": "integer",
+      "title": "Change Sequence"
+    },
+    "input_digest": {
+      "type": "string",
+      "title": "Input Digest"
+    },
+    "total_assets": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Total Assets"
+    },
+    "total_debts": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Total Debts"
+    },
+    "net_worth": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Net Worth"
+    },
+    "coverage_percent": {
+      "type": "integer",
+      "title": "Coverage Percent"
+    },
+    "excluded_items": {
+      "type": "integer",
+      "title": "Excluded Items"
+    },
+    "stale_items": {
+      "type": "integer",
+      "title": "Stale Items"
+    },
+    "unobserved_asset_ids": {
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "type": "array",
+      "title": "Unobserved Asset Ids"
+    },
+    "unobserved_debt_ids": {
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "type": "array",
+      "title": "Unobserved Debt Ids"
+    },
+    "contributions": {
+      "items": {
+        "$ref": "#/components/schemas/WorthContribution"
+      },
+      "type": "array",
+      "title": "Contributions"
+    },
+    "allocation": {
+      "items": {
+        "$ref": "#/components/schemas/AllocationGroup"
+      },
+      "type": "array",
+      "title": "Allocation"
+    },
+    "inputs": {
+      "$ref": "#/components/schemas/ValuationInputs"
+    },
+    "algorithm": {
+      "type": "string",
+      "enum": [
+        "month_end_reference_v1",
+        "month_end_reference_v2",
+        "month_end_reference_v3"
+      ],
+      "title": "Algorithm",
+      "default": "month_end_reference_v1"
+    }
+  },
+  "type": "object",
+  "required": [
+    "period",
+    "through",
+    "base_currency",
+    "timezone",
+    "change_sequence",
+    "input_digest",
+    "total_assets",
+    "total_debts",
+    "net_worth",
+    "coverage_percent",
+    "excluded_items",
+    "stale_items",
+    "unobserved_asset_ids",
+    "unobserved_debt_ids",
+    "contributions",
+    "allocation",
+    "inputs"
+  ],
+  "title": "ValuationPreview"
+}
+```
+
+### ValuationSnapshotResponse
+
+```json
+{
+  "properties": {
+    "capture_source": {
+      "type": "string",
+      "enum": [
+        "owner_reviewed",
+        "owner_requested_job"
+      ],
+      "title": "Capture Source",
+      "default": "owner_reviewed"
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    },
+    "recorded_by": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Recorded By"
+    },
+    "reason": {
+      "type": "string",
+      "title": "Reason"
+    },
+    "previous_snapshot_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Previous Snapshot Id"
+    },
+    "valuation": {
+      "$ref": "#/components/schemas/ValuationPreview"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "revision",
+    "recorded_at",
+    "recorded_by",
+    "reason",
+    "previous_snapshot_id",
+    "valuation"
+  ],
+  "title": "ValuationSnapshotResponse"
+}
+```
+
+### ValuationSnapshotSummary
+
+```json
+{
+  "properties": {
+    "capture_source": {
+      "type": "string",
+      "enum": [
+        "owner_reviewed",
+        "owner_requested_job"
+      ],
+      "title": "Capture Source",
+      "default": "owner_reviewed"
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    },
+    "recorded_by": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Recorded By"
+    },
+    "reason": {
+      "type": "string",
+      "title": "Reason"
+    },
+    "previous_snapshot_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Previous Snapshot Id"
+    },
+    "period": {
+      "type": "string",
+      "format": "date",
+      "title": "Period"
+    },
+    "through": {
+      "type": "string",
+      "format": "date",
+      "title": "Through"
+    },
+    "base_currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Base Currency"
+    },
+    "net_worth": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Net Worth"
+    },
+    "input_digest": {
+      "type": "string",
+      "title": "Input Digest"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "revision",
+    "recorded_at",
+    "recorded_by",
+    "reason",
+    "previous_snapshot_id",
+    "period",
+    "through",
+    "base_currency",
+    "net_worth",
+    "input_digest"
+  ],
+  "title": "ValuationSnapshotSummary"
+}
+```
+
+### ValuationSnapshotWrite
+
+```json
+{
+  "properties": {
+    "period": {
+      "type": "string",
+      "format": "date",
+      "title": "Period"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision"
+    },
+    "expected_change_sequence": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Change Sequence"
+    },
+    "input_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Input Digest"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "period",
+    "expected_revision",
+    "expected_change_sequence",
+    "input_digest",
+    "reason"
+  ],
+  "title": "ValuationSnapshotWrite"
+}
+```

@@ -1,79 +1,202 @@
 ---
-title: Reports
-description: Generate deterministic, structured financial report rows across transactions, net worth, cashflow, and performance.
+title: Transaction reports
+description: Verified unified API routes and exact declared models.
 ---
 
-`GET /reports`
+Create a scoped export task, inspect/execute its state according to the declared contract, then download a ready result. Fresh signed authentication, encrypted consistent snapshots, expiry and bounded export allowance apply. Lending-linked reports conditionally use version5 with loan/repayment IDs; older shapes remain when lending is absent. This is a transaction report, not complete privacy portability or the former generic `/reports?kind=...` service.
 
-Query bounded deterministic financial report rows for data analysis and reporting. This endpoint delivers structured JSON rows (not raw PDF or binary exports).
+Private operations require an authorized Clerk user bearer and workspace membership. Optional/sensitive services retain their policy/entitlement/fresh-authentication gates.
 
----
+The reference also covers activity/obligation/account statements, ledger queries and durable report exports. Download formats and task execution differ by family; inspect each declared contract. [Owned-record exports](/docs/api/owned-records) use a separate15-minute manifest workflow.
 
-## Authorization
+| Complete route | Authentication | Required operation headers | Declared success |
+| --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/reports/net-worth.csv` | Clerk user bearer | — | 200 text/csv |
+| `GET /api/v1/workspaces/{workspace_id}/reports/net-worth.html` | Clerk user bearer | — | 200 text/html |
+| `GET /api/v1/workspaces/{workspace_id}/reports/transactions.csv` | Clerk user bearer | — | 200 text/csv |
+| `GET /api/v1/workspaces/{workspace_id}/reports/transactions.html` | Clerk user bearer | — | 200 text/html |
+| `POST /api/v1/workspaces/{workspace_id}/exports` | Clerk user bearer | `Idempotency-Key` | 202 application/json ExportStatus |
+| `GET /api/v1/workspaces/{workspace_id}/exports/{task_id}` | Clerk user bearer | — | 200 application/json ExportStatus |
+| `POST /api/v1/workspaces/{workspace_id}/exports/{task_id}/execute` | Clerk user bearer | — | 200 application/json ExportStatus |
+| `POST /api/v1/workspaces/{workspace_id}/exports/{task_id}/cancel` | Clerk user bearer | — | 200 application/json ExportStatus |
+| `GET /api/v1/workspaces/{workspace_id}/exports/{task_id}/download.csv` | Clerk user bearer | — | 200 text/csv |
+| `GET /api/v1/workspaces/{workspace_id}/exports/{task_id}/download.json` | Clerk user bearer | — | 200 application/json |
+| `GET /api/v1/workspaces/{workspace_id}/reports/ledger-query.csv` | Clerk user bearer | — | 200 text/csv |
+| `GET /api/v1/workspaces/{workspace_id}/reports/ledger-query.html` | Clerk user bearer | — | 200 text/html |
+| `POST /api/v1/workspaces/{workspace_id}/report-exports` | Clerk user bearer | `Idempotency-Key` | 202 application/json ExportStatus |
+| `GET /api/v1/workspaces/{workspace_id}/report-exports/{task_id}` | Clerk user bearer | — | 200 application/json ExportStatus |
+| `POST /api/v1/workspaces/{workspace_id}/report-exports/{task_id}/cancel` | Clerk user bearer | `Idempotency-Key` | 200 application/json ExportStatus |
+| `GET /api/v1/workspaces/{workspace_id}/report-exports/{task_id}/download` | Clerk user bearer | — | 200 application/pdf; 200 text/csv; 200 application/json |
+| `GET /api/v1/workspaces/{workspace_id}/reports/activity-insights/{format}` | Clerk user bearer | — | 200 application/json; 200 text/csv; 200 text/html |
+| `GET /api/v1/workspaces/{workspace_id}/reports/upcoming-obligations/{format}` | Clerk user bearer | — | 200 application/json; 200 text/csv; 200 text/html |
+| `GET /api/v1/workspaces/{workspace_id}/reports/accounts/{account_id}/statement/{format}` | Clerk user bearer | — | 200 application/json; 200 text/csv; 200 text/html |
 
-Access requires `reports:read` **plus** the additional scopes corresponding to the selected report `kind`:
+## Exact request/response models
 
-| Report Kind | Additional Scopes Required |
-| :--- | :--- |
-| `transactions` | `transactions:read` |
-| `net_worth` | `accounts:read`, `assets:read`, `liabilities:read` |
-| `cashflow` | `accounts:read`, `budgets:read`, `liabilities:read` |
-| `performance` | `assets:read`, `valuations:read` |
+These JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).
 
----
+### ExportCancel
 
-## Query Parameters
-
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `kind` | string | **Yes** | Report kind: `transactions`, `net_worth`, `cashflow`, or `performance`. |
-| `start` | date | **Yes** | Inclusive start date (`YYYY-MM-DD`). |
-| `end` | date | **Yes** | Inclusive end date (`YYYY-MM-DD`). Max range: **366 calendar days**. |
-| `account_id` | UUID | No | Account filter. Valid only when `kind=transactions`. |
-| `currency` | string | No | Desired reporting currency conversion. |
-| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
-| `cursor` | string | No | Continuation cursor from `next_cursor`. |
-
----
-
-## Example Request
-
-```bash
-curl --fail-with-body --get \
-  "https://api.farz.app/api/developer/v1/reports" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json' \
-  --data-urlencode 'kind=cashflow' \
-  --data-urlencode 'start=2026-01-01' \
-  --data-urlencode 'end=2026-10-10' \
-  --data-urlencode 'limit=50'
+```json
+{
+  "properties": {
+    "expected_attempt": {
+      "type": "integer",
+      "maximum": 3,
+      "minimum": 0,
+      "title": "Expected Attempt"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expected_attempt"
+  ],
+  "title": "ExportCancel"
+}
 ```
 
----
+### ExportSpec
 
-## Report Kinds & Schema Variations
+```json
+{
+  "properties": {
+    "format": {
+      "type": "string",
+      "enum": [
+        "csv",
+        "json"
+      ],
+      "title": "Format",
+      "default": "csv"
+    },
+    "start": {
+      "type": "string",
+      "format": "date",
+      "title": "Start"
+    },
+    "end": {
+      "type": "string",
+      "format": "date",
+      "title": "End"
+    },
+    "account_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Account Id"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "start",
+    "end"
+  ],
+  "title": "ExportSpec"
+}
+```
 
-Every row returned conforms to [ReportRow](/docs/api/schemas#reportrow). The `values` object matches the requested kind:
+### ExportStatus
 
-### 1. `transactions` Report Values
-- `type`: Transaction type enum.
-- `amount`: Money object.
-- `category`: Category string or `null`.
-- `reversed`: Boolean reversal flag.
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "running",
+        "succeeded",
+        "failed",
+        "canceled",
+        "expired"
+      ],
+      "title": "State"
+    },
+    "attempt": {
+      "type": "integer",
+      "title": "Attempt"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Expires At"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "id",
+    "state",
+    "attempt",
+    "created_at",
+    "expires_at"
+  ],
+  "title": "ExportStatus"
+}
+```
 
-### 2. `net_worth` Report Values
-- `asset_value`: Money object or `null`.
-- `liability_value`: Money object or `null`.
-- `net_worth`: Money object or `null`.
-- `coverage_percent`: Decimal string (`0` to `100`).
+### ReportExportSpec
 
-### 3. `cashflow` Report Values
-- `income`: Net incoming money.
-- `expenses`: Net outgoing money.
-- `net`: Income minus expenses.
-- `basis`: String describing posted vs forecast assumptions.
-
-### 4. `performance` Report Values
-- `return_percent`: Decimal string or `null` if data points are insufficient.
-- `method`: Calculation methodology (e.g. `time_weighted_return`, `money_weighted`).
-- `status`: Status enum (`available`, `missing_observations`, `nonconvergent`, `unsupported`).
+```json
+{
+  "properties": {
+    "format": {
+      "type": "string",
+      "enum": [
+        "csv",
+        "json",
+        "pdf"
+      ],
+      "title": "Format",
+      "default": "csv"
+    },
+    "start": {
+      "type": "string",
+      "format": "date",
+      "title": "Start"
+    },
+    "end": {
+      "type": "string",
+      "format": "date",
+      "title": "End"
+    },
+    "account_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Account Id"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "start",
+    "end"
+  ],
+  "title": "ReportExportSpec"
+}
+```

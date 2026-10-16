@@ -1,0 +1,623 @@
+---
+title: Session inventory and device controls
+description: Current unified API contracts, workflow and activation boundaries.
+---
+
+Workspace session inventory/local blocking and `/me/devices` provider-session management are separate contracts. Use the shared Clerk user bearer, current ownership and signed recent authentication for sensitive previews/confirmations. Bind confirmations to the current revision/digest and retain a UUID command key where declared.
+
+Local Farz denial is not proof that Clerk has revoked a token. Registered-session inventory is not a complete discovery or revocation guarantee for unregistered sessions. The provider execution path requires separately approved management policy/credentials and is not activated by a successful local block. Ambiguous submitted outcomes remain unknown; recovery inspects provider state without automatically repeating revocation. Inspect authoritative history and provider outcome before claiming upstream logout.
+
+Other-account/session identifiers do not grant access. This documentation does not certify native security acceptance, full concurrent-session inventory or deferred security-review findings.
+
+| Complete route | Authentication | Required operation headers | Declared success |
+| --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/security/sessions` | Clerk user bearer | — | 200 application/json SessionRegistrationResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/security/sessions` | Clerk user bearer | `Idempotency-Key` | 200 application/json SessionRegistrationResponse |
+| `POST /api/v1/workspaces/{workspace_id}/security/sessions/{session_id}/block/preview` | Clerk user bearer | — | 200 application/json SessionBlockPreview |
+| `POST /api/v1/workspaces/{workspace_id}/security/sessions/{session_id}/block` | Clerk user bearer | `Idempotency-Key` | 200 application/json SessionBlockResponse |
+| `GET /api/v1/me/devices` | Clerk user bearer | — | 200 application/json SessionDeviceResponse[] |
+| `POST /api/v1/me/devices` | Clerk user bearer | `Idempotency-Key` | 200 application/json SessionRegistrationResponse |
+| `POST /api/v1/me/devices/{session_id}/revoke/preview` | Clerk user bearer | — | 200 application/json SessionRevokePreview |
+| `POST /api/v1/me/devices/{session_id}/revoke` | Clerk user bearer | `Idempotency-Key` | 202 application/json SessionRevokeStatus |
+| `GET /api/v1/me/devices/{session_id}/revoke` | Clerk user bearer | — | 200 application/json SessionRevokeStatus |
+| `GET /api/v1/me/devices/{session_id}/revoke/history` | Clerk user bearer | — | 200 application/json SessionRevokeStatus[] |
+| `POST /api/v1/me/devices/{session_id}/revoke/execute` | Clerk user bearer | — | 200 application/json SessionRevokeStatus |
+
+## Exact request/response models
+
+These JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).
+
+### SessionBlockPreview
+
+```json
+{
+  "properties": {
+    "target_before": {
+      "$ref": "#/components/schemas/SessionRegistrationResponse"
+    },
+    "input": {
+      "$ref": "#/components/schemas/SessionBlockReview"
+    },
+    "input_digest": {
+      "type": "string",
+      "title": "Input Digest"
+    },
+    "effect": {
+      "type": "string",
+      "const": "block_farz_api_access",
+      "title": "Effect",
+      "default": "block_farz_api_access"
+    },
+    "applied": {
+      "type": "boolean",
+      "const": false,
+      "title": "Applied",
+      "default": false
+    },
+    "provider_session_revoked": {
+      "type": "boolean",
+      "const": false,
+      "title": "Provider Session Revoked",
+      "default": false
+    },
+    "scope": {
+      "type": "string",
+      "const": "this_personal_workspace_farz_api",
+      "title": "Scope",
+      "default": "this_personal_workspace_farz_api"
+    }
+  },
+  "type": "object",
+  "required": [
+    "target_before",
+    "input",
+    "input_digest"
+  ],
+  "title": "SessionBlockPreview"
+}
+```
+
+### SessionBlockResponse
+
+```json
+{
+  "properties": {
+    "target_before": {
+      "$ref": "#/components/schemas/SessionRegistrationResponse"
+    },
+    "input": {
+      "$ref": "#/components/schemas/SessionBlockReview"
+    },
+    "input_digest": {
+      "type": "string",
+      "title": "Input Digest"
+    },
+    "effect": {
+      "type": "string",
+      "const": "block_farz_api_access",
+      "title": "Effect",
+      "default": "block_farz_api_access"
+    },
+    "applied": {
+      "type": "boolean",
+      "const": true,
+      "title": "Applied",
+      "default": true
+    },
+    "provider_session_revoked": {
+      "type": "boolean",
+      "const": false,
+      "title": "Provider Session Revoked",
+      "default": false
+    },
+    "scope": {
+      "type": "string",
+      "const": "this_personal_workspace_farz_api",
+      "title": "Scope",
+      "default": "this_personal_workspace_farz_api"
+    },
+    "farz_api_access_blocked": {
+      "type": "boolean",
+      "const": true,
+      "title": "Farz Api Access Blocked",
+      "default": true
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    },
+    "revision": {
+      "type": "integer",
+      "const": 1,
+      "title": "Revision",
+      "default": 1
+    }
+  },
+  "type": "object",
+  "required": [
+    "target_before",
+    "input",
+    "input_digest",
+    "id",
+    "recorded_at"
+  ],
+  "title": "SessionBlockResponse"
+}
+```
+
+### SessionBlockReview
+
+```json
+{
+  "properties": {
+    "expected_revision": {
+      "type": "integer",
+      "const": 0,
+      "title": "Expected Revision"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    },
+    "farz_api_only_acknowledged": {
+      "type": "boolean",
+      "const": true,
+      "title": "Farz Api Only Acknowledged"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expected_revision",
+    "reason",
+    "farz_api_only_acknowledged"
+  ],
+  "title": "SessionBlockReview"
+}
+```
+
+### SessionBlockWrite
+
+```json
+{
+  "properties": {
+    "expected_revision": {
+      "type": "integer",
+      "const": 0,
+      "title": "Expected Revision"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    },
+    "farz_api_only_acknowledged": {
+      "type": "boolean",
+      "const": true,
+      "title": "Farz Api Only Acknowledged"
+    },
+    "input_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Input Digest"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expected_revision",
+    "reason",
+    "farz_api_only_acknowledged",
+    "input_digest"
+  ],
+  "title": "SessionBlockWrite"
+}
+```
+
+### SessionDeviceResponse
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "display_name": {
+      "type": "string",
+      "title": "Display Name"
+    },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "web",
+        "android",
+        "ios"
+      ],
+      "title": "Platform"
+    },
+    "registered_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Registered At"
+    },
+    "current": {
+      "type": "boolean",
+      "title": "Current"
+    },
+    "blocked": {
+      "type": "boolean",
+      "title": "Blocked"
+    },
+    "provider_session_verified": {
+      "type": "boolean",
+      "const": true,
+      "title": "Provider Session Verified",
+      "default": true
+    },
+    "device_hardware_verified": {
+      "type": "boolean",
+      "const": false,
+      "title": "Device Hardware Verified",
+      "default": false
+    },
+    "provider_inventory_complete": {
+      "type": "boolean",
+      "const": false,
+      "title": "Provider Inventory Complete",
+      "default": false
+    },
+    "provider_revoke_supported": {
+      "type": "boolean",
+      "title": "Provider Revoke Supported"
+    },
+    "provider_revoke_unavailable_reason": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "disabled",
+            "registration_refresh_required",
+            "current_session",
+            "already_requested"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Provider Revoke Unavailable Reason"
+    },
+    "provider_revocation": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/SessionRevokeStatus"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "display_name",
+    "platform",
+    "registered_at",
+    "current",
+    "blocked",
+    "provider_revoke_supported"
+  ],
+  "title": "SessionDeviceResponse"
+}
+```
+
+### SessionRegistrationResponse
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "display_name": {
+      "type": "string",
+      "title": "Display Name"
+    },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "web",
+        "android",
+        "ios"
+      ],
+      "title": "Platform"
+    },
+    "registered_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Registered At"
+    },
+    "current": {
+      "type": "boolean",
+      "title": "Current"
+    },
+    "blocked": {
+      "type": "boolean",
+      "title": "Blocked"
+    },
+    "provider_session_verified": {
+      "type": "boolean",
+      "const": true,
+      "title": "Provider Session Verified",
+      "default": true
+    },
+    "device_hardware_verified": {
+      "type": "boolean",
+      "const": false,
+      "title": "Device Hardware Verified",
+      "default": false
+    },
+    "provider_inventory_complete": {
+      "type": "boolean",
+      "const": false,
+      "title": "Provider Inventory Complete",
+      "default": false
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "display_name",
+    "platform",
+    "registered_at",
+    "current",
+    "blocked"
+  ],
+  "title": "SessionRegistrationResponse"
+}
+```
+
+### SessionRegistrationWrite
+
+```json
+{
+  "properties": {
+    "display_name": {
+      "type": "string",
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Display Name"
+    },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "web",
+        "android",
+        "ios"
+      ],
+      "title": "Platform"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "display_name",
+    "platform"
+  ],
+  "title": "SessionRegistrationWrite"
+}
+```
+
+### SessionRevokePreview
+
+```json
+{
+  "properties": {
+    "target_before": {
+      "$ref": "#/components/schemas/SessionRegistrationResponse"
+    },
+    "input": {
+      "$ref": "#/components/schemas/SessionRevokeReview"
+    },
+    "input_digest": {
+      "type": "string",
+      "title": "Input Digest"
+    },
+    "applied": {
+      "type": "boolean",
+      "const": false,
+      "title": "Applied",
+      "default": false
+    },
+    "effect": {
+      "type": "string",
+      "const": "block_farz_api_and_request_provider_logout",
+      "title": "Effect",
+      "default": "block_farz_api_and_request_provider_logout"
+    },
+    "provider_session_revoked": {
+      "type": "boolean",
+      "const": false,
+      "title": "Provider Session Revoked",
+      "default": false
+    }
+  },
+  "type": "object",
+  "required": [
+    "target_before",
+    "input",
+    "input_digest"
+  ],
+  "title": "SessionRevokePreview"
+}
+```
+
+### SessionRevokeReview
+
+```json
+{
+  "properties": {
+    "expected_revision": {
+      "type": "integer",
+      "const": 0,
+      "title": "Expected Revision"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    },
+    "provider_logout_acknowledged": {
+      "type": "boolean",
+      "const": true,
+      "title": "Provider Logout Acknowledged"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expected_revision",
+    "reason",
+    "provider_logout_acknowledged"
+  ],
+  "title": "SessionRevokeReview"
+}
+```
+
+### SessionRevokeStatus
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "session_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Session Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "checking",
+        "submitted",
+        "confirmed",
+        "already_inactive",
+        "unknown",
+        "review_required",
+        "unavailable",
+        "canceled"
+      ],
+      "title": "State"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    },
+    "attempts": {
+      "type": "integer",
+      "title": "Attempts"
+    },
+    "provider_session_revoked": {
+      "type": "boolean",
+      "title": "Provider Session Revoked"
+    },
+    "provider_session_inactive": {
+      "type": "boolean",
+      "title": "Provider Session Inactive"
+    },
+    "farz_api_access_blocked": {
+      "type": "boolean",
+      "const": true,
+      "title": "Farz Api Access Blocked",
+      "default": true
+    },
+    "effect_scope": {
+      "type": "string",
+      "const": "registered_clerk_session",
+      "title": "Effect Scope",
+      "default": "registered_clerk_session"
+    },
+    "retry_allowed": {
+      "type": "boolean",
+      "title": "Retry Allowed"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "session_id",
+    "revision",
+    "state",
+    "recorded_at",
+    "attempts",
+    "provider_session_revoked",
+    "provider_session_inactive",
+    "retry_allowed"
+  ],
+  "title": "SessionRevokeStatus"
+}
+```
+
+### SessionRevokeWrite
+
+```json
+{
+  "properties": {
+    "expected_revision": {
+      "type": "integer",
+      "const": 0,
+      "title": "Expected Revision"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    },
+    "provider_logout_acknowledged": {
+      "type": "boolean",
+      "const": true,
+      "title": "Provider Logout Acknowledged"
+    },
+    "input_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Input Digest"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expected_revision",
+    "reason",
+    "provider_logout_acknowledged",
+    "input_digest"
+  ],
+  "title": "SessionRevokeWrite"
+}
+```

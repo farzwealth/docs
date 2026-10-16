@@ -1,96 +1,2948 @@
 ---
-title: Assets & Holdings
-description: List personal assets, track real-time security and crypto unit prices, and inspect purchase tax lots.
+title: Assets and investment records
+description: Verified unified API routes and exact declared models.
 ---
 
-Track real estate estimates, vehicles, deposits, precious metals, and publicly qualified investment holdings (stocks, ETFs, cryptocurrencies).
+These are recorded owned asset estimates and qualified event/history workflows. They do not certify ownership, licensed prices, live brokerage connections or a generic tax-lot/cost-basis service. See the complete index for investment/deposit settlement and correction routes. Do not guess the old `/assets/{asset_id}/lots` endpoint.
 
----
+Private operations require an authorized Clerk user bearer and workspace membership. Optional/sensitive services retain their policy/entitlement/fresh-authentication gates.
 
-## 1. List Assets
+| Complete route | Authentication | Required operation headers | Declared success |
+| --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/assets/page` | Clerk user bearer | — | 200 application/json RecordPage_AssetResponse_ |
+| `GET /api/v1/workspaces/{workspace_id}/assets` | Clerk user bearer | — | 200 application/json AssetResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/assets` | Clerk user bearer | `Idempotency-Key` | 200 application/json AssetResponse |
+| `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}/valuations` | Clerk user bearer | — | 200 application/json AssetValuationResponse[] |
+| `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}/lifecycle` | Clerk user bearer | — | 200 application/json AssetLifecycleResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/lifecycle` | Clerk user bearer | `Idempotency-Key` | 200 application/json AssetLifecycleResponse |
+| `POST /api/v1/workspaces/{workspace_id}/returns/preview` | Clerk user bearer | — | 200 application/json ReturnPreview |
+| `POST /api/v1/workspaces/{workspace_id}/returns` | Clerk user bearer | `Idempotency-Key` | 200 application/json ReturnObservationResponse |
+| `GET /api/v1/workspaces/{workspace_id}/returns` | Clerk user bearer | — | 200 application/json ReturnObservationResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/returns/time-weighted/preview` | Clerk user bearer | — | 200 application/json TimeWeightedPreview |
+| `POST /api/v1/workspaces/{workspace_id}/returns/time-weighted` | Clerk user bearer | `Idempotency-Key` | 200 application/json ReturnObservationResponse |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/investment-events/preview` | Clerk user bearer | — | 200 application/json InvestmentPreview |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/investment-events` | Clerk user bearer | `Idempotency-Key` | 200 application/json InvestmentEventResponse |
+| `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}/investment-events` | Clerk user bearer | — | 200 application/json InvestmentEventResponse[] |
+| `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}/investment-position` | Clerk user bearer | — | 200 application/json InvestmentPosition |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/investment-settlements/preview` | Clerk user bearer | — | 200 application/json SettlementPreview |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/investment-settlements` | Clerk user bearer | `Idempotency-Key` | 200 application/json SettlementResponse |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/investment-events/{event_id}/settlements/reverse` | Clerk user bearer | `Idempotency-Key` | 200 application/json SettlementResponse |
+| `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}/investment-events/{event_id}/settlements` | Clerk user bearer | — | 200 application/json SettlementResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/zakat/preview` | Clerk user bearer | — | 200 application/json ZakatPreview |
+| `POST /api/v1/workspaces/{workspace_id}/zakat` | Clerk user bearer | `Idempotency-Key` | 200 application/json ZakatEstimateResponse |
+| `GET /api/v1/workspaces/{workspace_id}/zakat` | Clerk user bearer | — | 200 application/json ZakatEstimateResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/deposits/preview` | Clerk user bearer | — | 200 application/json DepositScenarioPreview |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/deposit-payouts/preview` | Clerk user bearer | — | 200 application/json DepositPayoutPreview |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/deposit-payouts` | Clerk user bearer | `Idempotency-Key` | 200 application/json DepositPayoutResponse |
+| `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}/deposit-payouts` | Clerk user bearer | — | 200 application/json DepositPayoutResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/deposit-payouts/{receipt_id}/reversal/preview` | Clerk user bearer | — | 200 application/json DepositPayoutPreview |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/deposit-payouts/{receipt_id}/reversal` | Clerk user bearer | `Idempotency-Key` | 200 application/json DepositPayoutResponse |
 
-`GET /assets`
+## Exact request/response models
 
-Returns a paginated list of personal assets, dated estimates, and exchange/chain-qualified holdings.
+These JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).
 
-### Authorization
-- **Scope Required**: `assets:read`
-- **Plan Requirement**: Active Paid subscription
+### AssetLifecycleResponse
 
-### Query Parameters
-
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `kind` | string | No | Filter by asset kind: `property`, `stock`, `etf`, `crypto`, `metal`, `vehicle`, `deposit`, `other`. |
-| `as_of` | date | No | Valuation cutoff date (`YYYY-MM-DD`). Defaults to current date. |
-| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
-| `cursor` | string | No | Opaque continuation cursor from `next_cursor`. |
-
-### Example Request
-
-```bash
-curl --fail-with-body --get \
-  "https://api.farz.app/api/developer/v1/assets" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json' \
-  --data-urlencode 'limit=20'
+```json
+{
+  "properties": {
+    "asset_revision": {
+      "type": "integer",
+      "title": "Asset Revision"
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "asset_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Asset Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "effective_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Effective On"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "active",
+        "disposed"
+      ],
+      "title": "State"
+    },
+    "disposition": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "sold",
+            "gifted",
+            "lost",
+            "matured",
+            "other"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Disposition"
+    },
+    "reason": {
+      "type": "string",
+      "title": "Reason"
+    },
+    "recorded_by": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Recorded By"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    }
+  },
+  "type": "object",
+  "required": [
+    "asset_revision",
+    "id",
+    "asset_id",
+    "revision",
+    "effective_on",
+    "state",
+    "disposition",
+    "reason",
+    "recorded_by",
+    "recorded_at"
+  ],
+  "title": "AssetLifecycleResponse"
+}
 ```
 
----
+### AssetLifecycleWrite
 
-## 2. Get an Asset
-
-`GET /assets/{asset_id}`
-
-Retrieves a single asset and its current holding details.
-
-### Path Parameters
-
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `asset_id` | UUID | **Yes** | The asset identifier. |
-
-### Example Request
-
-```bash
-curl --fail-with-body \
-  "https://api.farz.app/api/developer/v1/assets/$FARZ_ASSET_ID" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json'
+```json
+{
+  "properties": {
+    "expected_asset_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Asset Revision"
+    },
+    "expected_lifecycle_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Lifecycle Revision"
+    },
+    "effective_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Effective On"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "active",
+        "disposed"
+      ],
+      "title": "State"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    },
+    "disposition": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "sold",
+            "gifted",
+            "lost",
+            "matured",
+            "other"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Disposition"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expected_asset_revision",
+    "expected_lifecycle_revision",
+    "effective_on",
+    "state",
+    "reason"
+  ],
+  "title": "AssetLifecycleWrite"
+}
 ```
 
-Returns a single [Asset](/docs/api/schemas#asset) JSON object with HTTP status `200 OK`.
+### AssetResponse
 
----
-
-## 3. List Asset Lots
-
-`GET /assets/{asset_id}/lots`
-
-Inspects individual purchase lots, cost basis calculations, and remaining versus disposed quantities for stocks, ETFs, and cryptocurrencies.
-
-### Path Parameters
-
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `asset_id` | UUID | **Yes** | Qualified holding asset identifier. |
-
-### Query Parameters
-
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `through` | date | No | Include lots acquired through this date (`YYYY-MM-DD`). Defaults to today. |
-| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
-| `cursor` | string | No | Continuation cursor. |
-
-### Example Request
-
-```bash
-curl --fail-with-body --get \
-  "https://api.farz.app/api/developer/v1/assets/$FARZ_ASSET_ID/lots" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json' \
-  --data-urlencode 'limit=20'
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "name": {
+      "type": "string",
+      "title": "Name"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "property",
+        "vehicle",
+        "metal",
+        "deposit",
+        "stock",
+        "etf",
+        "crypto",
+        "other"
+      ],
+      "title": "Kind"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "ownership_note": {
+      "type": "string",
+      "title": "Ownership Note"
+    },
+    "reference_note": {
+      "type": "string",
+      "title": "Reference Note"
+    },
+    "liquidity": {
+      "type": "string",
+      "enum": [
+        "liquid",
+        "illiquid",
+        "unknown"
+      ],
+      "title": "Liquidity"
+    },
+    "valuation": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/AssetValuationResponse"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "lifecycle": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/AssetLifecycleResponse"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "as_of": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "As Of"
+    },
+    "manual": {
+      "type": "boolean",
+      "title": "Manual",
+      "default": true
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "revision",
+    "name",
+    "kind",
+    "currency",
+    "ownership_note",
+    "reference_note",
+    "liquidity",
+    "valuation"
+  ],
+  "title": "AssetResponse"
+}
 ```
 
-Returns a paginated [`Page<Lot>`](/docs/api/schemas#lot) collection.
+### AssetValuationResponse
+
+```json
+{
+  "properties": {
+    "ownership_estimate": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/OwnershipEstimate"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "descriptor": {
+      "anyOf": [
+        {
+          "oneOf": [
+            {
+              "$ref": "#/components/schemas/PropertyDescriptor"
+            },
+            {
+              "$ref": "#/components/schemas/VehicleDescriptor"
+            },
+            {
+              "$ref": "#/components/schemas/DepositDescriptor"
+            }
+          ],
+          "discriminator": {
+            "propertyName": "kind",
+            "mapping": {
+              "deposit": "#/components/schemas/DepositDescriptor",
+              "property": "#/components/schemas/PropertyDescriptor",
+              "vehicle": "#/components/schemas/VehicleDescriptor"
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Descriptor"
+    },
+    "acquisition": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/AssetAcquisition"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "value_minus_acquisition_cost": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Value Minus Acquisition Cost"
+    },
+    "estimated_unrealized_gain": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Estimated Unrealized Gain"
+    },
+    "basis": {
+      "type": "string",
+      "enum": [
+        "manual_owned_value",
+        "metal_spot_v1",
+        "holding_unit_v1",
+        "ownership_fraction_v1"
+      ],
+      "title": "Basis",
+      "default": "manual_owned_value"
+    },
+    "holding_estimate": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/HoldingEstimateInput"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "metal_estimate": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/MetalEstimateInput"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "deposit_assumptions": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/DepositAssumptions"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "deposit_projection": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/DepositProjection"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "fine_weight_grams": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Fine Weight Grams"
+    },
+    "asset_revision": {
+      "type": "integer",
+      "title": "Asset Revision"
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "asset_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Asset Id"
+    },
+    "owned_value": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Owned Value"
+    },
+    "valued_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Valued On"
+    },
+    "source": {
+      "type": "string",
+      "title": "Source"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    }
+  },
+  "type": "object",
+  "required": [
+    "asset_revision",
+    "id",
+    "asset_id",
+    "owned_value",
+    "valued_on",
+    "source",
+    "recorded_at"
+  ],
+  "title": "AssetValuationResponse"
+}
+```
+
+### AssetWrite
+
+```json
+{
+  "properties": {
+    "ownership_estimate": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/OwnershipEstimate"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "descriptor": {
+      "anyOf": [
+        {
+          "oneOf": [
+            {
+              "$ref": "#/components/schemas/PropertyDescriptor"
+            },
+            {
+              "$ref": "#/components/schemas/VehicleDescriptor"
+            },
+            {
+              "$ref": "#/components/schemas/DepositDescriptor"
+            }
+          ],
+          "discriminator": {
+            "propertyName": "kind",
+            "mapping": {
+              "deposit": "#/components/schemas/DepositDescriptor",
+              "property": "#/components/schemas/PropertyDescriptor",
+              "vehicle": "#/components/schemas/VehicleDescriptor"
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Descriptor"
+    },
+    "acquisition": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/AssetAcquisition"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Id"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision",
+      "default": 0
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Name"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "property",
+        "vehicle",
+        "metal",
+        "deposit",
+        "stock",
+        "etf",
+        "crypto",
+        "other"
+      ],
+      "title": "Kind",
+      "default": "other"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "owned_value": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Owned Value"
+    },
+    "holding_estimate": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/HoldingEstimateInput"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "metal_estimate": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/MetalEstimateInput"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "deposit_assumptions": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/DepositAssumptions"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "valued_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Valued On"
+    },
+    "source": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Source"
+    },
+    "ownership_note": {
+      "type": "string",
+      "maxLength": 200,
+      "title": "Ownership Note",
+      "default": ""
+    },
+    "reference_note": {
+      "type": "string",
+      "maxLength": 500,
+      "title": "Reference Note",
+      "default": ""
+    },
+    "liquidity": {
+      "type": "string",
+      "enum": [
+        "liquid",
+        "illiquid",
+        "unknown"
+      ],
+      "title": "Liquidity",
+      "default": "unknown"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "name",
+    "currency",
+    "valued_on",
+    "source"
+  ],
+  "title": "AssetWrite"
+}
+```
+
+### DepositPayoutCorrection
+
+```json
+{
+  "properties": {
+    "valuation_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Valuation Id"
+    },
+    "expected_asset_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Asset Revision"
+    },
+    "expected_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Account Revision"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Revision"
+    },
+    "remaining_owned_value": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Remaining Owned Value"
+    },
+    "valuation_source": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Valuation Source"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    },
+    "remaining_value_is_observed": {
+      "type": "boolean",
+      "const": true,
+      "title": "Remaining Value Is Observed"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "valuation_id",
+    "expected_asset_revision",
+    "expected_account_revision",
+    "expected_revision",
+    "remaining_owned_value",
+    "valuation_source",
+    "reason",
+    "remaining_value_is_observed"
+  ],
+  "title": "DepositPayoutCorrection"
+}
+```
+
+### DepositPayoutPreview
+
+```json
+{
+  "properties": {
+    "algorithm": {
+      "type": "string",
+      "const": "deposit_payout_native_v1",
+      "title": "Algorithm",
+      "default": "deposit_payout_native_v1"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "record",
+        "reverse"
+      ],
+      "title": "Action"
+    },
+    "input": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/DepositPayoutReview"
+        },
+        {
+          "$ref": "#/components/schemas/DepositPayoutCorrection"
+        }
+      ],
+      "title": "Input"
+    },
+    "input_digest": {
+      "type": "string",
+      "title": "Input Digest"
+    },
+    "postings": {
+      "items": {
+        "$ref": "#/components/schemas/DepositPayoutPosting"
+      },
+      "type": "array",
+      "title": "Postings"
+    },
+    "net_cash_delta": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Net Cash Delta"
+    },
+    "previous_owned_value": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Previous Owned Value"
+    },
+    "remaining_owned_value": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Remaining Owned Value"
+    },
+    "value_change": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Value Change"
+    },
+    "valuation_basis": {
+      "type": "string",
+      "const": "explicit_observed_value_not_derived_from_cash",
+      "title": "Valuation Basis",
+      "default": "explicit_observed_value_not_derived_from_cash"
+    },
+    "payment_initiated": {
+      "type": "boolean",
+      "const": false,
+      "title": "Payment Initiated",
+      "default": false
+    },
+    "maturity_or_closure_inferred": {
+      "type": "boolean",
+      "const": false,
+      "title": "Maturity Or Closure Inferred",
+      "default": false
+    }
+  },
+  "type": "object",
+  "required": [
+    "action",
+    "input",
+    "input_digest",
+    "postings",
+    "net_cash_delta",
+    "previous_owned_value",
+    "remaining_owned_value",
+    "value_change"
+  ],
+  "title": "DepositPayoutPreview"
+}
+```
+
+### DepositPayoutResponse
+
+```json
+{
+  "properties": {
+    "algorithm": {
+      "type": "string",
+      "const": "deposit_payout_native_v1",
+      "title": "Algorithm",
+      "default": "deposit_payout_native_v1"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "record",
+        "reverse"
+      ],
+      "title": "Action"
+    },
+    "input": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/DepositPayoutReview"
+        },
+        {
+          "$ref": "#/components/schemas/DepositPayoutCorrection"
+        }
+      ],
+      "title": "Input"
+    },
+    "input_digest": {
+      "type": "string",
+      "title": "Input Digest"
+    },
+    "postings": {
+      "items": {
+        "$ref": "#/components/schemas/DepositPayoutPosting"
+      },
+      "type": "array",
+      "title": "Postings"
+    },
+    "net_cash_delta": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Net Cash Delta"
+    },
+    "previous_owned_value": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Previous Owned Value"
+    },
+    "remaining_owned_value": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Remaining Owned Value"
+    },
+    "value_change": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Value Change"
+    },
+    "valuation_basis": {
+      "type": "string",
+      "const": "explicit_observed_value_not_derived_from_cash",
+      "title": "Valuation Basis",
+      "default": "explicit_observed_value_not_derived_from_cash"
+    },
+    "payment_initiated": {
+      "type": "boolean",
+      "const": false,
+      "title": "Payment Initiated",
+      "default": false
+    },
+    "maturity_or_closure_inferred": {
+      "type": "boolean",
+      "const": false,
+      "title": "Maturity Or Closure Inferred",
+      "default": false
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "asset_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Asset Id"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "before_valuation_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Before Valuation Id"
+    },
+    "after_valuation_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "After Valuation Id"
+    },
+    "principal_entry_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Principal Entry Id"
+    },
+    "yield_entry_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Yield Entry Id"
+    },
+    "cost_entry_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Cost Entry Id"
+    },
+    "reversal_of": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Reversal Of"
+    },
+    "effective_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Effective On"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    },
+    "asset_revision": {
+      "type": "integer",
+      "title": "Asset Revision"
+    },
+    "account_revision": {
+      "type": "integer",
+      "title": "Account Revision"
+    },
+    "original_input": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/DepositPayoutReview"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "type": "object",
+  "required": [
+    "action",
+    "input",
+    "input_digest",
+    "postings",
+    "net_cash_delta",
+    "previous_owned_value",
+    "remaining_owned_value",
+    "value_change",
+    "id",
+    "asset_id",
+    "account_id",
+    "revision",
+    "before_valuation_id",
+    "after_valuation_id",
+    "principal_entry_id",
+    "yield_entry_id",
+    "cost_entry_id",
+    "reversal_of",
+    "effective_on",
+    "recorded_at",
+    "asset_revision",
+    "account_revision"
+  ],
+  "title": "DepositPayoutResponse"
+}
+```
+
+### DepositPayoutReverse
+
+```json
+{
+  "properties": {
+    "valuation_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Valuation Id"
+    },
+    "expected_asset_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Asset Revision"
+    },
+    "expected_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Account Revision"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Revision"
+    },
+    "remaining_owned_value": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Remaining Owned Value"
+    },
+    "valuation_source": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Valuation Source"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    },
+    "remaining_value_is_observed": {
+      "type": "boolean",
+      "const": true,
+      "title": "Remaining Value Is Observed"
+    },
+    "input_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Input Digest"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "valuation_id",
+    "expected_asset_revision",
+    "expected_account_revision",
+    "expected_revision",
+    "remaining_owned_value",
+    "valuation_source",
+    "reason",
+    "remaining_value_is_observed",
+    "input_digest"
+  ],
+  "title": "DepositPayoutReverse"
+}
+```
+
+### DepositPayoutReview
+
+```json
+{
+  "properties": {
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "valuation_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Valuation Id"
+    },
+    "expected_asset_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Asset Revision"
+    },
+    "expected_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Account Revision"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision"
+    },
+    "occurred_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Occurred On"
+    },
+    "receipt_reference": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_./:-]{1,100}$",
+      "title": "Receipt Reference"
+    },
+    "source": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Source"
+    },
+    "principal_returned": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Principal Returned"
+    },
+    "gross_realized_yield": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Gross Realized Yield"
+    },
+    "fees": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Fees"
+    },
+    "withholding": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Withholding"
+    },
+    "remaining_owned_value": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Remaining Owned Value"
+    },
+    "valuation_source": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Valuation Source"
+    },
+    "already_settled": {
+      "type": "boolean",
+      "const": true,
+      "title": "Already Settled"
+    },
+    "remaining_value_is_observed": {
+      "type": "boolean",
+      "const": true,
+      "title": "Remaining Value Is Observed"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "account_id",
+    "valuation_id",
+    "expected_asset_revision",
+    "expected_account_revision",
+    "expected_revision",
+    "occurred_on",
+    "receipt_reference",
+    "source",
+    "principal_returned",
+    "gross_realized_yield",
+    "fees",
+    "withholding",
+    "remaining_owned_value",
+    "valuation_source",
+    "already_settled",
+    "remaining_value_is_observed"
+  ],
+  "title": "DepositPayoutReview"
+}
+```
+
+### DepositPayoutWrite
+
+```json
+{
+  "properties": {
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "valuation_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Valuation Id"
+    },
+    "expected_asset_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Asset Revision"
+    },
+    "expected_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Account Revision"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision"
+    },
+    "occurred_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Occurred On"
+    },
+    "receipt_reference": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_./:-]{1,100}$",
+      "title": "Receipt Reference"
+    },
+    "source": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Source"
+    },
+    "principal_returned": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Principal Returned"
+    },
+    "gross_realized_yield": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Gross Realized Yield"
+    },
+    "fees": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Fees"
+    },
+    "withholding": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Withholding"
+    },
+    "remaining_owned_value": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Remaining Owned Value"
+    },
+    "valuation_source": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Valuation Source"
+    },
+    "already_settled": {
+      "type": "boolean",
+      "const": true,
+      "title": "Already Settled"
+    },
+    "remaining_value_is_observed": {
+      "type": "boolean",
+      "const": true,
+      "title": "Remaining Value Is Observed"
+    },
+    "input_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Input Digest"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "account_id",
+    "valuation_id",
+    "expected_asset_revision",
+    "expected_account_revision",
+    "expected_revision",
+    "occurred_on",
+    "receipt_reference",
+    "source",
+    "principal_returned",
+    "gross_realized_yield",
+    "fees",
+    "withholding",
+    "remaining_owned_value",
+    "valuation_source",
+    "already_settled",
+    "remaining_value_is_observed",
+    "input_digest"
+  ],
+  "title": "DepositPayoutWrite"
+}
+```
+
+### DepositPreviewInput
+
+```json
+{
+  "properties": {
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "assumptions": {
+      "$ref": "#/components/schemas/DepositAssumptions"
+    },
+    "expected_fees": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Expected Fees"
+    },
+    "expected_withholding": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Expected Withholding"
+    },
+    "cost_source": {
+      "type": "string",
+      "maxLength": 300,
+      "minLength": 1,
+      "title": "Cost Source"
+    },
+    "assumptions_source": {
+      "type": "string",
+      "maxLength": 300,
+      "minLength": 1,
+      "title": "Assumptions Source"
+    },
+    "forecast_only_acknowledged": {
+      "type": "boolean",
+      "const": true,
+      "title": "Forecast Only Acknowledged"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "currency",
+    "assumptions",
+    "expected_fees",
+    "expected_withholding",
+    "cost_source",
+    "assumptions_source",
+    "forecast_only_acknowledged"
+  ],
+  "title": "DepositPreviewInput"
+}
+```
+
+### DepositScenarioPreview
+
+```json
+{
+  "properties": {
+    "algorithm": {
+      "type": "string",
+      "const": "deposit_cost_scenario_v1",
+      "title": "Algorithm",
+      "default": "deposit_cost_scenario_v1"
+    },
+    "input": {
+      "$ref": "#/components/schemas/DepositPreviewInput"
+    },
+    "gross_projection": {
+      "$ref": "#/components/schemas/DepositProjection"
+    },
+    "expected_deductions": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Expected Deductions"
+    },
+    "expected_net_return": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Expected Net Return"
+    },
+    "expected_net_maturity_total": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Expected Net Maturity Total"
+    },
+    "rounded_net_maturity_total": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Rounded Net Maturity Total"
+    },
+    "minor_unit_digits": {
+      "type": "integer",
+      "title": "Minor Unit Digits"
+    },
+    "rounding": {
+      "type": "string",
+      "const": "half_even_native_minor_unit",
+      "title": "Rounding",
+      "default": "half_even_native_minor_unit"
+    },
+    "amount_basis": {
+      "type": "string",
+      "const": "native_forecast_no_fx",
+      "title": "Amount Basis",
+      "default": "native_forecast_no_fx"
+    },
+    "valuation_or_payment_recorded": {
+      "type": "boolean",
+      "const": false,
+      "title": "Valuation Or Payment Recorded",
+      "default": false
+    },
+    "guaranteed_return": {
+      "type": "boolean",
+      "const": false,
+      "title": "Guaranteed Return",
+      "default": false
+    },
+    "actual_day_count": {
+      "type": "boolean",
+      "const": true,
+      "title": "Actual Day Count",
+      "default": true
+    },
+    "included_costs": {
+      "type": "string",
+      "const": "only_explicit_fees_and_withholding",
+      "title": "Included Costs",
+      "default": "only_explicit_fees_and_withholding"
+    }
+  },
+  "type": "object",
+  "required": [
+    "input",
+    "gross_projection",
+    "expected_deductions",
+    "expected_net_return",
+    "expected_net_maturity_total",
+    "rounded_net_maturity_total",
+    "minor_unit_digits"
+  ],
+  "title": "DepositScenarioPreview"
+}
+```
+
+### InvestmentEventResponse
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "asset_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Asset Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "asset_revision": {
+      "type": "integer",
+      "title": "Asset Revision"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    },
+    "input": {
+      "$ref": "#/components/schemas/InvestmentReview"
+    },
+    "confirmation_digest": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Confirmation Digest"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "asset_id",
+    "revision",
+    "asset_revision",
+    "recorded_at",
+    "input"
+  ],
+  "title": "InvestmentEventResponse"
+}
+```
+
+### InvestmentPosition
+
+```json
+{
+  "properties": {
+    "algorithm": {
+      "type": "string",
+      "const": "manual_fifo_native_v1",
+      "title": "Algorithm",
+      "default": "manual_fifo_native_v1"
+    },
+    "asset_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Asset Id"
+    },
+    "instrument_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Instrument Id"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "through": {
+      "type": "string",
+      "format": "date",
+      "title": "Through"
+    },
+    "owned_quantity": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Owned Quantity"
+    },
+    "remaining_cost": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Remaining Cost"
+    },
+    "disposed_cost": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Disposed Cost"
+    },
+    "sale_net_proceeds": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Sale Net Proceeds"
+    },
+    "estimated_realized_gain": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Estimated Realized Gain"
+    },
+    "dividend_net_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Dividend Net Amount"
+    },
+    "lots": {
+      "items": {
+        "$ref": "#/components/schemas/RemainingLot"
+      },
+      "type": "array",
+      "title": "Lots"
+    },
+    "allocations": {
+      "items": {
+        "$ref": "#/components/schemas/DisposalAllocation"
+      },
+      "type": "array",
+      "title": "Allocations"
+    },
+    "evidence": {
+      "type": "string",
+      "const": "owner_recorded_unverified",
+      "title": "Evidence",
+      "default": "owner_recorded_unverified"
+    },
+    "cash_posted": {
+      "type": "boolean",
+      "const": false,
+      "title": "Cash Posted",
+      "default": false
+    },
+    "valuation_updated": {
+      "type": "boolean",
+      "const": false,
+      "title": "Valuation Updated",
+      "default": false
+    },
+    "quantity_rounding": {
+      "type": "string",
+      "const": "half_even_18_with_exact_ratios",
+      "title": "Quantity Rounding",
+      "default": "half_even_18_with_exact_ratios"
+    }
+  },
+  "type": "object",
+  "required": [
+    "asset_id",
+    "instrument_id",
+    "currency",
+    "revision",
+    "through",
+    "owned_quantity",
+    "remaining_cost",
+    "disposed_cost",
+    "sale_net_proceeds",
+    "estimated_realized_gain",
+    "dividend_net_amount",
+    "lots",
+    "allocations"
+  ],
+  "title": "InvestmentPosition"
+}
+```
+
+### InvestmentPreview
+
+```json
+{
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Event Id"
+    },
+    "input_digest": {
+      "type": "string",
+      "title": "Input Digest"
+    },
+    "input": {
+      "$ref": "#/components/schemas/InvestmentReview"
+    },
+    "position": {
+      "$ref": "#/components/schemas/InvestmentPosition"
+    }
+  },
+  "type": "object",
+  "required": [
+    "event_id",
+    "input_digest",
+    "input",
+    "position"
+  ],
+  "title": "InvestmentPreview"
+}
+```
+
+### InvestmentReview
+
+```json
+{
+  "properties": {
+    "instrument_id": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 3,
+      "title": "Instrument Id"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "event": {
+      "oneOf": [
+        {
+          "$ref": "#/components/schemas/Trade"
+        },
+        {
+          "$ref": "#/components/schemas/Split"
+        },
+        {
+          "$ref": "#/components/schemas/Dividend"
+        },
+        {
+          "$ref": "#/components/schemas/Void"
+        }
+      ],
+      "title": "Event",
+      "discriminator": {
+        "propertyName": "kind",
+        "mapping": {
+          "dividend": "#/components/schemas/Dividend",
+          "purchase": "#/components/schemas/Trade",
+          "sale": "#/components/schemas/Trade",
+          "split": "#/components/schemas/Split",
+          "void": "#/components/schemas/Void"
+        }
+      }
+    },
+    "expected_asset_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Asset Revision"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision"
+    },
+    "method": {
+      "type": "string",
+      "const": "fifo",
+      "title": "Method"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "instrument_id",
+    "currency",
+    "event",
+    "expected_asset_revision",
+    "expected_revision",
+    "method"
+  ],
+  "title": "InvestmentReview"
+}
+```
+
+### InvestmentWrite
+
+```json
+{
+  "properties": {
+    "instrument_id": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 3,
+      "title": "Instrument Id"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "event": {
+      "oneOf": [
+        {
+          "$ref": "#/components/schemas/Trade"
+        },
+        {
+          "$ref": "#/components/schemas/Split"
+        },
+        {
+          "$ref": "#/components/schemas/Dividend"
+        },
+        {
+          "$ref": "#/components/schemas/Void"
+        }
+      ],
+      "title": "Event",
+      "discriminator": {
+        "propertyName": "kind",
+        "mapping": {
+          "dividend": "#/components/schemas/Dividend",
+          "purchase": "#/components/schemas/Trade",
+          "sale": "#/components/schemas/Trade",
+          "split": "#/components/schemas/Split",
+          "void": "#/components/schemas/Void"
+        }
+      }
+    },
+    "expected_asset_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Asset Revision"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision"
+    },
+    "method": {
+      "type": "string",
+      "const": "fifo",
+      "title": "Method"
+    },
+    "input_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Input Digest"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "instrument_id",
+    "currency",
+    "event",
+    "expected_asset_revision",
+    "expected_revision",
+    "method",
+    "input_digest"
+  ],
+  "title": "InvestmentWrite"
+}
+```
+
+### RecordPage_AssetResponse_
+
+```json
+{
+  "properties": {
+    "as_of": {
+      "type": "string",
+      "format": "date",
+      "title": "As Of"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/AssetResponse"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Cursor"
+    }
+  },
+  "type": "object",
+  "required": [
+    "as_of",
+    "items",
+    "next_cursor"
+  ],
+  "title": "RecordPage[AssetResponse]"
+}
+```
+
+### ReturnInput
+
+```json
+{
+  "properties": {
+    "name": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Name"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "valued_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Valued On"
+    },
+    "asset_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Asset Id"
+    },
+    "flows": {
+      "items": {
+        "$ref": "#/components/schemas/ReturnCashflow"
+      },
+      "type": "array",
+      "maxItems": 100,
+      "minItems": 1,
+      "title": "Flows"
+    },
+    "terminal_value": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Terminal Value"
+    },
+    "terminal_source": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Terminal Source"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "name",
+    "currency",
+    "valued_on",
+    "flows",
+    "terminal_value",
+    "terminal_source"
+  ],
+  "title": "ReturnInput"
+}
+```
+
+### ReturnObservationResponse
+
+```json
+{
+  "properties": {
+    "input_digest": {
+      "type": "string",
+      "title": "Input Digest"
+    },
+    "input": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/ReturnInput"
+        },
+        {
+          "$ref": "#/components/schemas/TimeWeightedInput"
+        }
+      ],
+      "title": "Input"
+    },
+    "calculation": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/ReturnCalculation"
+        },
+        {
+          "$ref": "#/components/schemas/TimeWeightedCalculation"
+        }
+      ],
+      "title": "Calculation"
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    }
+  },
+  "type": "object",
+  "required": [
+    "input_digest",
+    "input",
+    "calculation",
+    "id",
+    "revision",
+    "recorded_at"
+  ],
+  "title": "ReturnObservationResponse"
+}
+```
+
+### ReturnPreview
+
+```json
+{
+  "properties": {
+    "input_digest": {
+      "type": "string",
+      "title": "Input Digest"
+    },
+    "input": {
+      "$ref": "#/components/schemas/ReturnInput"
+    },
+    "calculation": {
+      "$ref": "#/components/schemas/ReturnCalculation"
+    }
+  },
+  "type": "object",
+  "required": [
+    "input_digest",
+    "input",
+    "calculation"
+  ],
+  "title": "ReturnPreview"
+}
+```
+
+### ReturnSave
+
+```json
+{
+  "properties": {
+    "input": {
+      "$ref": "#/components/schemas/ReturnInput"
+    },
+    "input_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Input Digest"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "input",
+    "input_digest",
+    "expected_revision"
+  ],
+  "title": "ReturnSave"
+}
+```
+
+### SettlementPreview
+
+```json
+{
+  "properties": {
+    "input": {
+      "$ref": "#/components/schemas/SettlementReview"
+    },
+    "input_digest": {
+      "type": "string",
+      "title": "Input Digest"
+    },
+    "postings": {
+      "items": {
+        "$ref": "#/components/schemas/SettlementPosting"
+      },
+      "type": "array",
+      "title": "Postings"
+    },
+    "net_cash_delta": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Net Cash Delta"
+    }
+  },
+  "type": "object",
+  "required": [
+    "input",
+    "input_digest",
+    "postings",
+    "net_cash_delta"
+  ],
+  "title": "SettlementPreview"
+}
+```
+
+### SettlementResponse
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Event Id"
+    },
+    "asset_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Asset Id"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "asset_revision": {
+      "type": "integer",
+      "title": "Asset Revision"
+    },
+    "account_revision": {
+      "type": "integer",
+      "title": "Account Revision"
+    },
+    "primary_entry_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Primary Entry Id"
+    },
+    "deduction_entry_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Deduction Entry Id"
+    },
+    "reversal_of": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Reversal Of"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "record",
+        "reverse"
+      ],
+      "title": "Action"
+    },
+    "input": {
+      "$ref": "#/components/schemas/SettlementReview"
+    },
+    "confirmation_digest": {
+      "type": "string",
+      "title": "Confirmation Digest"
+    },
+    "postings": {
+      "items": {
+        "$ref": "#/components/schemas/SettlementPosting"
+      },
+      "type": "array",
+      "title": "Postings"
+    },
+    "net_cash_delta": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Net Cash Delta"
+    },
+    "reversed_on": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Reversed On"
+    },
+    "reversal_reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Reversal Reason"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "event_id",
+    "asset_id",
+    "account_id",
+    "revision",
+    "asset_revision",
+    "account_revision",
+    "primary_entry_id",
+    "deduction_entry_id",
+    "reversal_of",
+    "recorded_at",
+    "action",
+    "input",
+    "confirmation_digest",
+    "postings",
+    "net_cash_delta"
+  ],
+  "title": "SettlementResponse"
+}
+```
+
+### SettlementReverse
+
+```json
+{
+  "properties": {
+    "expected_asset_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Asset Revision"
+    },
+    "expected_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Account Revision"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Revision"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expected_asset_revision",
+    "expected_account_revision",
+    "expected_revision",
+    "reason"
+  ],
+  "title": "SettlementReverse"
+}
+```
+
+### SettlementReview
+
+```json
+{
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Event Id"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "occurred_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Occurred On"
+    },
+    "source": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Source"
+    },
+    "already_settled": {
+      "type": "boolean",
+      "const": true,
+      "title": "Already Settled"
+    },
+    "expected_asset_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Asset Revision"
+    },
+    "expected_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Account Revision"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "event_id",
+    "account_id",
+    "occurred_on",
+    "source",
+    "already_settled",
+    "expected_asset_revision",
+    "expected_account_revision",
+    "expected_revision"
+  ],
+  "title": "SettlementReview"
+}
+```
+
+### SettlementWrite
+
+```json
+{
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Event Id"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "occurred_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Occurred On"
+    },
+    "source": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Source"
+    },
+    "already_settled": {
+      "type": "boolean",
+      "const": true,
+      "title": "Already Settled"
+    },
+    "expected_asset_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Asset Revision"
+    },
+    "expected_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Account Revision"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision"
+    },
+    "input_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Input Digest"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "event_id",
+    "account_id",
+    "occurred_on",
+    "source",
+    "already_settled",
+    "expected_asset_revision",
+    "expected_account_revision",
+    "expected_revision",
+    "input_digest"
+  ],
+  "title": "SettlementWrite"
+}
+```
+
+### TimeWeightedInput
+
+```json
+{
+  "properties": {
+    "name": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Name"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "asset_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Asset Id"
+    },
+    "observations": {
+      "items": {
+        "$ref": "#/components/schemas/TimeWeightedObservation"
+      },
+      "type": "array",
+      "maxItems": 101,
+      "minItems": 2,
+      "title": "Observations"
+    },
+    "complete_flow_boundaries_attested": {
+      "type": "boolean",
+      "const": true,
+      "title": "Complete Flow Boundaries Attested"
+    },
+    "fees_basis": {
+      "type": "string",
+      "enum": [
+        "net_of_recorded_fees",
+        "gross_of_recorded_fees",
+        "unknown"
+      ],
+      "title": "Fees Basis"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "name",
+    "currency",
+    "observations",
+    "complete_flow_boundaries_attested",
+    "fees_basis"
+  ],
+  "title": "TimeWeightedInput"
+}
+```
+
+### TimeWeightedPreview
+
+```json
+{
+  "properties": {
+    "input_digest": {
+      "type": "string",
+      "title": "Input Digest"
+    },
+    "input": {
+      "$ref": "#/components/schemas/TimeWeightedInput"
+    },
+    "calculation": {
+      "$ref": "#/components/schemas/TimeWeightedCalculation"
+    }
+  },
+  "type": "object",
+  "required": [
+    "input_digest",
+    "input",
+    "calculation"
+  ],
+  "title": "TimeWeightedPreview"
+}
+```
+
+### TimeWeightedSave
+
+```json
+{
+  "properties": {
+    "input": {
+      "$ref": "#/components/schemas/TimeWeightedInput"
+    },
+    "input_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Input Digest"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "input",
+    "input_digest",
+    "expected_revision"
+  ],
+  "title": "TimeWeightedSave"
+}
+```
+
+### ZakatEstimateResponse
+
+```json
+{
+  "properties": {
+    "input": {
+      "$ref": "#/components/schemas/ZakatInput"
+    },
+    "input_digest": {
+      "type": "string",
+      "title": "Input Digest"
+    },
+    "consent_event_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Consent Event Id"
+    },
+    "notice_digest": {
+      "type": "string",
+      "title": "Notice Digest"
+    },
+    "country": {
+      "type": "string",
+      "title": "Country"
+    },
+    "calculation": {
+      "$ref": "#/components/schemas/ZakatCalculation"
+    },
+    "method_guidance": {
+      "$ref": "#/components/schemas/ZakatMethodGuidance"
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    }
+  },
+  "type": "object",
+  "required": [
+    "input",
+    "input_digest",
+    "consent_event_id",
+    "notice_digest",
+    "country",
+    "calculation",
+    "id",
+    "revision",
+    "recorded_at"
+  ],
+  "title": "ZakatEstimateResponse"
+}
+```
+
+### ZakatInput
+
+```json
+{
+  "properties": {
+    "as_of": {
+      "type": "string",
+      "format": "date",
+      "title": "As Of"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "method_name": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Method Name"
+    },
+    "method_reference": {
+      "type": "string",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Method Reference"
+    },
+    "annual_rate_percent": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Annual Rate Percent"
+    },
+    "rate_source": {
+      "type": "string",
+      "maxLength": 300,
+      "minLength": 1,
+      "title": "Rate Source"
+    },
+    "calendar": {
+      "type": "string",
+      "enum": [
+        "lunar",
+        "solar",
+        "owner_defined"
+      ],
+      "title": "Calendar"
+    },
+    "hawl_starts_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Hawl Starts On"
+    },
+    "hawl_ends_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Hawl Ends On"
+    },
+    "hawl_date_source": {
+      "type": "string",
+      "maxLength": 300,
+      "minLength": 1,
+      "title": "Hawl Date Source"
+    },
+    "wealth_condition_rule": {
+      "type": "string",
+      "enum": [
+        "continuous_threshold",
+        "start_end_threshold",
+        "owner_defined"
+      ],
+      "title": "Wealth Condition Rule"
+    },
+    "wealth_condition_satisfied": {
+      "type": "boolean",
+      "title": "Wealth Condition Satisfied"
+    },
+    "condition_evidence": {
+      "type": "string",
+      "maxLength": 300,
+      "minLength": 1,
+      "title": "Condition Evidence"
+    },
+    "nisab": {
+      "$ref": "#/components/schemas/NisabInput"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/ZakatItem"
+      },
+      "type": "array",
+      "maxItems": 200,
+      "minItems": 1,
+      "title": "Items"
+    },
+    "deductions": {
+      "items": {
+        "$ref": "#/components/schemas/ZakatDeduction"
+      },
+      "type": "array",
+      "maxItems": 200,
+      "title": "Deductions"
+    },
+    "amounts_are_native_owned_values": {
+      "type": "boolean",
+      "const": true,
+      "title": "Amounts Are Native Owned Values"
+    },
+    "estimate_only_acknowledged": {
+      "type": "boolean",
+      "const": true,
+      "title": "Estimate Only Acknowledged"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "as_of",
+    "currency",
+    "method_name",
+    "method_reference",
+    "annual_rate_percent",
+    "rate_source",
+    "calendar",
+    "hawl_starts_on",
+    "hawl_ends_on",
+    "hawl_date_source",
+    "wealth_condition_rule",
+    "wealth_condition_satisfied",
+    "condition_evidence",
+    "nisab",
+    "items",
+    "deductions",
+    "amounts_are_native_owned_values",
+    "estimate_only_acknowledged"
+  ],
+  "title": "ZakatInput"
+}
+```
+
+### ZakatPreview
+
+```json
+{
+  "properties": {
+    "input": {
+      "$ref": "#/components/schemas/ZakatInput"
+    },
+    "input_digest": {
+      "type": "string",
+      "title": "Input Digest"
+    },
+    "consent_event_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Consent Event Id"
+    },
+    "notice_digest": {
+      "type": "string",
+      "title": "Notice Digest"
+    },
+    "country": {
+      "type": "string",
+      "title": "Country"
+    },
+    "calculation": {
+      "$ref": "#/components/schemas/ZakatCalculation"
+    },
+    "method_guidance": {
+      "$ref": "#/components/schemas/ZakatMethodGuidance"
+    }
+  },
+  "type": "object",
+  "required": [
+    "input",
+    "input_digest",
+    "consent_event_id",
+    "notice_digest",
+    "country",
+    "calculation"
+  ],
+  "title": "ZakatPreview"
+}
+```
+
+### ZakatSave
+
+```json
+{
+  "properties": {
+    "input": {
+      "$ref": "#/components/schemas/ZakatInput"
+    },
+    "input_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Input Digest"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "input",
+    "input_digest",
+    "expected_revision"
+  ],
+  "title": "ZakatSave"
+}
+```

@@ -1,54 +1,35 @@
 ---
 title: Authentication
-description: Learn how user API keys, Bearer tokens, and Clerk credentials authenticate your Farz integrations.
+description: Clerk user bearer authentication for the unified first-party API.
 ---
 
-The Farz Public Developer API uses **Bearer token authentication**. Every request must include an authorized credential in the standard HTTP header:
+Private `/api/v1` requests use a **Clerk user session bearer**, obtained through the supported Clerk SDK:
 
 ```http
-Authorization: Bearer <your_api_key_or_access_token>
+Authorization: Bearer <current_clerk_user_session_token>
 ```
 
----
+The backend verifies the signature, issuer, lifetime and configured claim/authorized-party policy. A workspace path ID is not authorization; membership and scoped relationships are enforced server-side. A valid login can still fail authorization, fresh-authentication or eligibility checks.
 
-## User API Keys from Clerk
+Web, Android and separate Swift iOS share this user identity direction; native token-claim/authorized-party acceptance (BUILD-271) remains open, and native private screens remain locked pending their security gates. This is not evidence that every native token variant is enabled.
 
-Your primary authentication credentials are user API keys issued directly from your **Clerk account settings** within the Farz application.
+Some sensitive operations, including private exports and key rewrap, require signed recent authentication. Token refresh alone must not be treated as proof of a new first-factor authentication.
 
-### Key Lifecycle & Policies
+## Credential handling
 
-- **Maximum Lifetime**: Farz enforces a maximum key lifetime of **90 days**. Keys expire automatically after this window.
-- **Paid Tier Requirement**: Access requires an active **Paid** Farz subscription. Upgrading or downgrading immediately impacts key validity; trials do not grant developer access.
-- **Single-Workspace Binding**: A user API key is cryptographically bound to your single personal workspace. It cannot access records belonging to other users or multi-user family/household vaults.
-- **Scope Restriction**: You define explicit read scopes at creation time. An API key can never perform operations beyond its issued permissions.
+Get the current token when making a request; do not persist it or private financial data in localStorage, query strings, logs or source control. Never use the Clerk application secret or publishable key as a user bearer. Production browser CORS currently grants only the exact dashboard origin.
 
-<Callout type="warn" title="Credential Hygiene">
-  Never include your API key in client-side code bundles, mobile apps, Git repositories, or URL query parameters. Always supply it via runtime environment variables on a secure backend or private CLI environment.
-</Callout>
+## Future developer access
 
----
+Paid developer keys are **deferred**. They must be issued by Clerk and gated using backend-verified Farz subscription state from the selected payment provider; Farz does not use Clerk Billing. The old instructions for90-day keys, settings controls, read scopes and globally immediate revocation were planned claims, not verified live behavior. OAuth delegation and MCP are also unavailable. Do not route first-party app users through developer keys.
 
-## Token Revocation & Rotation
+## Provider signatures and browser methods
 
-When rotating credentials:
+Clerk lifecycle and Resend receipt [webhooks](/docs/api/webhooks) authenticate
+provider-signed original bytes using Svix headers. Their OpenAPI security schemes
+are not user-bearer authentication and do not grant financial workspace access.
 
-1. Generate a new User API Key in Clerk with the identical (or refined) scopes.
-2. Update your local environment variables or configuration secret.
-3. Test connectivity against `GET /profile`.
-4. Delete the previous key in your Clerk settings.
-
-<Callout type="info">
-  Revoking an API key takes effect immediately across all global edge points.
-</Callout>
-
----
-
-## REST vs. MCP / OAuth Authentication
-
-| Integration Mode | Recommended Authentication | Typical Use Case |
-| :--- | :--- | :--- |
-| **Private Scripts & Backends** | User API Key (Clerk) | Custom dashboards, Python automations, data export pipelines |
-| **Model Context Protocol (MCP)** | OAuth 2.0 with PKCE S256 | Connecting Claude Desktop, Cursor, or remote agent assistants |
-| **Third-Party Connectors** | OAuth 2.0 with PKCE S256 | Delegated access without sharing static long-lived keys |
-
-For details on setting up OAuth connections, see the [OAuth Guide](/docs/oauth).
+Production dashboard preflight permits GET, POST, PATCH and PUT with explicitly
+allowed headers. PUT notification preferences are supported; lookalike origins
+and cookie-based credentials are not granted access. This does not authorize the
+docs origin or arbitrary third-party browsers to call private finance endpoints.

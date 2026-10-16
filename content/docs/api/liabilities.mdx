@@ -1,76 +1,2213 @@
 ---
-title: Liabilities & Schedules
-description: Track debts, outstanding balances, payment terms, and scheduled installment obligations.
+title: Liabilities and debts
+description: Verified unified API routes and exact declared models.
 ---
 
-Query personal debt obligations including loans, mortgages, financing plans, credit cards, and Buy-Now-Pay-Later (BNPL) accounts.
+Use `/debts`, not the former `/liabilities` alias. Owned liability fractions are independently entered and do not inherit a linked asset share. Actual repayment, dated observations and schedule overrides are distinct commands; an override is not proof of payment or refinancing. Full parameters/revisions and reversal routes are in OpenAPI.
 
----
+Private operations require an authorized Clerk user bearer and workspace membership. Optional/sensitive services retain their policy/entitlement/fresh-authentication gates.
 
-## 1. List Liabilities
+The routes include lifecycle/amortization previews, actual principal/cost repayment, reversals, BNPL purchases and creditor refunds. Refunds/corrections record actual reviewed events; none initiate payment.
 
-`GET /liabilities`
+| Complete route | Authentication | Required operation headers | Declared success |
+| --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/debts/page` | Clerk user bearer | — | 200 application/json RecordPage_DebtResponse_ |
+| `GET /api/v1/workspaces/{workspace_id}/debts` | Clerk user bearer | — | 200 application/json DebtResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/debts` | Clerk user bearer | `Idempotency-Key` | 200 application/json DebtResponse |
+| `POST /api/v1/workspaces/{workspace_id}/debts/representation-preview` | Clerk user bearer | — | 200 application/json DebtRepresentationWarning[] |
+| `GET /api/v1/workspaces/{workspace_id}/debts/{debt_id}/observations` | Clerk user bearer | — | 200 application/json DebtObservationResponse[] |
+| `GET /api/v1/workspaces/{workspace_id}/debts/{debt_id}/repayments` | Clerk user bearer | — | 200 application/json DebtRepaymentResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/debts/{debt_id}/repayments` | Clerk user bearer | `Idempotency-Key` | 200 application/json DebtRepaymentResponse |
+| `POST /api/v1/workspaces/{workspace_id}/debts/{debt_id}/repayments/{repayment_id}/reversal` | Clerk user bearer | `Idempotency-Key` | 200 application/json DebtRepaymentResponse |
+| `GET /api/v1/workspaces/{workspace_id}/debts/{debt_id}/installment-overrides` | Clerk user bearer | — | 200 application/json DebtInstallmentOverrideResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/debts/{debt_id}/installment-overrides` | Clerk user bearer | `Idempotency-Key` | 200 application/json DebtInstallmentOverrideResponse |
+| `POST /api/v1/workspaces/{workspace_id}/debts/{debt_id}/lifecycle` | Clerk user bearer | `Idempotency-Key` | 200 application/json DebtLifecycleResponse |
+| `GET /api/v1/workspaces/{workspace_id}/debts/{debt_id}/lifecycle` | Clerk user bearer | — | 200 application/json DebtLifecycleResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/debts/amortization/preview` | Clerk user bearer | — | 200 application/json AmortizationProjection |
+| `POST /api/v1/workspaces/{workspace_id}/debts/bnpl-purchases` | Clerk user bearer | `Idempotency-Key` | 201 application/json WorkflowReceipt |
+| `POST /api/v1/workspaces/{workspace_id}/debts/{debt_id}/creditor-refunds` | Clerk user bearer | `Idempotency-Key` | 201 application/json WorkflowReceipt |
 
-Returns a paginated list of personal liabilities, outstanding balances, and net worth inclusion indicators.
+## Exact request/response models
 
-### Authorization
-- **Scope Required**: `liabilities:read`
-- **Plan Requirement**: Active Paid subscription
+These JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).
 
-### Query Parameters
+### AmortizationPreviewInput
 
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `kind` | string | No | Filter by obligation type: `loan`, `mortgage`, `financing`, `card`, `bnpl`, `custom`. |
-| `active` | boolean | No | Filter by active state (`true` or `false`). Omission returns both. |
-| `as_of` | date | No | Balance valuation date (`YYYY-MM-DD`). |
-| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
-| `cursor` | string | No | Opaque continuation cursor from `next_cursor`. |
-
-### Example Request
-
-```bash
-curl --fail-with-body --get \
-  "https://api.farz.app/api/developer/v1/liabilities" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json' \
-  --data-urlencode 'limit=20' \
-  --data-urlencode 'active=true'
+```json
+{
+  "properties": {
+    "cost_model": {
+      "$ref": "#/components/schemas/LoanCostInput"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "installment_count": {
+      "type": "integer",
+      "maximum": 120,
+      "minimum": 1,
+      "title": "Installment Count"
+    },
+    "first_due_on": {
+      "type": "string",
+      "format": "date",
+      "title": "First Due On"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "cost_model",
+    "currency",
+    "installment_count",
+    "first_due_on"
+  ],
+  "title": "AmortizationPreviewInput"
+}
 ```
 
----
+### AmortizationProjection
 
-## 2. List Liability Installment Schedule
-
-`GET /liabilities/{liability_id}/schedule`
-
-Returns the scheduled, paid, and remaining installment obligations for an active debt across a date window.
-
-### Path Parameters
-
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `liability_id` | UUID | **Yes** | The liability identifier. |
-
-### Query Parameters
-
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `start` | date | **Yes** | Inclusive schedule start date (`YYYY-MM-DD`). |
-| `end` | date | **Yes** | Inclusive schedule end date (`YYYY-MM-DD`). Max range: **366 calendar days**. |
-| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
-| `cursor` | string | No | Continuation cursor. |
-
-### Example Request
-
-```bash
-curl --fail-with-body --get \
-  "https://api.farz.app/api/developer/v1/liabilities/$FARZ_LIABILITY_ID/schedule" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json' \
-  --data-urlencode 'start=2026-10-01' \
-  --data-urlencode 'end=2026-10-10' \
-  --data-urlencode 'limit=50'
+```json
+{
+  "properties": {
+    "algorithm": {
+      "type": "string",
+      "enum": [
+        "monthly_cost_v1",
+        "monthly_recast_balloon_v2",
+        "monthly_capitalized_grace_v3"
+      ],
+      "title": "Algorithm",
+      "default": "monthly_cost_v1"
+    },
+    "capitalized_grace_installments": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Capitalized Grace Installments"
+    },
+    "total_capitalized_cost": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Total Capitalized Cost"
+    },
+    "capitalized_cost_basis": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "rounded_monthly_nominal_interest_added_to_principal"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Capitalized Cost Basis"
+    },
+    "fees_during_grace": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "payable_not_capitalized"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Fees During Grace"
+    },
+    "monthly_rate_basis": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "nominal_divided_by_12"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Monthly Rate Basis"
+    },
+    "payment_recast": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "on_explicit_rate_change_or_interest_only_end",
+            "on_rate_change_or_grace_interest_only_end"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Payment Recast"
+    },
+    "balloon_principal": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Balloon Principal"
+    },
+    "interest_only_installments": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Interest Only Installments"
+    },
+    "total_payments": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Total Payments"
+    },
+    "total_cost": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Total Cost"
+    },
+    "total_fees": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Total Fees"
+    },
+    "installments": {
+      "items": {
+        "$ref": "#/components/schemas/AmortizationPayment"
+      },
+      "type": "array",
+      "title": "Installments"
+    }
+  },
+  "type": "object",
+  "required": [
+    "total_payments",
+    "total_cost",
+    "total_fees",
+    "installments"
+  ],
+  "title": "AmortizationProjection"
+}
 ```
 
-Returns a paginated [`Page<Installment>`](/docs/api/schemas#installment) collection with status `200 OK`.
+### BnplPurchase
+
+```json
+{
+  "properties": {
+    "debt": {
+      "$ref": "#/components/schemas/DebtWrite"
+    },
+    "category": {
+      "type": "string",
+      "pattern": "^(subscriptions|groceries|transportation|utilities|healthcare|cinema|restaurants|shops|telecom|fitness|salary|other|custom_[0-9a-f]{32})$",
+      "title": "Category"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Description"
+    },
+    "confirmed": {
+      "type": "boolean",
+      "const": true,
+      "title": "Confirmed"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "debt",
+    "category",
+    "description",
+    "confirmed"
+  ],
+  "title": "BnplPurchase"
+}
+```
+
+### CreditorRefund
+
+```json
+{
+  "properties": {
+    "expected_cost_classification_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Cost Classification Revision",
+      "default": 0
+    },
+    "repayment_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Repayment Id"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "expected_account_revision": {
+      "type": "integer",
+      "maximum": 9007199254740990,
+      "minimum": 1,
+      "title": "Expected Account Revision"
+    },
+    "expected_debt_revision": {
+      "type": "integer",
+      "maximum": 9007199254740990,
+      "minimum": 1,
+      "title": "Expected Debt Revision"
+    },
+    "principal_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Principal Amount"
+    },
+    "cost_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Cost Amount",
+      "default": "0"
+    },
+    "occurred_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Occurred On"
+    },
+    "source": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Source"
+    },
+    "allocations": {
+      "items": {
+        "$ref": "#/components/schemas/RefundAllocation"
+      },
+      "type": "array",
+      "maxItems": 120,
+      "title": "Allocations"
+    },
+    "confirmed_received": {
+      "type": "boolean",
+      "const": true,
+      "title": "Confirmed Received"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "repayment_id",
+    "account_id",
+    "expected_account_revision",
+    "expected_debt_revision",
+    "principal_amount",
+    "occurred_on",
+    "source",
+    "confirmed_received"
+  ],
+  "title": "CreditorRefund"
+}
+```
+
+### DebtInstallmentOverrideResponse
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "debt_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Debt Id"
+    },
+    "schedule_digest": {
+      "type": "string",
+      "title": "Schedule Digest"
+    },
+    "installment_index": {
+      "type": "integer",
+      "title": "Installment Index"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "skip",
+        "adjust",
+        "restore"
+      ],
+      "title": "Action"
+    },
+    "due_on": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Due On"
+    },
+    "amount": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Amount"
+    },
+    "reason": {
+      "type": "string",
+      "title": "Reason"
+    },
+    "original_due_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Original Due On"
+    },
+    "original_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Original Amount"
+    },
+    "paid_at_review": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Paid At Review"
+    },
+    "recorded_by": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Recorded By"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "debt_id",
+    "schedule_digest",
+    "installment_index",
+    "revision",
+    "action",
+    "due_on",
+    "amount",
+    "reason",
+    "original_due_on",
+    "original_amount",
+    "paid_at_review",
+    "recorded_by",
+    "recorded_at"
+  ],
+  "title": "DebtInstallmentOverrideResponse"
+}
+```
+
+### DebtInstallmentOverrideWrite
+
+```json
+{
+  "properties": {
+    "expected_debt_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Debt Revision"
+    },
+    "expected_schedule_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Expected Schedule Digest"
+    },
+    "installment_index": {
+      "type": "integer",
+      "exclusiveMaximum": 120,
+      "minimum": 0,
+      "title": "Installment Index"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "skip",
+        "adjust",
+        "restore"
+      ],
+      "title": "Action"
+    },
+    "due_on": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Due On"
+    },
+    "amount": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Amount"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expected_debt_revision",
+    "expected_schedule_digest",
+    "installment_index",
+    "expected_revision",
+    "action",
+    "reason"
+  ],
+  "title": "DebtInstallmentOverrideWrite"
+}
+```
+
+### DebtLifecycleResponse
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "debt_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Debt Id"
+    },
+    "observation_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Observation Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "debt_revision": {
+      "type": "integer",
+      "title": "Debt Revision"
+    },
+    "effective_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Effective On"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "open",
+        "closed"
+      ],
+      "title": "State"
+    },
+    "closure_kind": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "paid_off",
+            "early_settlement",
+            "forgiven",
+            "other"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Closure Kind"
+    },
+    "reason": {
+      "type": "string",
+      "title": "Reason"
+    },
+    "outstanding_at_review": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Outstanding At Review"
+    },
+    "recorded_by": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Recorded By"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "debt_id",
+    "observation_id",
+    "revision",
+    "debt_revision",
+    "effective_on",
+    "state",
+    "closure_kind",
+    "reason",
+    "outstanding_at_review",
+    "recorded_by",
+    "recorded_at"
+  ],
+  "title": "DebtLifecycleResponse"
+}
+```
+
+### DebtLifecycleWrite
+
+```json
+{
+  "properties": {
+    "expected_debt_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Debt Revision"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision"
+    },
+    "observation_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Observation Id"
+    },
+    "effective_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Effective On"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "open",
+        "closed"
+      ],
+      "title": "State"
+    },
+    "closure_kind": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "paid_off",
+            "early_settlement",
+            "forgiven",
+            "other"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Closure Kind"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expected_debt_revision",
+    "expected_revision",
+    "observation_id",
+    "effective_on",
+    "state",
+    "reason"
+  ],
+  "title": "DebtLifecycleWrite"
+}
+```
+
+### DebtObservationResponse
+
+```json
+{
+  "properties": {
+    "money_workflow_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Money Workflow Id"
+    },
+    "ownership_estimate": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/OwnershipEstimate"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "basis": {
+      "type": "string",
+      "enum": [
+        "manual_owned_outstanding",
+        "ownership_fraction_v1",
+        "settled_owned_outstanding"
+      ],
+      "title": "Basis",
+      "default": "manual_owned_outstanding"
+    },
+    "debt_repayment_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Debt Repayment Id"
+    },
+    "cost_model": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/LoanCostInput"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "amortization": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/AmortizationProjection"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "debt_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Debt Id"
+    },
+    "debt_revision": {
+      "type": "integer",
+      "title": "Debt Revision"
+    },
+    "outstanding": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Outstanding"
+    },
+    "observed_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Observed On"
+    },
+    "source": {
+      "type": "string",
+      "title": "Source"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "debt_id",
+    "debt_revision",
+    "outstanding",
+    "observed_on",
+    "source",
+    "recorded_at"
+  ],
+  "title": "DebtObservationResponse"
+}
+```
+
+### DebtRepaymentResponse
+
+```json
+{
+  "properties": {
+    "allocated_total": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Allocated Total"
+    },
+    "unmatched_amount": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Unmatched Amount"
+    },
+    "allocations": {
+      "items": {
+        "$ref": "#/components/schemas/DebtRepaymentAllocationResponse"
+      },
+      "type": "array",
+      "title": "Allocations"
+    },
+    "installment_override_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Installment Override Id"
+    },
+    "installment_override_revision": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Installment Override Revision"
+    },
+    "matched_due_on": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Matched Due On"
+    },
+    "matched_amount": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Matched Amount"
+    },
+    "installment_index": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Installment Index"
+    },
+    "schedule_digest": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Schedule Digest"
+    },
+    "scheduled_due_on": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Scheduled Due On"
+    },
+    "scheduled_amount": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Scheduled Amount"
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "debt_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Debt Id"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "observation_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Observation Id"
+    },
+    "principal_entry_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Principal Entry Id"
+    },
+    "cost_entry_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Cost Entry Id"
+    },
+    "reversal_of": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Reversal Of"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    },
+    "recorded_by": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Recorded By"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "record",
+        "reverse"
+      ],
+      "title": "Action"
+    },
+    "principal_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Principal Amount"
+    },
+    "cost_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Cost Amount"
+    },
+    "total_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Total Amount"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "outstanding_before": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Outstanding Before"
+    },
+    "outstanding_after": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Outstanding After"
+    },
+    "debt_revision": {
+      "type": "integer",
+      "title": "Debt Revision"
+    },
+    "account_revision": {
+      "type": "integer",
+      "title": "Account Revision"
+    },
+    "occurred_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Occurred On"
+    },
+    "source": {
+      "type": "string",
+      "title": "Source"
+    },
+    "category": {
+      "type": "string",
+      "title": "Category"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "debt_id",
+    "account_id",
+    "observation_id",
+    "principal_entry_id",
+    "cost_entry_id",
+    "reversal_of",
+    "recorded_at",
+    "recorded_by",
+    "action",
+    "principal_amount",
+    "cost_amount",
+    "total_amount",
+    "currency",
+    "outstanding_before",
+    "outstanding_after",
+    "debt_revision",
+    "account_revision",
+    "occurred_on",
+    "source",
+    "category"
+  ],
+  "title": "DebtRepaymentResponse"
+}
+```
+
+### DebtRepaymentReverse
+
+```json
+{
+  "properties": {
+    "expected_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Account Revision"
+    },
+    "expected_debt_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Debt Revision"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expected_account_revision",
+    "expected_debt_revision",
+    "reason"
+  ],
+  "title": "DebtRepaymentReverse"
+}
+```
+
+### DebtRepaymentWrite
+
+```json
+{
+  "properties": {
+    "allocations": {
+      "items": {
+        "$ref": "#/components/schemas/DebtRepaymentAllocation"
+      },
+      "type": "array",
+      "maxItems": 120,
+      "title": "Allocations"
+    },
+    "expected_installment_revision": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Expected Installment Revision"
+    },
+    "installment_index": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "exclusiveMaximum": 120,
+          "minimum": 0
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Installment Index"
+    },
+    "expected_schedule_digest": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Expected Schedule Digest"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "expected_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Account Revision"
+    },
+    "expected_debt_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Debt Revision"
+    },
+    "principal_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Principal Amount"
+    },
+    "cost_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Cost Amount",
+      "default": "0"
+    },
+    "occurred_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Occurred On"
+    },
+    "category": {
+      "type": "string",
+      "pattern": "^(subscriptions|groceries|transportation|utilities|healthcare|cinema|restaurants|shops|telecom|fitness|salary|other|custom_[0-9a-f]{32})$",
+      "title": "Category",
+      "default": "other"
+    },
+    "source": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Source"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "account_id",
+    "expected_account_revision",
+    "expected_debt_revision",
+    "principal_amount",
+    "occurred_on",
+    "source"
+  ],
+  "title": "DebtRepaymentWrite"
+}
+```
+
+### DebtRepresentationPreview
+
+```json
+{
+  "properties": {
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "outstanding": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Outstanding"
+    },
+    "observed_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Observed On"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "currency",
+    "outstanding",
+    "observed_on"
+  ],
+  "title": "DebtRepresentationPreview"
+}
+```
+
+### DebtRepresentationWarning
+
+```json
+{
+  "properties": {
+    "owner_fraction": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Owner Fraction",
+      "default": "1"
+    },
+    "owned_card_outstanding": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Owned Card Outstanding"
+    },
+    "equal_owned_amount": {
+      "type": "boolean",
+      "title": "Equal Owned Amount",
+      "default": false
+    },
+    "code": {
+      "type": "string",
+      "const": "possible_card_liability_overlap",
+      "title": "Code",
+      "default": "possible_card_liability_overlap"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "account_name": {
+      "type": "string",
+      "title": "Account Name"
+    },
+    "account_revision": {
+      "type": "integer",
+      "title": "Account Revision"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "card_outstanding": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Card Outstanding"
+    },
+    "observed_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Observed On"
+    },
+    "equal_amount": {
+      "type": "boolean",
+      "title": "Equal Amount"
+    },
+    "explanation": {
+      "type": "string",
+      "title": "Explanation",
+      "default": "Credit-card ledger balances and manual liabilities both count in net worth, including dated history. Enter only a separate obligation here; recording the card obligation again counts it twice. Equal amounts are a warning, not proof of a duplicate. Archiving an account or pausing a forecast does not erase debt."
+    }
+  },
+  "type": "object",
+  "required": [
+    "account_id",
+    "account_name",
+    "account_revision",
+    "currency",
+    "card_outstanding",
+    "observed_on",
+    "equal_amount"
+  ],
+  "title": "DebtRepresentationWarning"
+}
+```
+
+### DebtResponse
+
+```json
+{
+  "properties": {
+    "representation_warnings": {
+      "items": {
+        "$ref": "#/components/schemas/DebtRepresentationWarning"
+      },
+      "type": "array",
+      "title": "Representation Warnings"
+    },
+    "lifecycle": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/DebtLifecycleResponse"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "forecast_active": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Forecast Active"
+    },
+    "workspace_date": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Workspace Date"
+    },
+    "overdue_installments": {
+      "type": "integer",
+      "title": "Overdue Installments",
+      "default": 0
+    },
+    "schedule_digest": {
+      "type": "string",
+      "title": "Schedule Digest",
+      "default": ""
+    },
+    "settlements": {
+      "items": {
+        "$ref": "#/components/schemas/DebtInstallmentStatus"
+      },
+      "type": "array",
+      "title": "Settlements"
+    },
+    "cost_model": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/LoanCostInput"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "amortization": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/AmortizationProjection"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "name": {
+      "type": "string",
+      "title": "Name"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "loan",
+        "mortgage",
+        "financing",
+        "bnpl",
+        "other"
+      ],
+      "title": "Kind"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "principal": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Principal"
+    },
+    "contract_note": {
+      "type": "string",
+      "title": "Contract Note"
+    },
+    "schedule_total": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Schedule Total"
+    },
+    "first_due_on": {
+      "type": "string",
+      "format": "date",
+      "title": "First Due On"
+    },
+    "installment_count": {
+      "type": "integer",
+      "title": "Installment Count"
+    },
+    "interval_months": {
+      "type": "integer",
+      "title": "Interval Months"
+    },
+    "payments": {
+      "items": {
+        "$ref": "#/components/schemas/DebtSchedulePayment"
+      },
+      "type": "array",
+      "title": "Payments"
+    },
+    "custom_schedule": {
+      "type": "boolean",
+      "title": "Custom Schedule"
+    },
+    "payment_account_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Payment Account Id"
+    },
+    "linked_asset_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Linked Asset Id"
+    },
+    "active": {
+      "type": "boolean",
+      "title": "Active"
+    },
+    "observation": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/DebtObservationResponse"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "due_this_month": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Due This Month"
+    },
+    "installments_this_month": {
+      "type": "integer",
+      "title": "Installments This Month"
+    },
+    "overdue": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Overdue"
+    },
+    "as_of": {
+      "type": "string",
+      "format": "date",
+      "title": "As Of"
+    },
+    "basis": {
+      "type": "string",
+      "const": "manual_outstanding_unreconciled_forecast",
+      "title": "Basis",
+      "default": "manual_outstanding_unreconciled_forecast"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "revision",
+    "name",
+    "kind",
+    "currency",
+    "principal",
+    "contract_note",
+    "schedule_total",
+    "first_due_on",
+    "installment_count",
+    "interval_months",
+    "payments",
+    "custom_schedule",
+    "payment_account_id",
+    "linked_asset_id",
+    "active",
+    "observation",
+    "due_this_month",
+    "installments_this_month",
+    "overdue",
+    "as_of"
+  ],
+  "title": "DebtResponse"
+}
+```
+
+### DebtWrite
+
+```json
+{
+  "properties": {
+    "ownership_estimate": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/OwnershipEstimate"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "cost_model_replacement_confirmed": {
+      "anyOf": [
+        {
+          "type": "boolean",
+          "const": true
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Cost Model Replacement Confirmed"
+    },
+    "cost_model": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/LoanCostInput"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Id"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision",
+      "default": 0
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Name"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "loan",
+        "mortgage",
+        "financing",
+        "bnpl",
+        "other"
+      ],
+      "title": "Kind",
+      "default": "loan"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "principal": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Principal"
+    },
+    "outstanding": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Outstanding"
+    },
+    "observed_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Observed On"
+    },
+    "source": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Source"
+    },
+    "contract_note": {
+      "type": "string",
+      "maxLength": 500,
+      "title": "Contract Note",
+      "default": ""
+    },
+    "schedule_total": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Schedule Total"
+    },
+    "first_due_on": {
+      "type": "string",
+      "format": "date",
+      "title": "First Due On"
+    },
+    "installment_count": {
+      "type": "integer",
+      "maximum": 120,
+      "minimum": 1,
+      "title": "Installment Count",
+      "default": 12
+    },
+    "interval_months": {
+      "type": "integer",
+      "maximum": 12,
+      "minimum": 1,
+      "title": "Interval Months",
+      "default": 1
+    },
+    "payments": {
+      "items": {
+        "$ref": "#/components/schemas/DebtPayment"
+      },
+      "type": "array",
+      "maxItems": 120,
+      "title": "Payments"
+    },
+    "payment_account_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Payment Account Id"
+    },
+    "linked_asset_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Linked Asset Id"
+    },
+    "active": {
+      "type": "boolean",
+      "title": "Active",
+      "default": true
+    },
+    "independent_liability": {
+      "type": "boolean",
+      "const": true,
+      "title": "Independent Liability"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "name",
+    "currency",
+    "principal",
+    "observed_on",
+    "source",
+    "schedule_total",
+    "first_due_on",
+    "independent_liability"
+  ],
+  "title": "DebtWrite"
+}
+```
+
+### RecordPage_DebtResponse_
+
+```json
+{
+  "properties": {
+    "as_of": {
+      "type": "string",
+      "format": "date",
+      "title": "As Of"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/DebtResponse"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Cursor"
+    }
+  },
+  "type": "object",
+  "required": [
+    "as_of",
+    "items",
+    "next_cursor"
+  ],
+  "title": "RecordPage[DebtResponse]"
+}
+```
+
+### WorkflowReceipt
+
+```json
+{
+  "properties": {
+    "asset_type": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "gold",
+            "silver",
+            "platinum",
+            "palladium"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Asset Type"
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "metal_purchase",
+        "bnpl_purchase",
+        "creditor_refund",
+        "reverse"
+      ],
+      "title": "Kind"
+    },
+    "account_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Account Id"
+    },
+    "asset_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Asset Id"
+    },
+    "debt_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Debt Id"
+    },
+    "entry_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Entry Id"
+    },
+    "fee_entry_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Fee Entry Id"
+    },
+    "source_repayment_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Source Repayment Id"
+    },
+    "reversal_of": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Reversal Of"
+    },
+    "occurred_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Occurred On"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "principal_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Principal Amount"
+    },
+    "cost_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Cost Amount"
+    },
+    "account_revision": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Account Revision"
+    },
+    "asset_revision": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Asset Revision"
+    },
+    "debt_revision": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Debt Revision"
+    },
+    "quantity": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Quantity"
+    },
+    "quantity_unit": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Quantity Unit"
+    },
+    "fineness": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Fineness"
+    },
+    "fine_weight_grams": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Fine Weight Grams"
+    },
+    "exact_fine_grams_numerator": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Exact Fine Grams Numerator"
+    },
+    "exact_fine_grams_denominator": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Exact Fine Grams Denominator"
+    },
+    "source": {
+      "type": "string",
+      "title": "Source"
+    },
+    "category": {
+      "type": "string",
+      "title": "Category"
+    },
+    "allocations": {
+      "items": {
+        "$ref": "#/components/schemas/RefundAllocation"
+      },
+      "type": "array",
+      "title": "Allocations"
+    },
+    "market_value_known": {
+      "type": "boolean",
+      "const": false,
+      "title": "Market Value Known",
+      "default": false
+    },
+    "money_moved_by_farz": {
+      "type": "boolean",
+      "const": false,
+      "title": "Money Moved By Farz",
+      "default": false
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "kind",
+    "account_id",
+    "asset_id",
+    "debt_id",
+    "entry_id",
+    "fee_entry_id",
+    "source_repayment_id",
+    "reversal_of",
+    "occurred_on",
+    "recorded_at",
+    "currency",
+    "principal_amount",
+    "cost_amount",
+    "source",
+    "category"
+  ],
+  "title": "WorkflowReceipt"
+}
+```

@@ -29,9 +29,9 @@ export default function HomePage() {
 
       {/* Version Badge */}
       <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-fd-border bg-fd-muted/50 px-3 py-1 text-xs text-fd-muted-foreground">
-        <span>Farz Developer API v1</span>
+        <span>Farz Unified API v1</span>
         <span>•</span>
-        <span>Model Context Protocol</span>
+        <span>Verified live contract</span>
       </div>
 
       {/* Title */}
@@ -41,8 +41,8 @@ export default function HomePage() {
 
       {/* Description */}
       <p className="text-base sm:text-lg text-fd-muted-foreground max-w-xl mx-auto mb-8 leading-relaxed">
-        Official developer guides and API reference for Farz Wealth. Programmatically query accounts,
-        transactions, investment portfolios, and connect AI assistants via MCP.
+        The current Farz API contract for Clerk-authenticated account setup, money tracking,
+        lending and reports. Developer keys, OAuth and MCP remain unavailable.
       </p>
 
       {/* Action Buttons */}
@@ -64,7 +64,7 @@ export default function HomePage() {
           href="/docs/mcp"
           className="inline-flex items-center gap-2 rounded-lg border border-fd-border bg-fd-card px-4 py-2.5 text-sm font-medium text-fd-foreground transition-colors hover:bg-fd-accent"
         >
-          <span>MCP Setup</span>
+          <span>Integration Status</span>
         </Link>
         <a
           href="https://farz.app"
@@ -80,12 +80,11 @@ export default function HomePage() {
       {/* Simple Code Preview */}
       <div className="w-full mb-14 overflow-hidden rounded-xl border border-fd-border bg-fd-card text-left font-mono text-xs">
         <div className="flex items-center justify-between border-b border-fd-border bg-fd-muted/40 px-4 py-2 text-fd-muted-foreground">
-          <span>GET /api/developer/v1/accounts</span>
+          <span>GET /api/v1/capabilities</span>
           <span>200 OK</span>
         </div>
         <div className="p-4 bg-fd-card/50 overflow-x-auto text-fd-foreground leading-relaxed whitespace-pre">
-          {`curl -X GET "https://api.farz.app/api/developer/v1/accounts" \\
-  -H "Authorization: Bearer $FARZ_API_KEY" \\
+          {`curl --fail-with-body "https://api.farz.app/api/v1/capabilities" \\
   -H "Accept: application/json"`}
         </div>
       </div>
@@ -102,7 +101,7 @@ export default function HomePage() {
           </div>
           <h2 className="text-sm font-semibold text-fd-foreground mb-1">Quickstart Guide</h2>
           <p className="text-xs text-fd-muted-foreground leading-relaxed">
-            Create your Clerk User API key and make your first authenticated request in 5 minutes.
+            Check live availability and learn the supported Clerk user authentication flow.
           </p>
         </Link>
 
@@ -116,7 +115,7 @@ export default function HomePage() {
           </div>
           <h2 className="text-sm font-semibold text-fd-foreground mb-1">REST API Reference</h2>
           <p className="text-xs text-fd-muted-foreground leading-relaxed">
-            Explore all 15 endpoints for accounts, transactions, investments, and reports.
+            Inspect the verified unified API: 224 declared paths and 264 read/write operations.
           </p>
         </Link>
 
@@ -130,7 +129,7 @@ export default function HomePage() {
           </div>
           <h2 className="text-sm font-semibold text-fd-foreground mb-1">Model Context Protocol</h2>
           <p className="text-xs text-fd-muted-foreground leading-relaxed">
-            Connect Claude Desktop, Cursor, and custom AI agents via Streamable HTTP.
+            MCP is unconfigured. Read the current status before configuring an assistant.
           </p>
         </Link>
 
@@ -158,7 +157,7 @@ export default function HomePage() {
           </div>
           <h2 className="text-sm font-semibold text-fd-foreground mb-1">OAuth 2.0 & PKCE</h2>
           <p className="text-xs text-fd-muted-foreground leading-relaxed">
-            Integrate third-party applications with protected-resource discovery and rotating tokens.
+            Third-party OAuth is unavailable. The live API uses first-party Clerk user sessions.
           </p>
         </Link>
 
@@ -172,7 +171,7 @@ export default function HomePage() {
           </div>
           <h2 className="text-sm font-semibold text-fd-foreground mb-1">Code Examples</h2>
           <p className="text-xs text-fd-muted-foreground leading-relaxed">
-            Runnable Python (httpx + Decimal) and TypeScript code samples with full typing.
+            First-party request examples using the actual response shapes and exact decimal values.
           </p>
         </Link>
       </div>

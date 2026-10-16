@@ -1,0 +1,446 @@
+---
+title: Lending and actual Reclaim
+description: Verified unified API routes and exact declared models.
+---
+
+Record money already lent from an active bank/cash account as cash exchanged for a separately owned receivable. Reclaim records money **actually received**, partially or in full; it never initiates a payment or reminder. Positive amounts cannot exceed remaining owed; account currency/revisions, loan revision, date and received_confirmed are checked server-side. Repayment changes cash and receivable atomically without counting as income/spending. Correct the latest active repayment before earlier dependencies/original advance; generic journal reversal and manual-asset edits refuse linked loans. Use the same idempotency key on unchanged retries. Live desktop acceptance passed partial50/full250 on an advance300, final cash1000/owed0, unchanged income/spending and durable reload.
+
+Private operations require an authorized Clerk user bearer and workspace membership. Optional/sensitive services retain their policy/entitlement/fresh-authentication gates.
+
+`/lending/page` adds bounded currency/state/overdue discovery. Reclaim continues to record an actual repayment, including partial amounts; a notification or reminder does not settle the receivable.
+
+| Complete route | Authentication | Required operation headers | Declared success |
+| --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/lending/page` | Clerk user bearer | — | 200 application/json RecordPage_LendingLoanResponse_ |
+| `GET /api/v1/workspaces/{workspace_id}/lending` | Clerk user bearer | — | 200 application/json LendingLoanResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/lending` | Clerk user bearer | `Idempotency-Key` | 200 application/json LendingLoanResponse |
+| `GET /api/v1/workspaces/{workspace_id}/lending/{loan_id}` | Clerk user bearer | — | 200 application/json LendingLoanResponse |
+| `GET /api/v1/workspaces/{workspace_id}/lending/{loan_id}/repayments` | Clerk user bearer | — | 200 application/json LendingRepaymentResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/lending/{loan_id}/reclaim` | Clerk user bearer | `Idempotency-Key` | 200 application/json LendingRepaymentResponse |
+| `POST /api/v1/workspaces/{workspace_id}/lending/{loan_id}/correct-advance` | Clerk user bearer | `Idempotency-Key` | 200 application/json LendingRepaymentResponse |
+| `POST /api/v1/workspaces/{workspace_id}/lending/{loan_id}/repayments/{repayment_id}/reversal` | Clerk user bearer | `Idempotency-Key` | 200 application/json LendingRepaymentResponse |
+
+## Exact request/response models
+
+These JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).
+
+### LendingAdvance
+
+```json
+{
+  "properties": {
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "expected_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Account Revision"
+    },
+    "borrower": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Borrower"
+    },
+    "amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Amount"
+    },
+    "occurred_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Occurred On"
+    },
+    "due_on": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Due On"
+    },
+    "source": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Source"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "account_id",
+    "expected_account_revision",
+    "borrower",
+    "amount",
+    "occurred_on",
+    "source"
+  ],
+  "title": "LendingAdvance"
+}
+```
+
+### LendingCorrection
+
+```json
+{
+  "properties": {
+    "expected_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Account Revision"
+    },
+    "expected_loan_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Loan Revision"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    },
+    "correction_confirmed": {
+      "type": "boolean",
+      "const": true,
+      "title": "Correction Confirmed"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expected_account_revision",
+    "expected_loan_revision",
+    "reason",
+    "correction_confirmed"
+  ],
+  "title": "LendingCorrection"
+}
+```
+
+### LendingLoanResponse
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "asset_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Asset Id"
+    },
+    "advance_entry_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Advance Entry Id"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "borrower": {
+      "type": "string",
+      "title": "Borrower"
+    },
+    "principal": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Principal"
+    },
+    "outstanding": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Outstanding"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "occurred_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Occurred On"
+    },
+    "due_on": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Due On"
+    },
+    "source": {
+      "type": "string",
+      "title": "Source"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "outstanding",
+        "repaid",
+        "corrected"
+      ],
+      "title": "State"
+    },
+    "basis": {
+      "type": "string",
+      "const": "personal_lending_receivable",
+      "title": "Basis",
+      "default": "personal_lending_receivable"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "revision",
+    "asset_id",
+    "advance_entry_id",
+    "account_id",
+    "borrower",
+    "principal",
+    "outstanding",
+    "currency",
+    "occurred_on",
+    "due_on",
+    "source",
+    "state",
+    "recorded_at"
+  ],
+  "title": "LendingLoanResponse"
+}
+```
+
+### LendingReclaim
+
+```json
+{
+  "properties": {
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "expected_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Account Revision"
+    },
+    "expected_loan_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Loan Revision"
+    },
+    "amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Amount"
+    },
+    "occurred_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Occurred On"
+    },
+    "source": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Source"
+    },
+    "received_confirmed": {
+      "type": "boolean",
+      "const": true,
+      "title": "Received Confirmed"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "account_id",
+    "expected_account_revision",
+    "expected_loan_revision",
+    "amount",
+    "occurred_on",
+    "source",
+    "received_confirmed"
+  ],
+  "title": "LendingReclaim"
+}
+```
+
+### LendingRepaymentResponse
+
+```json
+{
+  "properties": {
+    "kind": {
+      "type": "string",
+      "enum": [
+        "repayment",
+        "repayment_reversal",
+        "advance_correction"
+      ],
+      "title": "Kind",
+      "default": "repayment"
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "loan_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Loan Id"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "entry_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Entry Id"
+    },
+    "reversal_of": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Reversal Of"
+    },
+    "amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Amount"
+    },
+    "outstanding_before": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Outstanding Before"
+    },
+    "outstanding_after": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Outstanding After"
+    },
+    "loan_revision": {
+      "type": "integer",
+      "title": "Loan Revision"
+    },
+    "occurred_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Occurred On"
+    },
+    "source": {
+      "type": "string",
+      "title": "Source"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "loan_id",
+    "account_id",
+    "entry_id",
+    "amount",
+    "outstanding_before",
+    "outstanding_after",
+    "loan_revision",
+    "occurred_on",
+    "source",
+    "recorded_at"
+  ],
+  "title": "LendingRepaymentResponse"
+}
+```
+
+### RecordPage_LendingLoanResponse_
+
+```json
+{
+  "properties": {
+    "as_of": {
+      "type": "string",
+      "format": "date",
+      "title": "As Of"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/LendingLoanResponse"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Cursor"
+    }
+  },
+  "type": "object",
+  "required": [
+    "as_of",
+    "items",
+    "next_cursor"
+  ],
+  "title": "RecordPage[LendingLoanResponse]"
+}
+```

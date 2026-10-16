@@ -1,0 +1,459 @@
+---
+title: Record browsing and sync
+description: Current unified API contracts, workflow and activation boundaries.
+---
+
+The ten bounded collection pages (accounts plus nine record families) and cross-record search discover existing private records. Legacy array routes are unchanged. Default page size25/maximum100; page shape and filters are endpoint-specific. Search is normalized literal display-label matching, not fuzzy search of encrypted notes, bank numbers or arbitrary payloads.
+
+Keep identity, workspace, filters and snapshot intact across cursors; changing page size is supported by these view cursors. Mutations, midnight, expiry or changed projections can return409; start a new traversal. Foreign resources remain inaccessible. Read [pagination](/docs/concepts/pagination) for the different legacy transaction contract.
+
+Portfolio queries, immutable history/detail and sync state/change cursors expose minimized authorized backend projections. A sequence is a synchronization boundary, not permission to fetch another workspace. Preserve financial decimal strings, current lifecycle restrictions and no-store handling; these endpoints do not add background native sync or provider connectivity.
+
+| Complete route | Authentication | Required operation headers | Declared success |
+| --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/records/search` | Clerk user bearer | — | 200 application/json RecordPage_SearchHit_ |
+| `GET /api/v1/workspaces/{workspace_id}/changes` | Clerk user bearer | — | 200 application/json ChangePage |
+| `GET /api/v1/workspaces/{workspace_id}/ledger-query` | Clerk user bearer | — | 200 application/json LedgerSearchPage |
+| `GET /api/v1/workspaces/{workspace_id}/portfolio-query` | Clerk user bearer | — | 200 application/json PortfolioPage |
+| `GET /api/v1/workspaces/{workspace_id}/portfolio-query/history` | Clerk user bearer | — | 200 application/json PortfolioHistory |
+| `GET /api/v1/workspaces/{workspace_id}/portfolio-query/{kind}/{entity_id}` | Clerk user bearer | — | 200 application/json PortfolioItem |
+| `GET /api/v1/workspaces/{workspace_id}/sync/state` | Clerk user bearer | — | 200 application/json SyncAnchor |
+| `GET /api/v1/workspaces/{workspace_id}/sync/changes` | Clerk user bearer | — | 200 application/json ScopedChangePage |
+
+## Exact request/response models
+
+These JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).
+
+### ChangePage
+
+```json
+{
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/ChangeItem"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "cursor": {
+      "type": "integer",
+      "title": "Cursor"
+    },
+    "has_more": {
+      "type": "boolean",
+      "title": "Has More"
+    }
+  },
+  "type": "object",
+  "required": [
+    "items",
+    "cursor",
+    "has_more"
+  ],
+  "title": "ChangePage"
+}
+```
+
+### LedgerSearchPage
+
+```json
+{
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/LedgerSearchRow"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "summary": {
+      "$ref": "#/components/schemas/LedgerSearchSummary"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Cursor"
+    }
+  },
+  "type": "object",
+  "required": [
+    "items",
+    "summary",
+    "next_cursor"
+  ],
+  "title": "LedgerSearchPage"
+}
+```
+
+### PortfolioHistory
+
+```json
+{
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/PortfolioHistoryPoint"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "base_currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Base Currency"
+    },
+    "scope": {
+      "type": "string",
+      "const": "dated_recomputed_observations",
+      "title": "Scope",
+      "default": "dated_recomputed_observations"
+    },
+    "is_locked_snapshot": {
+      "type": "boolean",
+      "const": false,
+      "title": "Is Locked Snapshot",
+      "default": false
+    }
+  },
+  "type": "object",
+  "required": [
+    "items",
+    "base_currency"
+  ],
+  "title": "PortfolioHistory"
+}
+```
+
+### PortfolioItem
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "account",
+        "asset",
+        "debt"
+      ],
+      "title": "Kind"
+    },
+    "name": {
+      "type": "string",
+      "title": "Name"
+    },
+    "asset_class": {
+      "type": "string",
+      "title": "Asset Class"
+    },
+    "liquidity": {
+      "type": "string",
+      "enum": [
+        "liquid",
+        "illiquid",
+        "unknown"
+      ],
+      "title": "Liquidity"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "native_amount": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Native Amount"
+    },
+    "base_amount": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Base Amount"
+    },
+    "owner_fraction": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Owner Fraction"
+    },
+    "gross_native_amount": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Gross Native Amount"
+    },
+    "conversion": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/FXConversionResponse"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "provenance": {
+      "type": "string",
+      "enum": [
+        "recorded_account",
+        "owned_valuation",
+        "recorded_debt",
+        "unpriced_position"
+      ],
+      "title": "Provenance"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "kind",
+    "name",
+    "asset_class",
+    "liquidity",
+    "currency",
+    "native_amount",
+    "base_amount",
+    "owner_fraction",
+    "gross_native_amount",
+    "conversion",
+    "provenance"
+  ],
+  "title": "PortfolioItem"
+}
+```
+
+### PortfolioPage
+
+```json
+{
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/PortfolioItem"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "summary": {
+      "$ref": "#/components/schemas/PortfolioSummary"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Cursor"
+    }
+  },
+  "type": "object",
+  "required": [
+    "items",
+    "summary",
+    "next_cursor"
+  ],
+  "title": "PortfolioPage"
+}
+```
+
+### RecordPage_SearchHit_
+
+```json
+{
+  "properties": {
+    "as_of": {
+      "type": "string",
+      "format": "date",
+      "title": "As Of"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/SearchHit"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Cursor"
+    }
+  },
+  "type": "object",
+  "required": [
+    "as_of",
+    "items",
+    "next_cursor"
+  ],
+  "title": "RecordPage[SearchHit]"
+}
+```
+
+### ScopedChangePage
+
+```json
+{
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/ScopedChange"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "next_cursor": {
+      "type": "string",
+      "title": "Next Cursor"
+    },
+    "has_more": {
+      "type": "boolean",
+      "title": "Has More"
+    },
+    "snapshot_sequence": {
+      "type": "integer",
+      "title": "Snapshot Sequence"
+    },
+    "current_sequence": {
+      "type": "integer",
+      "title": "Current Sequence"
+    },
+    "workspace_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Workspace Id"
+    },
+    "lifecycle_revision": {
+      "type": "integer",
+      "title": "Lifecycle Revision"
+    }
+  },
+  "type": "object",
+  "required": [
+    "items",
+    "next_cursor",
+    "has_more",
+    "snapshot_sequence",
+    "current_sequence",
+    "workspace_id",
+    "lifecycle_revision"
+  ],
+  "title": "ScopedChangePage"
+}
+```
+
+### SyncAnchor
+
+```json
+{
+  "properties": {
+    "workspace_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Workspace Id"
+    },
+    "lifecycle_revision": {
+      "type": "integer",
+      "title": "Lifecycle Revision"
+    },
+    "sequence": {
+      "type": "integer",
+      "title": "Sequence"
+    },
+    "cursor": {
+      "type": "string",
+      "title": "Cursor"
+    },
+    "contains_financial_records": {
+      "type": "boolean",
+      "const": false,
+      "title": "Contains Financial Records",
+      "default": false
+    },
+    "entity_reads_remain_authorized_separately": {
+      "type": "boolean",
+      "const": true,
+      "title": "Entity Reads Remain Authorized Separately",
+      "default": true
+    }
+  },
+  "type": "object",
+  "required": [
+    "workspace_id",
+    "lifecycle_revision",
+    "sequence",
+    "cursor"
+  ],
+  "title": "SyncAnchor"
+}
+```

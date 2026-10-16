@@ -1,0 +1,2109 @@
+---
+title: Statement intake and review
+description: Current unified API contracts, workflow and activation boundaries.
+---
+
+The API exposes raw CSV/XLSX upload, quarantine status, scan/extraction jobs, paginated rows, mapping/review, reconciliation, confirmation, commit and compensation/history. Production capabilities report imports `not_configured`: processing needs an approved isolated scanner/parser executor policy. Declared routes do not prove processing activation or Web integration.
+
+The raw `/imports/uploads` endpoint uses exact MIME, `X-Farz-Filename` and UUID `Idempotency-Key`, not multipart. For account-bound intake, provide all four account/revision/period headers together as declared in OpenAPI. Read `/imports/limits` for current bounded intake policy. Ordinary command bodies remain JSON; never infer that every POST accepts raw bytes.
+
+Follow upload → clean scan → extraction → complete paged rows/review → reconciliation checks → explicit confirmation → commit. Read every page and acknowledge current reconciliation/duplicate/period decisions; a sample cannot authorize the whole file. Atomic ordinary selections cap100rows. Larger batches explicitly acknowledge partial commits and use freshly reviewed/confirmed bounded checkpoints; earlier committed checkpoints are not silently undone after failure.
+
+Matching retries preserve the command key and exact content; changed content conflicts. Retained history and authorized compensation are distinct from deleting financial records. Cancellation does not undo previously committed money.
+
+PDF/image extraction is currently unavailable. Farz will use approved model-native vision, **never OCR**, behind quarantine, isolated bounded preparation, consent, Trial/Paid entitlement, model/privacy/cost and explicit review/confirmation gates. Free users retain deterministic CSV/XLSX and manual entry. Do not activate AI or processing by supplying a client URL, model name, executable or policy ID.
+
+| Complete route | Authentication | Required operation headers | Declared success |
+| --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/imports/paired-transfers` | Clerk user bearer | — | 200 application/json PairHistoryPage |
+| `GET /api/v1/workspaces/{workspace_id}/imports/paired-transfers/{commit_id}` | Clerk user bearer | — | 200 application/json PairHistory |
+| `POST /api/v1/workspaces/{workspace_id}/imports/paired-transfers/{commit_id}/reversals` | Clerk user bearer | `Idempotency-Key` | 201 application/json PairCompensationResponse |
+| `GET /api/v1/workspaces/{workspace_id}/imports/ordinary-sources` | Clerk user bearer | — | 200 application/json OrdinarySourcePage |
+| `GET /api/v1/workspaces/{workspace_id}/imports/ordinary-sources/{source_id}` | Clerk user bearer | — | 200 application/json OrdinarySourceHistory |
+| `GET /api/v1/workspaces/{workspace_id}/imports/ordinary-replacements/{replacement_id}` | Clerk user bearer | — | 200 application/json OrdinaryReplacementHistory |
+| `GET /api/v1/workspaces/{workspace_id}/imports/pending-records` | Clerk user bearer | — | 200 application/json PendingSourcePage |
+| `GET /api/v1/workspaces/{workspace_id}/imports/pending-records/{pending_id}` | Clerk user bearer | — | 200 application/json PendingSourceHistory |
+| `POST /api/v1/workspaces/{workspace_id}/imports/pending-records/{pending_id}/changes` | Clerk user bearer | `Idempotency-Key` | 201 application/json PendingSourceChangeResponse |
+| `GET /api/v1/workspaces/{workspace_id}/imports/pending-settlements` | Clerk user bearer | — | 200 application/json PendingSettlementPage |
+| `GET /api/v1/workspaces/{workspace_id}/imports/pending-settlements/{settlement_id}` | Clerk user bearer | — | 200 application/json PendingSettlementHistory |
+| `POST /api/v1/workspaces/{workspace_id}/imports/pending-settlements/{settlement_id}/reversals` | Clerk user bearer | `Idempotency-Key` | 201 application/json PendingSettlementCompensationResponse |
+| `GET /api/v1/workspaces/{workspace_id}/imports/limits` | Clerk user bearer | — | 200 application/json IntakeLimits |
+| `POST /api/v1/workspaces/{workspace_id}/imports/uploads` | Clerk user bearer | `X-Farz-Filename`, `Idempotency-Key` | 201 application/json |
+| `GET /api/v1/workspaces/{workspace_id}/imports/uploads/{upload_id}` | Clerk user bearer | — | 200 application/json |
+| `POST /api/v1/workspaces/{workspace_id}/imports/uploads/{upload_id}/cancel` | Clerk user bearer | — | 200 application/json |
+| `POST /api/v1/workspaces/{workspace_id}/imports/uploads/{upload_id}/scans` | Clerk user bearer | `Idempotency-Key` | 202 application/json |
+| `POST /api/v1/workspaces/{workspace_id}/imports/uploads/{upload_id}/extractions` | Clerk user bearer | `Idempotency-Key` | 202 application/json |
+| `GET /api/v1/workspaces/{workspace_id}/imports/jobs/{job_id}` | Clerk user bearer | — | 200 application/json |
+| `POST /api/v1/workspaces/{workspace_id}/imports/jobs/{job_id}/cancel` | Clerk user bearer | — | 200 application/json |
+| `GET /api/v1/workspaces/{workspace_id}/imports/jobs/{job_id}/rows` | Clerk user bearer | — | 200 application/json |
+| `POST /api/v1/workspaces/{workspace_id}/imports/reviews` | Clerk user bearer | `Idempotency-Key` | 201 application/json ReviewPage |
+| `GET /api/v1/workspaces/{workspace_id}/imports/reviews/{review_id}` | Clerk user bearer | — | 200 application/json ReviewPage |
+| `POST /api/v1/workspaces/{workspace_id}/imports/review-checks` | Clerk user bearer | — | 200 application/json |
+| `POST /api/v1/workspaces/{workspace_id}/imports/batch-review-checks` | Clerk user bearer | — | 200 application/json |
+| `POST /api/v1/workspaces/{workspace_id}/imports/batch-confirmations` | Clerk user bearer | `Idempotency-Key` | 201 application/json |
+| `POST /api/v1/workspaces/{workspace_id}/imports/batches` | Clerk user bearer | `Idempotency-Key` | 201 application/json BatchStart |
+| `GET /api/v1/workspaces/{workspace_id}/imports/batches/{intent_id}` | Clerk user bearer | — | 200 application/json BatchPage |
+| `POST /api/v1/workspaces/{workspace_id}/imports/batch-checkpoints` | Clerk user bearer | `Idempotency-Key` | 201 application/json BatchPage |
+| `POST /api/v1/workspaces/{workspace_id}/imports/confirmations` | Clerk user bearer | `Idempotency-Key` | 201 application/json |
+| `POST /api/v1/workspaces/{workspace_id}/imports/commits` | Clerk user bearer | `Idempotency-Key` | 201 application/json |
+| `GET /api/v1/workspaces/{workspace_id}/imports/commits/{commit_id}` | Clerk user bearer | — | 200 application/json |
+| `POST /api/v1/workspaces/{workspace_id}/imports/reversals` | Clerk user bearer | `Idempotency-Key` | 201 application/json |
+
+## Exact request/response models
+
+These JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).
+
+### BatchConfirmationWrite
+
+```json
+{
+  "properties": {
+    "selection": {
+      "$ref": "#/components/schemas/BatchSelection"
+    },
+    "reconciliation": {
+      "$ref": "#/components/schemas/ReconciliationDecision"
+    },
+    "period": {
+      "$ref": "#/components/schemas/PeriodDecision"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "selection",
+    "reconciliation",
+    "period"
+  ],
+  "title": "BatchConfirmationWrite"
+}
+```
+
+### BatchPage
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "stage_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Stage Id"
+    },
+    "planned_rows": {
+      "type": "integer",
+      "title": "Planned Rows"
+    },
+    "posted_rows": {
+      "type": "integer",
+      "title": "Posted Rows"
+    },
+    "remaining_rows": {
+      "type": "integer",
+      "title": "Remaining Rows"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "completed",
+        "partial",
+        "not_started"
+      ],
+      "title": "State"
+    },
+    "expired": {
+      "type": "boolean",
+      "title": "Expired"
+    },
+    "globally_atomic": {
+      "type": "boolean",
+      "const": false,
+      "title": "Globally Atomic"
+    },
+    "source_rows_consumed": {
+      "type": "integer",
+      "title": "Source Rows Consumed"
+    },
+    "compensated_checkpoints": {
+      "type": "integer",
+      "title": "Compensated Checkpoints"
+    },
+    "partially_compensated_checkpoints": {
+      "type": "integer",
+      "title": "Partially Compensated Checkpoints"
+    },
+    "automatic_financial_undo": {
+      "type": "boolean",
+      "const": false,
+      "title": "Automatic Financial Undo"
+    },
+    "next_rows": {
+      "items": {
+        "type": "integer"
+      },
+      "type": "array",
+      "maxItems": 100,
+      "title": "Next Rows"
+    },
+    "checkpoints": {
+      "items": {
+        "$ref": "#/components/schemas/Checkpoint"
+      },
+      "type": "array",
+      "maxItems": 20,
+      "title": "Checkpoints"
+    },
+    "requires_fresh_confirmation": {
+      "type": "boolean",
+      "title": "Requires Fresh Confirmation"
+    },
+    "total_checkpoints": {
+      "type": "integer",
+      "title": "Total Checkpoints"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Cursor"
+    },
+    "page_size": {
+      "type": "integer",
+      "title": "Page Size"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "account_id",
+    "stage_id",
+    "planned_rows",
+    "posted_rows",
+    "remaining_rows",
+    "state",
+    "expired",
+    "globally_atomic",
+    "source_rows_consumed",
+    "compensated_checkpoints",
+    "partially_compensated_checkpoints",
+    "automatic_financial_undo",
+    "next_rows",
+    "checkpoints",
+    "requires_fresh_confirmation",
+    "total_checkpoints",
+    "next_cursor",
+    "page_size"
+  ],
+  "title": "BatchPage"
+}
+```
+
+### BatchSelection
+
+```json
+{
+  "properties": {
+    "review_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Review Id"
+    },
+    "expected_review_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Review Revision"
+    },
+    "expected_account_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Account Revision"
+    },
+    "review_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Review Digest"
+    },
+    "selected_spans": {
+      "items": {
+        "$ref": "#/components/schemas/RowSpan"
+      },
+      "type": "array",
+      "maxItems": 1000,
+      "minItems": 1,
+      "title": "Selected Spans"
+    },
+    "excluded_spans": {
+      "items": {
+        "$ref": "#/components/schemas/RowSpan"
+      },
+      "type": "array",
+      "maxItems": 1000,
+      "title": "Excluded Spans"
+    },
+    "duplicate_acknowledgment_spans": {
+      "items": {
+        "$ref": "#/components/schemas/RowSpan"
+      },
+      "type": "array",
+      "maxItems": 1000,
+      "title": "Duplicate Acknowledgment Spans"
+    },
+    "confirmed": {
+      "type": "boolean",
+      "title": "Confirmed"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "review_id",
+    "expected_review_revision",
+    "expected_account_revision",
+    "review_digest",
+    "selected_spans",
+    "excluded_spans",
+    "duplicate_acknowledgment_spans",
+    "confirmed"
+  ],
+  "title": "BatchSelection"
+}
+```
+
+### BatchStart
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "planned_rows": {
+      "type": "integer",
+      "title": "Planned Rows"
+    },
+    "batch_size": {
+      "type": "integer",
+      "title": "Batch Size"
+    },
+    "globally_atomic": {
+      "type": "boolean",
+      "const": false,
+      "title": "Globally Atomic"
+    },
+    "posted_rows": {
+      "type": "integer",
+      "const": 0,
+      "title": "Posted Rows"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Expires At"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "planned_rows",
+    "batch_size",
+    "globally_atomic",
+    "posted_rows",
+    "expires_at"
+  ],
+  "title": "BatchStart"
+}
+```
+
+### CommitRequest
+
+```json
+{
+  "properties": {
+    "approval_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Approval Id"
+    },
+    "approval_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Approval Digest"
+    },
+    "confirmed": {
+      "type": "boolean",
+      "title": "Confirmed"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "approval_id",
+    "approval_digest",
+    "confirmed"
+  ],
+  "title": "CommitRequest"
+}
+```
+
+### ConfirmationWrite
+
+```json
+{
+  "properties": {
+    "selection": {
+      "$ref": "#/components/schemas/PublicSelection"
+    },
+    "reconciliation": {
+      "$ref": "#/components/schemas/ReconciliationDecision"
+    },
+    "period": {
+      "$ref": "#/components/schemas/PeriodDecision"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "selection",
+    "reconciliation",
+    "period"
+  ],
+  "title": "ConfirmationWrite"
+}
+```
+
+### ExtractionWrite
+
+```json
+{
+  "properties": {
+    "scan_task_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Scan Task Id"
+    },
+    "source_format": {
+      "type": "string",
+      "enum": [
+        "csv",
+        "xlsx"
+      ],
+      "title": "Source Format"
+    },
+    "selector": {
+      "type": "string",
+      "maxLength": 240,
+      "minLength": 1,
+      "title": "Selector"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "scan_task_id",
+    "source_format",
+    "selector"
+  ],
+  "title": "ExtractionWrite"
+}
+```
+
+### FinancialReviewWrite
+
+```json
+{
+  "properties": {
+    "preview_task_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Preview Task Id"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "expected_account_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Account Revision"
+    },
+    "expected_review_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Review Revision"
+    },
+    "period_start": {
+      "type": "string",
+      "format": "date",
+      "title": "Period Start"
+    },
+    "period_end": {
+      "type": "string",
+      "format": "date",
+      "title": "Period End"
+    },
+    "mapping": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/ColumnMapping"
+        },
+        {
+          "$ref": "#/components/schemas/DebitCreditMapping"
+        }
+      ],
+      "title": "Mapping"
+    },
+    "balances": {
+      "$ref": "#/components/schemas/StatementBalances"
+    },
+    "resolutions": {
+      "items": {
+        "$ref": "#/components/schemas/RowResolution"
+      },
+      "type": "array",
+      "maxItems": 100,
+      "title": "Resolutions"
+    },
+    "financial": {
+      "$ref": "#/components/schemas/FinancialRules"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "preview_task_id",
+    "account_id",
+    "expected_account_revision",
+    "expected_review_revision",
+    "period_start",
+    "period_end",
+    "mapping",
+    "financial"
+  ],
+  "title": "FinancialReviewWrite"
+}
+```
+
+### IntakeLimits
+
+```json
+{
+  "properties": {
+    "supported_formats": {
+      "items": {
+        "type": "string",
+        "enum": [
+          "csv",
+          "xlsx"
+        ]
+      },
+      "type": "array",
+      "title": "Supported Formats"
+    },
+    "max_upload_bytes": {
+      "type": "integer",
+      "title": "Max Upload Bytes"
+    },
+    "csv": {
+      "$ref": "#/components/schemas/CsvIntakeLimits"
+    },
+    "xlsx": {
+      "$ref": "#/components/schemas/XlsxIntakeLimits"
+    },
+    "policy_revision": {
+      "type": "string",
+      "title": "Policy Revision"
+    },
+    "pdf_available": {
+      "type": "boolean",
+      "const": false,
+      "title": "Pdf Available",
+      "default": false
+    },
+    "manual_entry_available": {
+      "type": "boolean",
+      "const": true,
+      "title": "Manual Entry Available",
+      "default": true
+    }
+  },
+  "type": "object",
+  "required": [
+    "supported_formats",
+    "max_upload_bytes",
+    "csv",
+    "xlsx",
+    "policy_revision"
+  ],
+  "title": "IntakeLimits"
+}
+```
+
+### OrdinaryReplacementHistory
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "root_match_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Root Match Id"
+    },
+    "entry_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Entry Id"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "revision": {
+      "type": "integer",
+      "maximum": 100,
+      "minimum": 1,
+      "title": "Revision"
+    },
+    "previous_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Previous Id"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "income",
+        "expense"
+      ],
+      "title": "Direction"
+    },
+    "amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Amount"
+    },
+    "occurred_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Occurred On"
+    },
+    "source_description": {
+      "type": "string",
+      "title": "Source Description"
+    },
+    "recorded_category": {
+      "type": "string",
+      "title": "Recorded Category"
+    },
+    "recorded_classification_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Recorded Classification Revision"
+    },
+    "reason": {
+      "type": "string",
+      "title": "Reason"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    },
+    "transaction_reversed": {
+      "type": "boolean",
+      "title": "Transaction Reversed"
+    },
+    "source_consumed": {
+      "type": "boolean",
+      "const": true,
+      "title": "Source Consumed",
+      "default": true
+    },
+    "new_cash_amount": {
+      "type": "string",
+      "const": "0",
+      "title": "New Cash Amount",
+      "default": "0"
+    },
+    "claims_released": {
+      "type": "boolean",
+      "const": false,
+      "title": "Claims Released",
+      "default": false
+    },
+    "description_amended": {
+      "type": "boolean",
+      "const": false,
+      "title": "Description Amended",
+      "default": false
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "id",
+    "root_match_id",
+    "entry_id",
+    "account_id",
+    "revision",
+    "previous_id",
+    "currency",
+    "direction",
+    "amount",
+    "occurred_on",
+    "source_description",
+    "recorded_category",
+    "recorded_classification_revision",
+    "reason",
+    "recorded_at",
+    "transaction_reversed"
+  ],
+  "title": "OrdinaryReplacementHistory"
+}
+```
+
+### OrdinarySourceHistory
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "entry_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Entry Id"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "income",
+        "expense"
+      ],
+      "title": "Direction"
+    },
+    "amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Amount"
+    },
+    "occurred_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Occurred On"
+    },
+    "posted_description": {
+      "type": "string",
+      "title": "Posted Description"
+    },
+    "source_description": {
+      "type": "string",
+      "title": "Source Description"
+    },
+    "recorded_category": {
+      "type": "string",
+      "title": "Recorded Category"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    },
+    "recorded_classification_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Recorded Classification Revision"
+    },
+    "current_classification_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Current Classification Revision"
+    },
+    "current_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Current Account Revision"
+    },
+    "replacement_revision": {
+      "type": "integer",
+      "maximum": 100,
+      "minimum": 0,
+      "title": "Replacement Revision"
+    },
+    "latest_replacement_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Latest Replacement Id"
+    },
+    "transaction_reversed": {
+      "type": "boolean",
+      "title": "Transaction Reversed"
+    },
+    "source_consumed": {
+      "type": "boolean",
+      "const": true,
+      "title": "Source Consumed",
+      "default": true
+    },
+    "new_cash_amount": {
+      "type": "string",
+      "const": "0",
+      "title": "New Cash Amount",
+      "default": "0"
+    },
+    "claims_released": {
+      "type": "boolean",
+      "const": false,
+      "title": "Claims Released",
+      "default": false
+    },
+    "description_amended": {
+      "type": "boolean",
+      "const": false,
+      "title": "Description Amended",
+      "default": false
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "id",
+    "entry_id",
+    "account_id",
+    "currency",
+    "direction",
+    "amount",
+    "occurred_on",
+    "posted_description",
+    "source_description",
+    "recorded_category",
+    "recorded_at",
+    "recorded_classification_revision",
+    "current_classification_revision",
+    "current_account_revision",
+    "replacement_revision",
+    "latest_replacement_id",
+    "transaction_reversed"
+  ],
+  "title": "OrdinarySourceHistory"
+}
+```
+
+### OrdinarySourcePage
+
+```json
+{
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/OrdinarySourceHistory"
+      },
+      "type": "array",
+      "maxItems": 25,
+      "title": "Items"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Cursor"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "items"
+  ],
+  "title": "OrdinarySourcePage"
+}
+```
+
+### PairCompensationResponse
+
+```json
+{
+  "properties": {
+    "commit_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Commit Id"
+    },
+    "reversal_entry_ids": {
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "type": "array",
+      "maxItems": 43,
+      "minItems": 1,
+      "title": "Reversal Entry Ids"
+    },
+    "source_consumed": {
+      "type": "boolean",
+      "const": true,
+      "title": "Source Consumed",
+      "default": true
+    },
+    "claims_released": {
+      "type": "boolean",
+      "const": false,
+      "title": "Claims Released",
+      "default": false
+    },
+    "payment_initiated": {
+      "type": "boolean",
+      "const": false,
+      "title": "Payment Initiated",
+      "default": false
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "commit_id",
+    "reversal_entry_ids"
+  ],
+  "title": "PairCompensationResponse"
+}
+```
+
+### PairHistory
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "native",
+        "native_with_fees",
+        "fx"
+      ],
+      "title": "Kind"
+    },
+    "entry_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Entry Id"
+    },
+    "journal_entry_ids": {
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "type": "array",
+      "maxItems": 43,
+      "minItems": 1,
+      "title": "Journal Entry Ids"
+    },
+    "occurred_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Occurred On"
+    },
+    "description": {
+      "type": "string",
+      "title": "Description"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    },
+    "sides": {
+      "items": {
+        "$ref": "#/components/schemas/PairSide"
+      },
+      "type": "array",
+      "maxItems": 2,
+      "minItems": 2,
+      "title": "Sides"
+    },
+    "fees": {
+      "items": {
+        "$ref": "#/components/schemas/PairFee"
+      },
+      "type": "array",
+      "maxItems": 40,
+      "title": "Fees"
+    },
+    "functional_currency": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "AED",
+            "USD",
+            "GBP",
+            "EUR",
+            "SAR",
+            "BHD",
+            "KWD",
+            "QAR",
+            "OMR",
+            "JOD",
+            "TRY"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Functional Currency"
+    },
+    "principal_functional_amount": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Principal Functional Amount"
+    },
+    "reversed": {
+      "type": "boolean",
+      "title": "Reversed"
+    },
+    "source_consumed": {
+      "type": "boolean",
+      "const": true,
+      "title": "Source Consumed",
+      "default": true
+    },
+    "claims_released": {
+      "type": "boolean",
+      "const": false,
+      "title": "Claims Released",
+      "default": false
+    },
+    "payment_initiated": {
+      "type": "boolean",
+      "const": false,
+      "title": "Payment Initiated",
+      "default": false
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "id",
+    "kind",
+    "entry_id",
+    "journal_entry_ids",
+    "occurred_on",
+    "description",
+    "recorded_at",
+    "sides",
+    "fees",
+    "functional_currency",
+    "principal_functional_amount",
+    "reversed"
+  ],
+  "title": "PairHistory"
+}
+```
+
+### PairHistoryPage
+
+```json
+{
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/PairHistory"
+      },
+      "type": "array",
+      "maxItems": 25,
+      "title": "Items"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Cursor"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "items"
+  ],
+  "title": "PairHistoryPage"
+}
+```
+
+### PairReverseRequest
+
+```json
+{
+  "properties": {
+    "commit_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Commit Id"
+    },
+    "outgoing_revision": {
+      "type": "integer",
+      "maximum": 9007199254740991,
+      "minimum": 1,
+      "title": "Outgoing Revision"
+    },
+    "incoming_revision": {
+      "type": "integer",
+      "maximum": 9007199254740991,
+      "minimum": 1,
+      "title": "Incoming Revision"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    },
+    "confirmed": {
+      "type": "boolean",
+      "title": "Confirmed"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "commit_id",
+    "outgoing_revision",
+    "incoming_revision",
+    "reason",
+    "confirmed"
+  ],
+  "title": "PairReverseRequest"
+}
+```
+
+### PendingChangeRequest
+
+```json
+{
+  "properties": {
+    "pending_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Pending Id"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "cancel",
+        "restore"
+      ],
+      "title": "Action"
+    },
+    "expected_pending_revision": {
+      "type": "integer",
+      "maximum": 100,
+      "minimum": 0,
+      "title": "Expected Pending Revision"
+    },
+    "expected_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Account Revision"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    },
+    "confirmed": {
+      "type": "boolean",
+      "title": "Confirmed"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "pending_id",
+    "action",
+    "expected_pending_revision",
+    "expected_account_revision",
+    "reason",
+    "confirmed"
+  ],
+  "title": "PendingChangeRequest"
+}
+```
+
+### PendingSettlementCompensationResponse
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "settlement_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Settlement Id"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Account Revision"
+    },
+    "reversal_entry_ids": {
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "type": "array",
+      "maxItems": 21,
+      "minItems": 1,
+      "title": "Reversal Entry Ids"
+    },
+    "state": {
+      "type": "string",
+      "const": "pending_compensated",
+      "title": "State"
+    },
+    "claims_released": {
+      "type": "boolean",
+      "const": false,
+      "title": "Claims Released",
+      "default": false
+    },
+    "verifies_provider_status": {
+      "type": "boolean",
+      "const": false,
+      "title": "Verifies Provider Status",
+      "default": false
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "id",
+    "settlement_id",
+    "account_id",
+    "account_revision",
+    "reversal_entry_ids",
+    "state"
+  ],
+  "title": "PendingSettlementCompensationResponse"
+}
+```
+
+### PendingSettlementHistory
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "pending_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Pending Id"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "pending_posted",
+        "pending_compensated"
+      ],
+      "title": "State"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "original_proposed_cash_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Original Proposed Cash Amount"
+    },
+    "actual_cash_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Actual Cash Amount"
+    },
+    "cash_direction": {
+      "type": "string",
+      "enum": [
+        "income",
+        "expense"
+      ],
+      "title": "Cash Direction"
+    },
+    "occurred_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Occurred On"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    },
+    "recorded_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Recorded Account Revision"
+    },
+    "current_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Current Account Revision"
+    },
+    "components": {
+      "items": {
+        "$ref": "#/components/schemas/PendingSettlementComponent"
+      },
+      "type": "array",
+      "maxItems": 21,
+      "minItems": 1,
+      "title": "Components"
+    },
+    "compensation_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Compensation Id"
+    },
+    "compensated_at": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Compensated At"
+    },
+    "claims_released": {
+      "type": "boolean",
+      "const": false,
+      "title": "Claims Released",
+      "default": false
+    },
+    "verifies_provider_status": {
+      "type": "boolean",
+      "const": false,
+      "title": "Verifies Provider Status",
+      "default": false
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "id",
+    "pending_id",
+    "account_id",
+    "state",
+    "currency",
+    "original_proposed_cash_amount",
+    "actual_cash_amount",
+    "cash_direction",
+    "occurred_on",
+    "recorded_at",
+    "recorded_account_revision",
+    "current_account_revision",
+    "components",
+    "compensation_id",
+    "compensated_at"
+  ],
+  "title": "PendingSettlementHistory"
+}
+```
+
+### PendingSettlementPage
+
+```json
+{
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/PendingSettlementHistory"
+      },
+      "type": "array",
+      "maxItems": 25,
+      "title": "Items"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Cursor"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "items"
+  ],
+  "title": "PendingSettlementPage"
+}
+```
+
+### PendingSourceChangeResponse
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "pending_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Pending Id"
+    },
+    "revision": {
+      "type": "integer",
+      "maximum": 100,
+      "minimum": 1,
+      "title": "Revision"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "pending_unposted",
+        "pending_canceled"
+      ],
+      "title": "State"
+    },
+    "account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Account Revision"
+    },
+    "new_cash_amount": {
+      "type": "string",
+      "const": "0",
+      "title": "New Cash Amount",
+      "default": "0"
+    },
+    "claims_released": {
+      "type": "boolean",
+      "const": false,
+      "title": "Claims Released",
+      "default": false
+    },
+    "changes_bank_status": {
+      "type": "boolean",
+      "const": false,
+      "title": "Changes Bank Status",
+      "default": false
+    },
+    "journal_entries_created": {
+      "type": "integer",
+      "const": 0,
+      "title": "Journal Entries Created",
+      "default": 0
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "id",
+    "pending_id",
+    "revision",
+    "state",
+    "account_revision"
+  ],
+  "title": "PendingSourceChangeResponse"
+}
+```
+
+### PendingSourceHistory
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "pending_unposted",
+        "pending_canceled",
+        "pending_posted",
+        "pending_compensated"
+      ],
+      "title": "State"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "original_proposed_cash_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Original Proposed Cash Amount"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    },
+    "pending_revision": {
+      "type": "integer",
+      "maximum": 100,
+      "minimum": 0,
+      "title": "Pending Revision"
+    },
+    "current_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Current Account Revision"
+    },
+    "changes": {
+      "items": {
+        "$ref": "#/components/schemas/PendingSourceChange"
+      },
+      "type": "array",
+      "maxItems": 100,
+      "title": "Changes"
+    },
+    "settlement_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Settlement Id"
+    },
+    "source_consumed": {
+      "type": "boolean",
+      "const": true,
+      "title": "Source Consumed",
+      "default": true
+    },
+    "claims_released": {
+      "type": "boolean",
+      "const": false,
+      "title": "Claims Released",
+      "default": false
+    },
+    "verifies_provider_status": {
+      "type": "boolean",
+      "const": false,
+      "title": "Verifies Provider Status",
+      "default": false
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "id",
+    "account_id",
+    "state",
+    "currency",
+    "original_proposed_cash_amount",
+    "recorded_at",
+    "pending_revision",
+    "current_account_revision",
+    "changes",
+    "settlement_id"
+  ],
+  "title": "PendingSourceHistory"
+}
+```
+
+### PendingSourcePage
+
+```json
+{
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/PendingSourceHistory"
+      },
+      "type": "array",
+      "maxItems": 25,
+      "title": "Items"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Cursor"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "items"
+  ],
+  "title": "PendingSourcePage"
+}
+```
+
+### PublicSelection
+
+```json
+{
+  "properties": {
+    "review_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Review Id"
+    },
+    "expected_review_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Review Revision"
+    },
+    "expected_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Account Revision"
+    },
+    "review_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Review Digest"
+    },
+    "selected_rows": {
+      "items": {
+        "type": "integer",
+        "maximum": 1048576,
+        "minimum": 1
+      },
+      "type": "array",
+      "maxItems": 100,
+      "minItems": 1,
+      "title": "Selected Rows"
+    },
+    "excluded_rows": {
+      "items": {
+        "type": "integer",
+        "maximum": 1048576,
+        "minimum": 1
+      },
+      "type": "array",
+      "maxItems": 50000,
+      "title": "Excluded Rows"
+    },
+    "duplicate_acknowledgments": {
+      "items": {
+        "type": "integer",
+        "maximum": 1048576,
+        "minimum": 1
+      },
+      "type": "array",
+      "maxItems": 50000,
+      "title": "Duplicate Acknowledgments"
+    },
+    "confirmed": {
+      "type": "boolean",
+      "title": "Confirmed"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "review_id",
+    "expected_review_revision",
+    "expected_account_revision",
+    "review_digest",
+    "selected_rows",
+    "excluded_rows",
+    "duplicate_acknowledgments",
+    "confirmed"
+  ],
+  "title": "PublicSelection"
+}
+```
+
+### ReviewPage
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "stage_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Stage Id"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    },
+    "review_digest": {
+      "type": "string",
+      "title": "Review Digest"
+    },
+    "preview_task_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Preview Task Id"
+    },
+    "format": {
+      "type": "string",
+      "enum": [
+        "import_full_review_v1",
+        "import_full_review_v2",
+        "import_full_review_v3"
+      ],
+      "title": "Format"
+    },
+    "parser_policy": {
+      "type": "string",
+      "title": "Parser Policy"
+    },
+    "parser_image": {
+      "type": "string",
+      "title": "Parser Image"
+    },
+    "request": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/FullReviewWrite"
+        },
+        {
+          "$ref": "#/components/schemas/FinancialReviewWrite"
+        },
+        {
+          "$ref": "#/components/schemas/MultipleFeeReviewWrite"
+        }
+      ],
+      "title": "Request"
+    },
+    "stage_digest": {
+      "type": "string",
+      "title": "Stage Digest"
+    },
+    "source_size": {
+      "type": "integer",
+      "title": "Source Size"
+    },
+    "account_revision": {
+      "type": "integer",
+      "title": "Account Revision"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "content_digest": {
+      "type": "string",
+      "title": "Content Digest"
+    },
+    "classification_snapshot": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/components/schemas/ClassificationSnapshot"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Classification Snapshot"
+    },
+    "review": {
+      "$ref": "#/components/schemas/ReviewMaterialization"
+    },
+    "total_review_rows": {
+      "type": "integer",
+      "title": "Total Review Rows"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Cursor"
+    },
+    "page_size": {
+      "type": "integer",
+      "title": "Page Size"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "stage_id",
+    "account_id",
+    "revision",
+    "recorded_at",
+    "review_digest",
+    "preview_task_id",
+    "format",
+    "parser_policy",
+    "parser_image",
+    "request",
+    "stage_digest",
+    "source_size",
+    "account_revision",
+    "currency",
+    "content_digest",
+    "review",
+    "total_review_rows",
+    "next_cursor",
+    "page_size"
+  ],
+  "title": "ReviewPage"
+}
+```
+
+### StartRequest
+
+```json
+{
+  "properties": {
+    "approval_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Approval Id"
+    },
+    "approval_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Approval Digest"
+    },
+    "confirmed": {
+      "type": "boolean",
+      "title": "Confirmed"
+    },
+    "batch_size": {
+      "type": "integer",
+      "maximum": 100,
+      "minimum": 1,
+      "title": "Batch Size"
+    },
+    "acknowledge_partial_commit": {
+      "type": "boolean",
+      "title": "Acknowledge Partial Commit"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "approval_id",
+    "approval_digest",
+    "confirmed",
+    "batch_size",
+    "acknowledge_partial_commit"
+  ],
+  "title": "StartRequest"
+}
+```
+
+### StepRequest
+
+```json
+{
+  "properties": {
+    "approval_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Approval Id"
+    },
+    "approval_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Approval Digest"
+    },
+    "confirmed": {
+      "type": "boolean",
+      "title": "Confirmed"
+    },
+    "intent_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Intent Id"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "approval_id",
+    "approval_digest",
+    "confirmed",
+    "intent_id"
+  ],
+  "title": "StepRequest"
+}
+```
+
+### app__import_commit__ReverseRequest
+
+```json
+{
+  "properties": {
+    "commit_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Commit Id"
+    },
+    "expected_account_revision": {
+      "type": "integer",
+      "maximum": 9007199254740991,
+      "minimum": 1,
+      "title": "Expected Account Revision"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    },
+    "confirmed": {
+      "type": "boolean",
+      "title": "Confirmed"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "commit_id",
+    "expected_account_revision",
+    "reason",
+    "confirmed"
+  ],
+  "title": "ReverseRequest"
+}
+```
+
+### app__import_pending_settlements__ReverseRequest
+
+```json
+{
+  "properties": {
+    "settlement_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Settlement Id"
+    },
+    "expected_account_revision": {
+      "type": "integer",
+      "maximum": 9007199254740991,
+      "minimum": 1,
+      "title": "Expected Account Revision"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    },
+    "confirmed": {
+      "type": "boolean",
+      "title": "Confirmed"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "settlement_id",
+    "expected_account_revision",
+    "reason",
+    "confirmed"
+  ],
+  "title": "ReverseRequest"
+}
+```

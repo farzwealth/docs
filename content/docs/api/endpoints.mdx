@@ -1,0 +1,277 @@
+---
+title: Complete route index
+description: Generated operations from the verified unified backend OpenAPI contract.
+---
+
+This snapshot contains **224 declared paths and 264 operations**. It describes the unified first-party API, including mutations. Optional provider routes may still return unavailable; a declared route is not proof of provider activation. Read [availability](/docs) and [authentication](/docs/concepts/authentication) first.
+
+[Download this exact schema](/openapi.json) or [inspect the deployed schema](https://api.farz.app/openapi.json). Snapshot SHA-256: `d726095a0b6370d92db964d2da96f4655226768c961974b466c88f32c748e1cc`. The API root redirect and framework schema-serving route are outside this operation index.
+
+| Method and complete path | OpenAPI security | Operation |
+| --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/assets/page` | Clerk user bearer | Asset Page |
+| `GET /api/v1/workspaces/{workspace_id}/debts/page` | Clerk user bearer | Debt Page |
+| `GET /api/v1/workspaces/{workspace_id}/goals/page` | Clerk user bearer | Goal Page |
+| `GET /api/v1/workspaces/{workspace_id}/recurring/page` | Clerk user bearer | Recurring Page |
+| `GET /api/v1/workspaces/{workspace_id}/budgets/page` | Clerk user bearer | Budget Page |
+| `GET /api/v1/workspaces/{workspace_id}/lending/page` | Clerk user bearer | Lending Page |
+| `GET /api/v1/workspaces/{workspace_id}/rent/page` | Clerk user bearer | Rent Page |
+| `GET /api/v1/workspaces/{workspace_id}/scenarios/page` | Clerk user bearer | Scenario Page |
+| `GET /api/v1/workspaces/{workspace_id}/classifications/page` | Clerk user bearer | Classification Page |
+| `GET /api/v1/workspaces/{workspace_id}/records/search` | Clerk user bearer | Record Search |
+| `POST /api/v1/webhooks/clerk` | Clerk Svix signature | Clerk Lifecycle Webhook |
+| `GET /api/v1/health/live` | Public / handler-specific | Live |
+| `GET /api/v1/health/ready` | Public / handler-specific | Ready |
+| `GET /api/v1/capabilities` | Public / handler-specific | Capabilities |
+| `POST /api/v1/eligibility/check` | Public / handler-specific | Check Eligibility |
+| `GET /api/v1/me` | Clerk user bearer | Me |
+| `PATCH /api/v1/me` | Clerk user bearer | Update Personal Profile |
+| `POST /api/v1/onboarding` | Clerk user bearer | Onboarding |
+| `PATCH /api/v1/workspaces/{workspace_id}/preferences` | Clerk user bearer | Preferences |
+| `POST /api/v1/workspaces/{workspace_id}/setup` | Clerk user bearer | Setup Progress |
+| `GET /api/v1/workspaces/{workspace_id}/accounts/page` | Clerk user bearer | Get Account Page |
+| `GET /api/v1/workspaces/{workspace_id}/accounts` | Clerk user bearer | Get Accounts |
+| `POST /api/v1/workspaces/{workspace_id}/accounts` | Clerk user bearer | Add Account |
+| `POST /api/v1/workspaces/{workspace_id}/journal/commands` | Clerk user bearer | Journal Command |
+| `POST /api/v1/workspaces/{workspace_id}/journal/reversals` | Clerk user bearer | Journal Reversal |
+| `GET /api/v1/workspaces/{workspace_id}/imports/paired-transfers` | Clerk user bearer | Paired Transfer Page |
+| `GET /api/v1/workspaces/{workspace_id}/imports/paired-transfers/{commit_id}` | Clerk user bearer | Paired Transfer History |
+| `POST /api/v1/workspaces/{workspace_id}/imports/paired-transfers/{commit_id}/reversals` | Clerk user bearer | Paired Transfer Compensation |
+| `GET /api/v1/workspaces/{workspace_id}/imports/ordinary-sources` | Clerk user bearer | Ordinary Source Page |
+| `GET /api/v1/workspaces/{workspace_id}/imports/ordinary-sources/{source_id}` | Clerk user bearer | Ordinary Source History |
+| `GET /api/v1/workspaces/{workspace_id}/imports/ordinary-replacements/{replacement_id}` | Clerk user bearer | Ordinary Replacement History |
+| `GET /api/v1/workspaces/{workspace_id}/imports/pending-records` | Clerk user bearer | Pending Source Page |
+| `GET /api/v1/workspaces/{workspace_id}/imports/pending-records/{pending_id}` | Clerk user bearer | Pending Source History |
+| `POST /api/v1/workspaces/{workspace_id}/imports/pending-records/{pending_id}/changes` | Clerk user bearer | Pending Source Change |
+| `GET /api/v1/workspaces/{workspace_id}/imports/pending-settlements` | Clerk user bearer | Pending Settlement Page |
+| `GET /api/v1/workspaces/{workspace_id}/imports/pending-settlements/{settlement_id}` | Clerk user bearer | Pending Settlement History |
+| `POST /api/v1/workspaces/{workspace_id}/imports/pending-settlements/{settlement_id}/reversals` | Clerk user bearer | Pending Settlement Compensation |
+| `POST /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/classification` | Clerk user bearer | Classify Transaction |
+| `GET /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/classification-history` | Clerk user bearer | Classification History |
+| `GET /api/v1/workspaces/{workspace_id}/transactions` | Clerk user bearer | Get Transactions |
+| `POST /api/v1/workspaces/{workspace_id}/transactions/review` | Clerk user bearer | Review Transactions |
+| `GET /api/v1/workspaces/{workspace_id}/dashboard` | Clerk user bearer | Get Dashboard |
+| `GET /api/v1/workspaces/{workspace_id}/budgets` | Clerk user bearer | Get Budgets |
+| `POST /api/v1/workspaces/{workspace_id}/budgets` | Clerk user bearer | Update Budget |
+| `GET /api/v1/workspaces/{workspace_id}/recurring` | Clerk user bearer | Get Recurring |
+| `POST /api/v1/workspaces/{workspace_id}/recurring` | Clerk user bearer | Save Recurring |
+| `POST /api/v1/workspaces/{workspace_id}/recurring/overrides` | Clerk user bearer | Save Recurring Override |
+| `GET /api/v1/workspaces/{workspace_id}/forecast` | Clerk user bearer | Get Forecast |
+| `GET /api/v1/workspaces/{workspace_id}/cashflow` | Clerk user bearer | Get Cashflow |
+| `GET /api/v1/workspaces/{workspace_id}/goals` | Clerk user bearer | Get Goals |
+| `POST /api/v1/workspaces/{workspace_id}/goals` | Clerk user bearer | Save Goal |
+| `GET /api/v1/workspaces/{workspace_id}/assets` | Clerk user bearer | Get Assets |
+| `POST /api/v1/workspaces/{workspace_id}/assets` | Clerk user bearer | Save Asset |
+| `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}/valuations` | Clerk user bearer | Get Asset History |
+| `GET /api/v1/workspaces/{workspace_id}/debts` | Clerk user bearer | Get Debts |
+| `POST /api/v1/workspaces/{workspace_id}/debts` | Clerk user bearer | Save Debt |
+| `POST /api/v1/workspaces/{workspace_id}/debts/representation-preview` | Clerk user bearer | Preview Debt Representation |
+| `GET /api/v1/workspaces/{workspace_id}/lending` | Clerk user bearer | List Lending |
+| `POST /api/v1/workspaces/{workspace_id}/lending` | Clerk user bearer | Record Lending |
+| `GET /api/v1/workspaces/{workspace_id}/lending/{loan_id}` | Clerk user bearer | Get Lending |
+| `GET /api/v1/workspaces/{workspace_id}/lending/{loan_id}/repayments` | Clerk user bearer | Lending Repayments |
+| `POST /api/v1/workspaces/{workspace_id}/lending/{loan_id}/reclaim` | Clerk user bearer | Reclaim Lending |
+| `POST /api/v1/workspaces/{workspace_id}/lending/{loan_id}/correct-advance` | Clerk user bearer | Correct Lending Advance |
+| `POST /api/v1/workspaces/{workspace_id}/lending/{loan_id}/repayments/{repayment_id}/reversal` | Clerk user bearer | Reverse Lending Repayment |
+| `GET /api/v1/workspaces/{workspace_id}/debts/{debt_id}/observations` | Clerk user bearer | Get Debt History |
+| `GET /api/v1/workspaces/{workspace_id}/debts/{debt_id}/repayments` | Clerk user bearer | Get Debt Repayments |
+| `POST /api/v1/workspaces/{workspace_id}/debts/{debt_id}/repayments` | Clerk user bearer | Record Debt Repayment |
+| `POST /api/v1/workspaces/{workspace_id}/debts/{debt_id}/repayments/{repayment_id}/reversal` | Clerk user bearer | Reverse Debt Repayment |
+| `GET /api/v1/workspaces/{workspace_id}/debts/{debt_id}/installment-overrides` | Clerk user bearer | Get Debt Overrides |
+| `POST /api/v1/workspaces/{workspace_id}/debts/{debt_id}/installment-overrides` | Clerk user bearer | Save Debt Override |
+| `GET /api/v1/workspaces/{workspace_id}/classifications` | Clerk user bearer | Get Classifications |
+| `POST /api/v1/workspaces/{workspace_id}/classifications` | Clerk user bearer | Save Classification |
+| `GET /api/v1/workspaces/{workspace_id}/reports/net-worth.csv` | Clerk user bearer | Export Worth |
+| `GET /api/v1/workspaces/{workspace_id}/reports/net-worth.html` | Clerk user bearer | Print Worth |
+| `GET /api/v1/workspaces/{workspace_id}/reports/transactions.csv` | Clerk user bearer | Export Transactions |
+| `GET /api/v1/workspaces/{workspace_id}/reports/transactions.html` | Clerk user bearer | Print Transactions |
+| `POST /api/v1/workspaces/{workspace_id}/exports` | Clerk user bearer | Enqueue Export |
+| `GET /api/v1/workspaces/{workspace_id}/exports/{task_id}` | Clerk user bearer | Export Status |
+| `POST /api/v1/workspaces/{workspace_id}/exports/{task_id}/execute` | Clerk user bearer | Execute Export |
+| `POST /api/v1/workspaces/{workspace_id}/exports/{task_id}/cancel` | Clerk user bearer | Cancel Export |
+| `GET /api/v1/workspaces/{workspace_id}/exports/{task_id}/download.csv` | Clerk user bearer | Download Export |
+| `GET /api/v1/workspaces/{workspace_id}/exports/{task_id}/download.json` | Clerk user bearer | Download Json Export |
+| `POST /api/v1/workspaces/{workspace_id}/scenarios/preview` | Clerk user bearer | Preview Scenario |
+| `GET /api/v1/workspaces/{workspace_id}/scenarios` | Clerk user bearer | Get Scenarios |
+| `POST /api/v1/workspaces/{workspace_id}/scenarios` | Clerk user bearer | Save Scenario |
+| `POST /api/v1/workspaces/{workspace_id}/rent/proration/preview` | Clerk user bearer | Preview Rent Proration |
+| `GET /api/v1/workspaces/{workspace_id}/rent/payment-sources/{entry_id}` | Clerk user bearer | Rent Payment Source |
+| `GET /api/v1/workspaces/{workspace_id}/rent/{plan_id}/receipts` | Clerk user bearer | Rent Receipt History |
+| `POST /api/v1/workspaces/{workspace_id}/rent/{plan_id}/receipts` | Clerk user bearer | Match Rent Receipt |
+| `POST /api/v1/workspaces/{workspace_id}/rent/{plan_id}/receipts/{receipt_id}/unmatch` | Clerk user bearer | Unmatch Rent Receipt |
+| `GET /api/v1/workspaces/{workspace_id}/rent/{plan_id}/amendments` | Clerk user bearer | Rent Amendment History |
+| `POST /api/v1/workspaces/{workspace_id}/rent/{plan_id}/amendments` | Clerk user bearer | Amend Rent |
+| `GET /api/v1/workspaces/{workspace_id}/rent/{plan_id}/effective` | Clerk user bearer | Effective Rent |
+| `GET /api/v1/workspaces/{workspace_id}/rent` | Clerk user bearer | Get Rent |
+| `POST /api/v1/workspaces/{workspace_id}/rent` | Clerk user bearer | Save Rent |
+| `POST /api/v1/workspaces/{workspace_id}/accounts/adjustments` | Clerk user bearer | Adjust Account |
+| `POST /api/v1/workspaces/{workspace_id}/accounts/{account_id}/settings` | Clerk user bearer | Account Settings |
+| `GET /api/v1/workspaces/{workspace_id}/changes` | Clerk user bearer | Get Changes |
+| `GET /api/v1/workspaces/{workspace_id}/merchant-rules` | Clerk user bearer | Get Merchant Rules |
+| `POST /api/v1/workspaces/{workspace_id}/merchant-rules` | Clerk user bearer | Save Merchant Rule |
+| `POST /api/v1/workspaces/{workspace_id}/merchant-rules/suggestions` | Clerk user bearer | Rule Suggestions |
+| `GET /api/v1/workspaces/{workspace_id}/fx-observations` | Clerk user bearer | Get Fx Observations |
+| `POST /api/v1/workspaces/{workspace_id}/fx-observations` | Clerk user bearer | Save Fx Observation |
+| `POST /api/v1/workspaces/{workspace_id}/fx-conversions` | Clerk user bearer | Fx Conversion |
+| `GET /api/v1/workspaces/{workspace_id}/accounts/{account_id}/statement-comparisons` | Clerk user bearer | Statement History |
+| `POST /api/v1/workspaces/{workspace_id}/accounts/{account_id}/statement-comparisons` | Clerk user bearer | Compare Statement |
+| `GET /api/v1/market/fx` | Public / handler-specific | Public Fx Feed |
+| `GET /api/v1/workspaces/{workspace_id}/accounts/{account_id}/reconciliation` | Clerk user bearer | Reconciliation History |
+| `POST /api/v1/workspaces/{workspace_id}/accounts/{account_id}/reconciliation` | Clerk user bearer | Reconcile Account |
+| `POST /api/v1/workspaces/{workspace_id}/valuation-snapshot-jobs` | Clerk user bearer | Enqueue Snapshot Jobs |
+| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshot-jobs/{task_id}` | Clerk user bearer | Get Snapshot Job |
+| `POST /api/v1/workspaces/{workspace_id}/valuation-snapshot-jobs/{task_id}/run` | Clerk user bearer | Run Snapshot Job |
+| `POST /api/v1/workspaces/{workspace_id}/valuation-snapshot-jobs/{task_id}/cancel` | Clerk user bearer | Cancel Snapshot Job |
+| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshots/preview` | Clerk user bearer | Preview Valuation Snapshot |
+| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshots` | Clerk user bearer | List Valuation Snapshots |
+| `POST /api/v1/workspaces/{workspace_id}/valuation-snapshots` | Clerk user bearer | Save Valuation Snapshot |
+| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshots/{snapshot_id}` | Clerk user bearer | Get Valuation Snapshot |
+| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshots/{snapshot_id}/report.csv` | Clerk user bearer | Export Saved Valuation |
+| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshots/{snapshot_id}/report.html` | Clerk user bearer | Print Saved Valuation |
+| `GET /api/v1/workspaces/{workspace_id}/consents` | Clerk user bearer | Consent Status |
+| `POST /api/v1/workspaces/{workspace_id}/consents` | Clerk user bearer | Record Consent |
+| `GET /api/v1/workspaces/{workspace_id}/consents/{purpose}/history` | Clerk user bearer | Consent History |
+| `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}/lifecycle` | Clerk user bearer | Asset Lifecycle History |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/lifecycle` | Clerk user bearer | Record Asset Lifecycle |
+| `POST /api/v1/workspaces/{workspace_id}/returns/preview` | Clerk user bearer | Preview Return |
+| `POST /api/v1/workspaces/{workspace_id}/returns` | Clerk user bearer | Save Return |
+| `GET /api/v1/workspaces/{workspace_id}/returns` | Clerk user bearer | Return History |
+| `POST /api/v1/workspaces/{workspace_id}/returns/time-weighted/preview` | Clerk user bearer | Preview Time Weighted Return |
+| `POST /api/v1/workspaces/{workspace_id}/returns/time-weighted` | Clerk user bearer | Save Time Weighted Return |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/investment-events/preview` | Clerk user bearer | Preview Investment |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/investment-events` | Clerk user bearer | Record Investment |
+| `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}/investment-events` | Clerk user bearer | Investment History |
+| `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}/investment-position` | Clerk user bearer | Investment Position |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/investment-settlements/preview` | Clerk user bearer | Preview Investment Settlement |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/investment-settlements` | Clerk user bearer | Record Investment Settlement |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/investment-events/{event_id}/settlements/reverse` | Clerk user bearer | Reverse Investment Settlement |
+| `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}/investment-events/{event_id}/settlements` | Clerk user bearer | Investment Settlement History |
+| `POST /api/v1/workspaces/{workspace_id}/debts/{debt_id}/lifecycle` | Clerk user bearer | Record Debt Lifecycle |
+| `GET /api/v1/workspaces/{workspace_id}/debts/{debt_id}/lifecycle` | Clerk user bearer | Debt Lifecycle History |
+| `POST /api/v1/workspaces/{workspace_id}/debts/amortization/preview` | Clerk user bearer | Preview Amortization |
+| `POST /api/v1/workspaces/{workspace_id}/zakat/preview` | Clerk user bearer | Preview Zakat |
+| `POST /api/v1/workspaces/{workspace_id}/zakat` | Clerk user bearer | Record Zakat |
+| `GET /api/v1/workspaces/{workspace_id}/zakat` | Clerk user bearer | Zakat History |
+| `POST /api/v1/workspaces/{workspace_id}/deposits/preview` | Clerk user bearer | Preview Deposit |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/deposit-payouts/preview` | Clerk user bearer | Preview Deposit Payout |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/deposit-payouts` | Clerk user bearer | Record Deposit Payout |
+| `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}/deposit-payouts` | Clerk user bearer | Deposit Payout History |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/deposit-payouts/{receipt_id}/reversal/preview` | Clerk user bearer | Preview Deposit Payout Reversal |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/deposit-payouts/{receipt_id}/reversal` | Clerk user bearer | Reverse Deposit Payout |
+| `POST /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/refunds/preview` | Clerk user bearer | Preview Expense Refund |
+| `POST /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/refunds` | Clerk user bearer | Record Expense Refund |
+| `GET /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/refunds` | Clerk user bearer | Expense Refund History |
+| `POST /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/refunds/{receipt_id}/reversal/preview` | Clerk user bearer | Preview Refund Reversal |
+| `POST /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/refunds/{receipt_id}/reversal` | Clerk user bearer | Reverse Expense Refund |
+| `GET /api/v1/workspaces/{workspace_id}/security/sessions` | Clerk user bearer | Registered Security Sessions |
+| `POST /api/v1/workspaces/{workspace_id}/security/sessions` | Clerk user bearer | Register Security Session |
+| `POST /api/v1/workspaces/{workspace_id}/security/sessions/{session_id}/block/preview` | Clerk user bearer | Preview Security Session Block |
+| `POST /api/v1/workspaces/{workspace_id}/security/sessions/{session_id}/block` | Clerk user bearer | Block Security Session |
+| `GET /api/v1/me/devices` | Clerk user bearer | Personal Registered Sessions |
+| `POST /api/v1/me/devices` | Clerk user bearer | Personal Register Session |
+| `POST /api/v1/me/devices/{session_id}/revoke/preview` | Clerk user bearer | Personal Revoke Preview |
+| `POST /api/v1/me/devices/{session_id}/revoke` | Clerk user bearer | Personal Revoke Request |
+| `GET /api/v1/me/devices/{session_id}/revoke` | Clerk user bearer | Personal Revoke Status |
+| `GET /api/v1/me/devices/{session_id}/revoke/history` | Clerk user bearer | Personal Revoke History |
+| `POST /api/v1/me/devices/{session_id}/revoke/execute` | Clerk user bearer | Personal Execute Revoke |
+| `GET /api/v1/workspaces/{workspace_id}/imports/limits` | Clerk user bearer | Intake Limits |
+| `POST /api/v1/workspaces/{workspace_id}/imports/uploads` | Clerk user bearer | Upload |
+| `GET /api/v1/workspaces/{workspace_id}/imports/uploads/{upload_id}` | Clerk user bearer | Upload Status |
+| `POST /api/v1/workspaces/{workspace_id}/imports/uploads/{upload_id}/cancel` | Clerk user bearer | Cancel Upload |
+| `POST /api/v1/workspaces/{workspace_id}/imports/uploads/{upload_id}/scans` | Clerk user bearer | Scan |
+| `POST /api/v1/workspaces/{workspace_id}/imports/uploads/{upload_id}/extractions` | Clerk user bearer | Extract |
+| `GET /api/v1/workspaces/{workspace_id}/imports/jobs/{job_id}` | Clerk user bearer | Job Status |
+| `POST /api/v1/workspaces/{workspace_id}/imports/jobs/{job_id}/cancel` | Clerk user bearer | Cancel Job |
+| `GET /api/v1/workspaces/{workspace_id}/imports/jobs/{job_id}/rows` | Clerk user bearer | Source Rows |
+| `POST /api/v1/workspaces/{workspace_id}/imports/reviews` | Clerk user bearer | Save Review |
+| `GET /api/v1/workspaces/{workspace_id}/imports/reviews/{review_id}` | Clerk user bearer | Read Review |
+| `POST /api/v1/workspaces/{workspace_id}/imports/review-checks` | Clerk user bearer | Check Review |
+| `POST /api/v1/workspaces/{workspace_id}/imports/batch-review-checks` | Clerk user bearer | Check Batch |
+| `POST /api/v1/workspaces/{workspace_id}/imports/batch-confirmations` | Clerk user bearer | Confirm Batch |
+| `POST /api/v1/workspaces/{workspace_id}/imports/batches` | Clerk user bearer | Start Batch |
+| `GET /api/v1/workspaces/{workspace_id}/imports/batches/{intent_id}` | Clerk user bearer | Read Batch |
+| `POST /api/v1/workspaces/{workspace_id}/imports/batch-checkpoints` | Clerk user bearer | Commit Checkpoint |
+| `POST /api/v1/workspaces/{workspace_id}/imports/confirmations` | Clerk user bearer | Confirm |
+| `POST /api/v1/workspaces/{workspace_id}/imports/commits` | Clerk user bearer | Commit |
+| `GET /api/v1/workspaces/{workspace_id}/imports/commits/{commit_id}` | Clerk user bearer | History |
+| `POST /api/v1/workspaces/{workspace_id}/imports/reversals` | Clerk user bearer | Reverse |
+| `POST /api/v1/workspaces/{workspace_id}/privacy/requests` | Clerk user bearer | Submit Privacy Request |
+| `GET /api/v1/workspaces/{workspace_id}/privacy/requests` | Clerk user bearer | List Privacy Requests |
+| `GET /api/v1/workspaces/{workspace_id}/privacy/requests/{request_id}` | Clerk user bearer | Read Privacy Request |
+| `POST /api/v1/workspaces/{workspace_id}/privacy/requests/{request_id}/actions` | Clerk user bearer | Privacy Request Action |
+| `GET /api/v1/workspaces/{workspace_id}/privacy/requests/{request_id}/history` | Clerk user bearer | Privacy Request History |
+| `GET /api/v1/workspaces/{workspace_id}/privacy/requests/{request_id}/download.json` | Clerk user bearer | Download Privacy Json |
+| `GET /api/v1/workspaces/{workspace_id}/privacy/requests/{request_id}/report.csv` | Clerk user bearer | Download Privacy Csv |
+| `GET /api/v1/workspaces/{workspace_id}/privacy/requests/{request_id}/report.html` | Clerk user bearer | Download Privacy Html |
+| `GET /api/v1/workspaces/{workspace_id}/plan` | Clerk user bearer | Current Plan |
+| `GET /api/v1/workspaces/{workspace_id}/trial` | Clerk user bearer | App Trial Eligibility |
+| `POST /api/v1/workspaces/{workspace_id}/trial` | Clerk user bearer | Start App Trial |
+| `GET /api/v1/workspaces/{workspace_id}/account` | Clerk user bearer | Account Status |
+| `POST /api/v1/workspaces/{workspace_id}/account/actions` | Clerk user bearer | Account Action |
+| `GET /api/v1/workspaces/{workspace_id}/account/history` | Clerk user bearer | Account History |
+| `GET /api/v1/workspaces/{workspace_id}/money/history` | Clerk user bearer | History |
+| `GET /api/v1/workspaces/{workspace_id}/money/{record_id}` | Clerk user bearer | Record |
+| `POST /api/v1/workspaces/{workspace_id}/money/{record_id}/reverse` | Clerk user bearer | Reverse |
+| `POST /api/v1/workspaces/{workspace_id}/debts/bnpl-purchases` | Clerk user bearer | Bnpl |
+| `POST /api/v1/workspaces/{workspace_id}/debts/{debt_id}/creditor-refunds` | Clerk user bearer | Refund |
+| `GET /api/v1/workspaces/{workspace_id}/transaction-drafts` | Clerk user bearer | Draft Page |
+| `POST /api/v1/workspaces/{workspace_id}/transaction-drafts` | Clerk user bearer | Create Draft |
+| `GET /api/v1/workspaces/{workspace_id}/transaction-drafts/{draft_id}` | Clerk user bearer | Draft |
+| `PUT /api/v1/workspaces/{workspace_id}/transaction-drafts/{draft_id}` | Clerk user bearer | Update Draft |
+| `POST /api/v1/workspaces/{workspace_id}/transaction-drafts/{draft_id}/discard` | Clerk user bearer | Discard Draft |
+| `POST /api/v1/workspaces/{workspace_id}/transaction-drafts/{draft_id}/commit` | Clerk user bearer | Commit Draft |
+| `POST /api/v1/workspaces/{workspace_id}/accounts/{account_id}/card-statements/preview` | Clerk user bearer | Preview Card Statement |
+| `POST /api/v1/workspaces/{workspace_id}/accounts/{account_id}/card-statements` | Clerk user bearer | Record Card Statement |
+| `GET /api/v1/workspaces/{workspace_id}/accounts/{account_id}/card-statements` | Clerk user bearer | Card Statement History |
+| `GET /api/v1/workspaces/{workspace_id}/card-statements/{statement_id}` | Clerk user bearer | Selected Card Statement |
+| `POST /api/v1/workspaces/{workspace_id}/accounts/{account_id}/card-payments` | Clerk user bearer | Record Card Payment |
+| `POST /api/v1/workspaces/{workspace_id}/transfer-matches` | Clerk user bearer | Match Manual Transfer |
+| `GET /api/v1/workspaces/{workspace_id}/transfer-matches` | Clerk user bearer | List Manual Transfer Matches |
+| `GET /api/v1/workspaces/{workspace_id}/transfer-matches/{match_id}` | Clerk user bearer | Get Manual Transfer Match |
+| `POST /api/v1/workspaces/{workspace_id}/transfer-matches/{match_id}/unmatch` | Clerk user bearer | Unmatch Manual Transfer |
+| `GET /api/v1/workspaces/{workspace_id}/ledger-query` | Clerk user bearer | Query Ledger |
+| `GET /api/v1/workspaces/{workspace_id}/reports/ledger-query.csv` | Clerk user bearer | Export Ledger Query |
+| `GET /api/v1/workspaces/{workspace_id}/reports/ledger-query.html` | Clerk user bearer | Print Ledger Query |
+| `POST /api/v1/workspaces/{workspace_id}/recurring/{template_id}/postings/preview` | Clerk user bearer | Occurrence Preview |
+| `POST /api/v1/workspaces/{workspace_id}/recurring/{template_id}/postings` | Clerk user bearer | Record Occurrence |
+| `GET /api/v1/workspaces/{workspace_id}/recurring/{template_id}/postings` | Clerk user bearer | Recorded Occurrences |
+| `POST /api/v1/workspaces/{workspace_id}/pending-transfers` | Clerk user bearer | Record Departure |
+| `GET /api/v1/workspaces/{workspace_id}/pending-transfers` | Clerk user bearer | Pending History |
+| `GET /api/v1/workspaces/{workspace_id}/pending-transfers/{transfer_id}` | Clerk user bearer | Pending Detail |
+| `POST /api/v1/workspaces/{workspace_id}/pending-transfers/{transfer_id}/arrivals` | Clerk user bearer | Record Arrival |
+| `POST /api/v1/workspaces/{workspace_id}/pending-transfers/{transfer_id}/returns` | Clerk user bearer | Record Return |
+| `POST /api/v1/workspaces/{workspace_id}/pending-transfers/{transfer_id}/corrections` | Clerk user bearer | Correct Transfer |
+| `GET /api/v1/workspaces/{workspace_id}/portfolio-query` | Clerk user bearer | Selected Portfolio |
+| `GET /api/v1/workspaces/{workspace_id}/portfolio-query/history` | Clerk user bearer | Selected History |
+| `GET /api/v1/workspaces/{workspace_id}/portfolio-query/{kind}/{entity_id}` | Clerk user bearer | Selected Contribution |
+| `GET /api/v1/workspaces/{workspace_id}/sync/state` | Clerk user bearer | Sync Anchor |
+| `GET /api/v1/workspaces/{workspace_id}/sync/changes` | Clerk user bearer | Scoped Changes |
+| `POST /api/v1/workspaces/{workspace_id}/report-exports` | Clerk user bearer | Enqueue Export |
+| `GET /api/v1/workspaces/{workspace_id}/report-exports/{task_id}` | Clerk user bearer | Export Status |
+| `POST /api/v1/workspaces/{workspace_id}/report-exports/{task_id}/cancel` | Clerk user bearer | Cancel Report |
+| `GET /api/v1/workspaces/{workspace_id}/report-exports/{task_id}/download` | Clerk user bearer | Download Report |
+| `GET /api/v1/workspaces/{workspace_id}/activity-insights` | Clerk user bearer | Activity |
+| `GET /api/v1/workspaces/{workspace_id}/upcoming-obligations` | Clerk user bearer | Upcoming |
+| `GET /api/v1/workspaces/{workspace_id}/accounts/{account_id}/statement` | Clerk user bearer | Statement |
+| `GET /api/v1/workspaces/{workspace_id}/reports/activity-insights/{format}` | Clerk user bearer | Activity Report |
+| `GET /api/v1/workspaces/{workspace_id}/reports/upcoming-obligations/{format}` | Clerk user bearer | Upcoming Report |
+| `GET /api/v1/workspaces/{workspace_id}/reports/accounts/{account_id}/statement/{format}` | Clerk user bearer | Statement Report |
+| `POST /api/v1/workspaces/{workspace_id}/budgets/repeat/preview` | Clerk user bearer | Preview |
+| `POST /api/v1/workspaces/{workspace_id}/budgets/repeat` | Clerk user bearer | Repeat |
+| `GET /api/v1/workspaces/{workspace_id}/calendar/display` | Clerk user bearer | Display |
+| `GET /api/v1/workspaces/{workspace_id}/reports/owned-records/manifest/json` | Clerk user bearer | Manifest |
+| `GET /api/v1/workspaces/{workspace_id}/reports/owned-records/{section}/json` | Clerk user bearer | Section Json |
+| `GET /api/v1/workspaces/{workspace_id}/reports/owned-records/{section}/csv` | Clerk user bearer | Section Csv |
+| `GET /api/v1/workspaces/{workspace_id}/notifications/preferences` | Clerk user bearer | Get Preferences |
+| `PUT /api/v1/workspaces/{workspace_id}/notifications/preferences` | Clerk user bearer | Put Preferences |
+| `GET /api/v1/workspaces/{workspace_id}/notifications/inbox` | Clerk user bearer | Inbox |
+| `POST /api/v1/workspaces/{workspace_id}/notifications/actions` | Clerk user bearer | Actions |
+| `POST /api/v1/workspaces/{workspace_id}/notifications/schedule` | Clerk user bearer | Schedule |
+| `GET /api/v1/workspaces/{workspace_id}/notifications/{notification_id}/delivery` | Clerk user bearer | Delivery Status |
+| `POST /api/v1/workspaces/{workspace_id}/notifications/{notification_id}/delivery/cancel` | Clerk user bearer | Delivery Cancel |
+| `POST /api/v1/workspaces/{workspace_id}/notifications/{notification_id}/delivery/execute` | Clerk user bearer | Delivery Execute |
+| `POST /api/v1/workspaces/{workspace_id}/notifications/{notification_id}/delivery/reconcile` | Clerk user bearer | Delivery Reconcile |
+| `POST /api/v1/workspaces/{workspace_id}/notifications/{notification_id}/delivery/receipts` | Clerk user bearer | Delivery Receipts |
+| `POST /api/v1/webhooks/resend` | Resend Svix signature | Resend Webhook |
+
+Request parameters, required headers, request bodies, response schemas and validation constraints are specified in the JSON contract. Runtime authorization, conflict, entitlement, freshness and rate-limit errors are also explained in the [error guide](/docs/concepts/errors); generated responses do not enumerate every service error.

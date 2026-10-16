@@ -1,0 +1,500 @@
+---
+title: Notifications and reminders
+description: Current unified API contracts, workflow and activation boundaries.
+---
+
+The backend supports opt-in preferences, a private inbox, source-backed generation, gated email delivery and signed delivery receipts. In-app and email default off; native push cannot be enabled. The backend is deployed on schema0076, but email bindings are absent and automatic scheduling is not active. Web/native notification controls remain separate work.
+
+### First-party flow
+
+1. GET `/notifications/preferences` under your authorized workspace.
+2. PUT the reviewed preferences with `expected_revision` and a UUID `Idempotency-Key`. Choose channels and kinds independently (`due`, `maturity`, `goal`, `reconciliation`). Timezone, local time, quiet hours and advance notice are explicit.
+3. POST `/notifications/schedule` with `{"confirmed":true}` and an idempotency key. This explicitly evaluates current sources; it creates no money and reports `external_scheduler_active:false`. Retrying unchanged commands replays the receipt; logical occurrences are deduplicated.
+4. GET `/notifications/inbox?limit=25`. Follow its cursor and preserve filters. Pages bind the current snapshot for one hour; changes or expiry require a restart. The default page is25, maximum100.
+5. POST `/notifications/actions` with1–100 distinct items, each containing `id`, `expected_revision` and `action` (`read`, `unread`, `dismiss`, `snooze`), plus a UUID command header. Snooze also needs a zoned future `until`, within30days and the item's expiry. The batch is atomic.
+
+Notifications use generic localized text and fixed destinations, not financial amounts or labels. Forecasts are not proof of nonpayment; dismissal changes no source record. Quiet hours and DST affect delivery time, while financial dates retain the workspace calendar. Items leave the visible inbox after30days; this is not physical erasure. Capacity conflicts return409 instead of silently truncating.
+
+### Email boundary
+
+Inspect the safe delivery endpoint for state, attempts and attention. Email requires separately approved operator policy, country/adult scope, reviewed templates, verified contact/domain and private provider credentials. Do not infer delivery from queue admission or a successful schedule receipt. Unknown provider outcomes require reconciliation; they are not automatically resent. Cancellation cannot recall an accepted email. Native push, automatic timer transport, other email families and human linguistic review remain open.
+
+The provider ingress is documented separately under [signed webhooks](/docs/api/webhooks).
+
+| Complete route | Authentication | Required operation headers | Declared success |
+| --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/notifications/preferences` | Clerk user bearer | — | 200 application/json PreferenceResponse |
+| `PUT /api/v1/workspaces/{workspace_id}/notifications/preferences` | Clerk user bearer | `Idempotency-Key` | 200 application/json PreferenceResponse |
+| `GET /api/v1/workspaces/{workspace_id}/notifications/inbox` | Clerk user bearer | — | 200 application/json InboxPage |
+| `POST /api/v1/workspaces/{workspace_id}/notifications/actions` | Clerk user bearer | `Idempotency-Key` | 200 application/json ActionReceipt |
+| `POST /api/v1/workspaces/{workspace_id}/notifications/schedule` | Clerk user bearer | `Idempotency-Key` | 200 application/json ScheduleReceipt |
+| `GET /api/v1/workspaces/{workspace_id}/notifications/{notification_id}/delivery` | Clerk user bearer | — | 200 application/json DeliveryResponse |
+| `POST /api/v1/workspaces/{workspace_id}/notifications/{notification_id}/delivery/cancel` | Clerk user bearer | — | 200 application/json DeliveryResponse |
+| `POST /api/v1/workspaces/{workspace_id}/notifications/{notification_id}/delivery/execute` | Clerk user bearer | — | 200 application/json DeliveryResponse |
+| `POST /api/v1/workspaces/{workspace_id}/notifications/{notification_id}/delivery/reconcile` | Clerk user bearer | — | 200 application/json DeliveryResponse |
+| `POST /api/v1/workspaces/{workspace_id}/notifications/{notification_id}/delivery/receipts` | Clerk user bearer | — | 200 application/json DeliveryResponse |
+
+## Exact request/response models
+
+These JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).
+
+### ActionReceipt
+
+```json
+{
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/InboxItem"
+      },
+      "type": "array",
+      "title": "Items"
+    }
+  },
+  "type": "object",
+  "required": [
+    "items"
+  ],
+  "title": "ActionReceipt"
+}
+```
+
+### DeliveryResponse
+
+```json
+{
+  "properties": {
+    "notification_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Notification Id"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "running",
+        "unknown",
+        "sent",
+        "delivered",
+        "delayed",
+        "bounced",
+        "complained",
+        "failed",
+        "canceled",
+        "expired",
+        "suppressed",
+        "not_requested"
+      ],
+      "title": "State"
+    },
+    "attempts": {
+      "type": "integer",
+      "title": "Attempts"
+    },
+    "retry_at": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Retry At"
+    },
+    "attention_required": {
+      "type": "boolean",
+      "title": "Attention Required"
+    }
+  },
+  "type": "object",
+  "required": [
+    "notification_id",
+    "state",
+    "attempts",
+    "retry_at",
+    "attention_required"
+  ],
+  "title": "DeliveryResponse"
+}
+```
+
+### InboxActions
+
+```json
+{
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/InboxAction"
+      },
+      "type": "array",
+      "maxItems": 100,
+      "minItems": 1,
+      "title": "Items"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "items"
+  ],
+  "title": "InboxActions"
+}
+```
+
+### InboxPage
+
+```json
+{
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/InboxItem"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Cursor"
+    },
+    "total_items": {
+      "type": "integer",
+      "title": "Total Items"
+    },
+    "unread_count": {
+      "type": "integer",
+      "title": "Unread Count"
+    }
+  },
+  "type": "object",
+  "required": [
+    "items",
+    "next_cursor",
+    "total_items",
+    "unread_count"
+  ],
+  "title": "InboxPage"
+}
+```
+
+### PreferenceResponse
+
+```json
+{
+  "properties": {
+    "in_app": {
+      "type": "boolean",
+      "title": "In App",
+      "default": false
+    },
+    "email": {
+      "type": "boolean",
+      "title": "Email",
+      "default": false
+    },
+    "push": {
+      "type": "boolean",
+      "const": false,
+      "title": "Push",
+      "default": false
+    },
+    "kinds": {
+      "items": {
+        "type": "string",
+        "enum": [
+          "due",
+          "maturity",
+          "goal",
+          "reconciliation"
+        ]
+      },
+      "type": "array",
+      "maxItems": 4,
+      "title": "Kinds",
+      "default": []
+    },
+    "timezone": {
+      "type": "string",
+      "maxLength": 100,
+      "minLength": 1,
+      "title": "Timezone",
+      "default": "Asia/Dubai"
+    },
+    "local_time": {
+      "type": "string",
+      "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9]$",
+      "title": "Local Time",
+      "default": "09:00"
+    },
+    "quiet_hours": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/QuietHours"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "advance_days": {
+      "type": "integer",
+      "maximum": 7,
+      "minimum": 0,
+      "title": "Advance Days",
+      "default": 1
+    },
+    "reconciliation_accounts": {
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "type": "array",
+      "maxItems": 100,
+      "title": "Reconciliation Accounts",
+      "default": []
+    },
+    "reconciliation_interval_days": {
+      "type": "integer",
+      "maximum": 90,
+      "minimum": 7,
+      "title": "Reconciliation Interval Days",
+      "default": 30
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "recorded_at": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Recorded At"
+    },
+    "email_delivery_available": {
+      "type": "boolean",
+      "title": "Email Delivery Available",
+      "default": false
+    },
+    "native_push_available": {
+      "type": "boolean",
+      "const": false,
+      "title": "Native Push Available",
+      "default": false
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "revision",
+    "recorded_at"
+  ],
+  "title": "PreferenceResponse"
+}
+```
+
+### PreferenceWrite
+
+```json
+{
+  "properties": {
+    "in_app": {
+      "type": "boolean",
+      "title": "In App",
+      "default": false
+    },
+    "email": {
+      "type": "boolean",
+      "title": "Email",
+      "default": false
+    },
+    "push": {
+      "type": "boolean",
+      "const": false,
+      "title": "Push",
+      "default": false
+    },
+    "kinds": {
+      "items": {
+        "type": "string",
+        "enum": [
+          "due",
+          "maturity",
+          "goal",
+          "reconciliation"
+        ]
+      },
+      "type": "array",
+      "maxItems": 4,
+      "title": "Kinds",
+      "default": []
+    },
+    "timezone": {
+      "type": "string",
+      "maxLength": 100,
+      "minLength": 1,
+      "title": "Timezone",
+      "default": "Asia/Dubai"
+    },
+    "local_time": {
+      "type": "string",
+      "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9]$",
+      "title": "Local Time",
+      "default": "09:00"
+    },
+    "quiet_hours": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/QuietHours"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "advance_days": {
+      "type": "integer",
+      "maximum": 7,
+      "minimum": 0,
+      "title": "Advance Days",
+      "default": 1
+    },
+    "reconciliation_accounts": {
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "type": "array",
+      "maxItems": 100,
+      "title": "Reconciliation Accounts",
+      "default": []
+    },
+    "reconciliation_interval_days": {
+      "type": "integer",
+      "maximum": 90,
+      "minimum": 7,
+      "title": "Reconciliation Interval Days",
+      "default": 30
+    },
+    "expected_revision": {
+      "type": "integer",
+      "maximum": 100000,
+      "minimum": 0,
+      "title": "Expected Revision"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expected_revision"
+  ],
+  "title": "PreferenceWrite"
+}
+```
+
+### ReconcileDelivery
+
+```json
+{
+  "properties": {
+    "provider_message_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Provider Message Id"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "provider_message_id"
+  ],
+  "title": "ReconcileDelivery"
+}
+```
+
+### ScheduleInput
+
+```json
+{
+  "properties": {
+    "confirmed": {
+      "type": "boolean",
+      "const": true,
+      "title": "Confirmed"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "confirmed"
+  ],
+  "title": "ScheduleInput"
+}
+```
+
+### ScheduleReceipt
+
+```json
+{
+  "properties": {
+    "evaluated_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Evaluated At"
+    },
+    "created": {
+      "type": "integer",
+      "title": "Created"
+    },
+    "duplicates": {
+      "type": "integer",
+      "title": "Duplicates"
+    },
+    "email_queued": {
+      "type": "integer",
+      "title": "Email Queued"
+    },
+    "deferred": {
+      "type": "integer",
+      "title": "Deferred"
+    },
+    "financial_movements": {
+      "type": "integer",
+      "const": 0,
+      "title": "Financial Movements",
+      "default": 0
+    },
+    "external_scheduler_active": {
+      "type": "boolean",
+      "const": false,
+      "title": "External Scheduler Active",
+      "default": false
+    }
+  },
+  "type": "object",
+  "required": [
+    "evaluated_at",
+    "created",
+    "duplicates",
+    "email_queued",
+    "deferred"
+  ],
+  "title": "ScheduleReceipt"
+}
+```

@@ -1,88 +1,37 @@
 ---
-title: Overview
-description: Introduction to the Farz Public Developer API, base URLs, contract status, and core capabilities.
+title: API availability
+description: Current unified API and the availability of future developer integrations.
 ---
 
-Use the **Farz API** to read your personal accounts, transactions, assets, and financial reports from a private application. Get started with a user API key from your Clerk account settings, or connect an AI assistant with Model Context Protocol (MCP) and OAuth.
+Verified against the deployed API on **16 October 2026**. The current first-party backend is **https://api.farz.app/api/v1**. Web, Android and the separate Swift iOS client share this versioned backend and Clerk user bearer authentication; native private screens remain gated pending security acceptance.
 
-<Callout type="warn" title="Contract Status: Pre-release">
-  This guide describes the intended public API contract for the finished product. The developer REST and MCP surfaces are currently in active development. Endpoint paths, response models, and examples below represent proposed contracts; please confirm them against the published OpenAPI specification and release notes when the API becomes generally available.
-</Callout>
+| Surface | Current status |
+| --- | --- |
+| Unified `/api/v1` | Live on schema0076;224 paths/264 operations for authenticated workspace finance, onboarding, privacy and notifications |
+| Paid developer API keys | Deferred; no published key-issuance flow |
+| `/api/developer/v1` | Unavailable; advertised account/transaction routes return404 |
+| MCP | Unconfigured; `/mcp` returns404 |
+| Third-party OAuth / PKCE | Unavailable; do not use the former discovery/token examples |
+| Billing, email, AI and general import integrations | Reported `not_configured` by live capabilities |
 
-## Service Coordinates
+The earlier version of this site described a planned developer API as live. Its developer-key setup steps, endpoint shapes, read scopes, OAuth tokens and MCP tool instructions were not a working production contract.
 
-| Property | Value |
-| :--- | :--- |
-| **REST Base URL** | `https://api.farz.app/api/developer/v1` |
-| **MCP URL** | `https://api.farz.app/mcp` |
-| **API Version** | `v1` |
-| **Access Model** | Read-only, single-user personal workspace |
-| **Last Updated** | 9 October 2026 |
+Start with the [safe public quickstart](/docs/quickstart), [authentication](/docs/concepts/authentication), [complete route index](/docs/api/endpoints) and [live OpenAPI JSON](https://api.farz.app/openapi.json). Check `GET /api/v1/capabilities` before assuming an optional integration is enabled. Public schema visibility does not grant financial access.
 
----
+Personal lending is live: [Reclaim](/docs/api/lending) records money actually received, including partial repayments. It does not initiate a payment or create a reminder.
 
-## Core Capabilities
+Future Paid developer keys must be Clerk-issued and authorized by backend-verified payment entitlement. Farz does **not** use Clerk Billing. Key issuance, scopes and delegated access remain separate implementation/activation work, not instructions you can follow today.
 
-The Farz Public Developer API provides deterministic, read-only visibility into your financial life:
+## Latest backend additions
 
-<Cards>
-  <Card
-    title="Accounts & Balances"
-    href="/docs/api/accounts"
-    description="Query bank accounts, cash, credit, and investment accounts with exact native balances."
-  />
-  <Card
-    title="Transactions"
-    href="/docs/api/transactions"
-    description="Filter posted expenses, income, transfers, and split allocations across dates."
-  />
-  <Card
-    title="Assets & Holdings"
-    href="/docs/api/assets"
-    description="Track property estimates, stock and crypto holdings, unit pricing, and tax lots."
-  />
-  <Card
-    title="Liabilities & Schedules"
-    href="/docs/api/liabilities"
-    description="Monitor loans, mortgages, financing schedules, and payment obligations."
-  />
-  <Card
-    title="Budgets & Goals"
-    href="/docs/api/budgets"
-    description="Track period spending limits, net remaining budget, and savings goal projections."
-  />
-  <Card
-    title="Valuations & Reports"
-    href="/docs/api/reports"
-    description="Inspect dated historical net worth snapshots, cashflow breakdowns, and performance."
-  />
-</Cards>
-
----
-
-## Getting Started
-
-Follow the guides below to authenticate and build your first integration:
-
-<Cards>
-  <Card
-    title="Quickstart Guide"
-    href="/docs/quickstart"
-    description="Generate a Clerk user API key and fetch your accounts in under 5 minutes."
-  />
-  <Card
-    title="Working with Your Data"
-    href="/docs/working-with-data"
-    description="Step-by-step tutorial for filtering transactions, handling pagination, and running Python readers."
-  />
-  <Card
-    title="Connect an MCP Client"
-    href="/docs/mcp"
-    description="Connect Claude, Cursor, or remote MCP agents to query your finances with natural language."
-  />
-  <Card
-    title="API Reference"
-    href="/docs/api/overview"
-    description="Detailed endpoint parameters, error codes, and complete JSON response schemas."
-  />
-</Cards>
+The current release includes [private reminders/inbox](/docs/api/notifications),
+[20-group owned-record exports](/docs/api/owned-records),
+[record browsing and sync](/docs/api/discovery),
+[privacy requests and consents](/docs/api/privacy),
+[account lifecycle and plan status](/docs/api/account-control),
+[session controls](/docs/api/security), expanded actual money/reporting workflows
+and [signed provider ingress](/docs/api/webhooks). Their schemas are live; email,
+automatic notification transport, full erasure/portability and native security
+acceptance are separate gates. [Statement intake/review](/docs/api/imports) routes
+exist, but production processing remains unconfigured. PDF/image extraction will
+use approved native model vision, never OCR; it is not activated.
