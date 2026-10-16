@@ -7,14 +7,1799 @@ GET transactions uses `TransactionPage` with items/next_offset/next_cursor; limi
 
 Private operations require an authorized Clerk user bearer and workspace membership. Optional/sensitive services retain their policy/entitlement/fresh-authentication gates.
 
-| Complete route | Required operation headers (besides authentication) | Declared success |
-| --- | --- | --- |
-| `GET /api/v1/workspaces/{workspace_id}/transactions` | — | 200 application/json TransactionPage |
-| `POST /api/v1/workspaces/{workspace_id}/journal/reversals` | `Idempotency-Key` | 201 application/json TransactionResponse |
+| Complete route | Authentication | Required operation headers | Declared success |
+| --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/classifications/page` | Clerk user bearer | — | 200 application/json RecordPage_ClassificationResponse_ |
+| `POST /api/v1/workspaces/{workspace_id}/journal/commands` | Clerk user bearer | `Idempotency-Key` | 201 application/json TransactionResponse |
+| `POST /api/v1/workspaces/{workspace_id}/journal/reversals` | Clerk user bearer | `Idempotency-Key` | 201 application/json TransactionResponse |
+| `POST /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/classification` | Clerk user bearer | `Idempotency-Key` | 201 application/json AnnotationResponse |
+| `GET /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/classification-history` | Clerk user bearer | — | 200 application/json AnnotationResponse[] |
+| `GET /api/v1/workspaces/{workspace_id}/transactions` | Clerk user bearer | — | 200 application/json TransactionPage |
+| `POST /api/v1/workspaces/{workspace_id}/transactions/review` | Clerk user bearer | — | 200 application/json ReviewResponse |
+| `GET /api/v1/workspaces/{workspace_id}/classifications` | Clerk user bearer | — | 200 application/json ClassificationResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/classifications` | Clerk user bearer | `Idempotency-Key` | 200 application/json ClassificationResponse |
+| `GET /api/v1/workspaces/{workspace_id}/merchant-rules` | Clerk user bearer | — | 200 application/json MerchantRuleResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/merchant-rules` | Clerk user bearer | `Idempotency-Key` | 200 application/json MerchantRuleResponse |
+| `POST /api/v1/workspaces/{workspace_id}/merchant-rules/suggestions` | Clerk user bearer | — | 200 application/json MerchantRuleResponse[] |
+| `GET /api/v1/workspaces/{workspace_id}/fx-observations` | Clerk user bearer | — | 200 application/json FXObservationResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/fx-observations` | Clerk user bearer | `Idempotency-Key` | 200 application/json FXObservationResponse |
+| `POST /api/v1/workspaces/{workspace_id}/fx-conversions` | Clerk user bearer | — | 200 application/json FXConversionResponse |
+| `POST /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/refunds/preview` | Clerk user bearer | — | 200 application/json RefundPreview |
+| `POST /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/refunds` | Clerk user bearer | `Idempotency-Key` | 200 application/json RefundResponse |
+| `GET /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/refunds` | Clerk user bearer | — | 200 application/json RefundResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/refunds/{receipt_id}/reversal/preview` | Clerk user bearer | — | 200 application/json RefundPreview |
+| `POST /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/refunds/{receipt_id}/reversal` | Clerk user bearer | `Idempotency-Key` | 200 application/json RefundResponse |
+| `GET /api/v1/workspaces/{workspace_id}/money/history` | Clerk user bearer | — | 200 application/json WorkflowReceipt[] |
+| `GET /api/v1/workspaces/{workspace_id}/money/{record_id}` | Clerk user bearer | — | 200 application/json WorkflowReceipt |
+| `POST /api/v1/workspaces/{workspace_id}/money/{record_id}/reverse` | Clerk user bearer | `Idempotency-Key` | 200 application/json WorkflowReceipt |
+| `GET /api/v1/workspaces/{workspace_id}/transaction-drafts` | Clerk user bearer | — | 200 application/json DraftView[] |
+| `POST /api/v1/workspaces/{workspace_id}/transaction-drafts` | Clerk user bearer | `Idempotency-Key` | 201 application/json DraftReceipt |
+| `GET /api/v1/workspaces/{workspace_id}/transaction-drafts/{draft_id}` | Clerk user bearer | — | 200 application/json DraftView |
+| `PUT /api/v1/workspaces/{workspace_id}/transaction-drafts/{draft_id}` | Clerk user bearer | `Idempotency-Key` | 200 application/json DraftReceipt |
+| `POST /api/v1/workspaces/{workspace_id}/transaction-drafts/{draft_id}/discard` | Clerk user bearer | `Idempotency-Key` | 200 application/json DraftReceipt |
+| `POST /api/v1/workspaces/{workspace_id}/transaction-drafts/{draft_id}/commit` | Clerk user bearer | `Idempotency-Key` | 201 application/json TransactionResponse |
+| `POST /api/v1/workspaces/{workspace_id}/transfer-matches` | Clerk user bearer | `Idempotency-Key` | 201 application/json TransferMatchResponse |
+| `GET /api/v1/workspaces/{workspace_id}/transfer-matches` | Clerk user bearer | — | 200 application/json TransferMatchPage |
+| `GET /api/v1/workspaces/{workspace_id}/transfer-matches/{match_id}` | Clerk user bearer | — | 200 application/json TransferMatchResponse |
+| `POST /api/v1/workspaces/{workspace_id}/transfer-matches/{match_id}/unmatch` | Clerk user bearer | `Idempotency-Key` | 200 application/json TransferMatchResponse |
+| `POST /api/v1/workspaces/{workspace_id}/pending-transfers` | Clerk user bearer | `Idempotency-Key` | 201 application/json PendingTransferReceipt |
+| `GET /api/v1/workspaces/{workspace_id}/pending-transfers` | Clerk user bearer | — | 200 application/json PendingTransferPage |
+| `GET /api/v1/workspaces/{workspace_id}/pending-transfers/{transfer_id}` | Clerk user bearer | — | 200 application/json PendingTransferReceipt |
+| `POST /api/v1/workspaces/{workspace_id}/pending-transfers/{transfer_id}/arrivals` | Clerk user bearer | `Idempotency-Key` | 200 application/json PendingTransferReceipt |
+| `POST /api/v1/workspaces/{workspace_id}/pending-transfers/{transfer_id}/returns` | Clerk user bearer | `Idempotency-Key` | 200 application/json PendingTransferReceipt |
+| `POST /api/v1/workspaces/{workspace_id}/pending-transfers/{transfer_id}/corrections` | Clerk user bearer | `Idempotency-Key` | 200 application/json PendingTransferReceipt |
 
 ## Exact request/response models
 
 These JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).
+
+### AnnotationResponse
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "entry_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Entry Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "category": {
+      "type": "string",
+      "title": "Category"
+    },
+    "tags": {
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "type": "array",
+      "title": "Tags"
+    },
+    "reason": {
+      "type": "string",
+      "title": "Reason"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "entry_id",
+    "revision",
+    "category",
+    "tags",
+    "reason",
+    "recorded_at"
+  ],
+  "title": "AnnotationResponse"
+}
+```
+
+### AnnotationWrite
+
+```json
+{
+  "properties": {
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision"
+    },
+    "category": {
+      "type": "string",
+      "pattern": "^(subscriptions|groceries|transportation|utilities|healthcare|cinema|restaurants|shops|telecom|fitness|salary|other|custom_[0-9a-f]{32})$",
+      "title": "Category"
+    },
+    "tags": {
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "type": "array",
+      "maxItems": 20,
+      "title": "Tags"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expected_revision",
+    "category",
+    "reason"
+  ],
+  "title": "AnnotationWrite"
+}
+```
+
+### ClassificationResponse
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "key": {
+      "type": "string",
+      "title": "Key"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "category",
+        "tag"
+      ],
+      "title": "Kind"
+    },
+    "name": {
+      "type": "string",
+      "title": "Name"
+    },
+    "tone": {
+      "type": "string",
+      "enum": [
+        "blue",
+        "green",
+        "purple",
+        "orange",
+        "teal",
+        "slate",
+        "amber"
+      ],
+      "title": "Tone"
+    },
+    "archived": {
+      "type": "boolean",
+      "title": "Archived"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "key",
+    "revision",
+    "kind",
+    "name",
+    "tone",
+    "archived"
+  ],
+  "title": "ClassificationResponse"
+}
+```
+
+### ClassificationWrite
+
+```json
+{
+  "properties": {
+    "id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Id"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision",
+      "default": 0
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "category",
+        "tag"
+      ],
+      "title": "Kind"
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 60,
+      "minLength": 1,
+      "title": "Name"
+    },
+    "tone": {
+      "type": "string",
+      "enum": [
+        "blue",
+        "green",
+        "purple",
+        "orange",
+        "teal",
+        "slate",
+        "amber"
+      ],
+      "title": "Tone",
+      "default": "blue"
+    },
+    "archived": {
+      "type": "boolean",
+      "title": "Archived",
+      "default": false
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "kind",
+    "name"
+  ],
+  "title": "ClassificationWrite"
+}
+```
+
+### DiscardDraft
+
+```json
+{
+  "properties": {
+    "expected_revision": {
+      "type": "integer",
+      "maximum": 9007199254740990,
+      "minimum": 1,
+      "title": "Expected Revision"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expected_revision"
+  ],
+  "title": "DiscardDraft"
+}
+```
+
+### DraftCommit
+
+```json
+{
+  "properties": {
+    "expected_revision": {
+      "type": "integer",
+      "maximum": 9007199254740990,
+      "minimum": 1,
+      "title": "Expected Revision"
+    },
+    "review_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Review Digest"
+    },
+    "confirmed": {
+      "type": "boolean",
+      "const": true,
+      "title": "Confirmed"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expected_revision",
+    "review_digest",
+    "confirmed"
+  ],
+  "title": "DraftCommit"
+}
+```
+
+### DraftReceipt
+
+```json
+{
+  "properties": {
+    "committed_entry_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Committed Entry Id"
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "active",
+        "committed",
+        "deleted",
+        "expired"
+      ],
+      "title": "State"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Expires At"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "revision",
+    "state",
+    "expires_at"
+  ],
+  "title": "DraftReceipt"
+}
+```
+
+### DraftView
+
+```json
+{
+  "properties": {
+    "committed_entry_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Committed Entry Id"
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "active",
+        "committed",
+        "deleted",
+        "expired"
+      ],
+      "title": "State"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Expires At"
+    },
+    "command": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/JournalCommand"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "review_digest": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Review Digest"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Updated At"
+    },
+    "account_epoch_current": {
+      "type": "boolean",
+      "title": "Account Epoch Current"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "revision",
+    "state",
+    "expires_at",
+    "command",
+    "review_digest",
+    "created_at",
+    "updated_at",
+    "account_epoch_current"
+  ],
+  "title": "DraftView"
+}
+```
+
+### DraftWrite
+
+```json
+{
+  "properties": {
+    "command": {
+      "$ref": "#/components/schemas/JournalCommand"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "maximum": 9007199254740990,
+      "minimum": 0,
+      "title": "Expected Revision"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "command",
+    "expected_revision"
+  ],
+  "title": "DraftWrite"
+}
+```
+
+### FXConversionInput
+
+```json
+{
+  "properties": {
+    "amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Amount"
+    },
+    "from_currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "title": "From Currency"
+    },
+    "to_currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "title": "To Currency"
+    },
+    "as_of": {
+      "type": "string",
+      "format": "date",
+      "title": "As Of"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "amount",
+    "from_currency",
+    "to_currency",
+    "as_of"
+  ],
+  "title": "FXConversionInput"
+}
+```
+
+### FXConversionResponse
+
+```json
+{
+  "properties": {
+    "algorithm": {
+      "type": "string",
+      "const": "fx_reference_rational_v2",
+      "title": "Algorithm",
+      "default": "fx_reference_rational_v2"
+    },
+    "from_currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "title": "From Currency"
+    },
+    "to_currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "title": "To Currency"
+    },
+    "as_of": {
+      "type": "string",
+      "format": "date",
+      "title": "As Of"
+    },
+    "native_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Native Amount"
+    },
+    "converted_amount": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Converted Amount"
+    },
+    "effective_rate": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Effective Rate"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "native",
+        "manual",
+        "provider",
+        "missing",
+        "out_of_bounds"
+      ],
+      "title": "Status"
+    },
+    "stale": {
+      "type": "boolean",
+      "title": "Stale"
+    },
+    "legs": {
+      "items": {
+        "$ref": "#/components/schemas/FXLeg"
+      },
+      "type": "array",
+      "title": "Legs"
+    }
+  },
+  "type": "object",
+  "required": [
+    "from_currency",
+    "to_currency",
+    "as_of",
+    "native_amount",
+    "converted_amount",
+    "effective_rate",
+    "status",
+    "stale"
+  ],
+  "title": "FXConversionResponse"
+}
+```
+
+### FXObservationResponse
+
+```json
+{
+  "properties": {
+    "active": {
+      "type": "boolean",
+      "title": "Active",
+      "default": true
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "base_currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "title": "Base Currency"
+    },
+    "quote_currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "title": "Quote Currency"
+    },
+    "rate": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Rate"
+    },
+    "observed_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Observed On"
+    },
+    "source": {
+      "type": "string",
+      "title": "Source"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    },
+    "recorded_by": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Recorded By"
+    },
+    "origin": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "frankfurter"
+      ],
+      "title": "Origin",
+      "default": "manual"
+    },
+    "provider_keys": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array",
+      "title": "Provider Keys"
+    },
+    "rate_basis": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "blended",
+            "provider_peg",
+            "reference_unattributed"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Rate Basis"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "base_currency",
+    "quote_currency",
+    "rate",
+    "observed_on",
+    "source",
+    "revision",
+    "recorded_at",
+    "recorded_by"
+  ],
+  "title": "FXObservationResponse"
+}
+```
+
+### FXWrite
+
+```json
+{
+  "properties": {
+    "active": {
+      "type": "boolean",
+      "title": "Active",
+      "default": true
+    },
+    "base_currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Base Currency"
+    },
+    "quote_currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Quote Currency"
+    },
+    "rate": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Rate"
+    },
+    "observed_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Observed On"
+    },
+    "source": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Source"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision",
+      "default": 0
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "base_currency",
+    "quote_currency",
+    "rate",
+    "observed_on",
+    "source"
+  ],
+  "title": "FXWrite"
+}
+```
+
+### MerchantRuleResponse
+
+```json
+{
+  "properties": {
+    "name": {
+      "type": "string",
+      "maxLength": 100,
+      "minLength": 1,
+      "title": "Name"
+    },
+    "match_text": {
+      "type": "string",
+      "maxLength": 100,
+      "minLength": 1,
+      "title": "Match Text"
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "contains"
+      ],
+      "title": "Mode",
+      "default": "contains"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "expense",
+        "income"
+      ],
+      "title": "Type",
+      "default": "expense"
+    },
+    "account_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Account Id"
+    },
+    "category": {
+      "type": "string",
+      "pattern": "^(subscriptions|groceries|transportation|utilities|healthcare|cinema|restaurants|shops|telecom|fitness|salary|other|custom_[0-9a-f]{32})$",
+      "title": "Category"
+    },
+    "tags": {
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "type": "array",
+      "maxItems": 20,
+      "title": "Tags"
+    },
+    "priority": {
+      "type": "integer",
+      "maximum": 100,
+      "minimum": 0,
+      "title": "Priority",
+      "default": 50
+    },
+    "enabled": {
+      "type": "boolean",
+      "title": "Enabled",
+      "default": true
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "name",
+    "match_text",
+    "category",
+    "id",
+    "revision"
+  ],
+  "title": "MerchantRuleResponse"
+}
+```
+
+### MerchantRuleWrite
+
+```json
+{
+  "properties": {
+    "name": {
+      "type": "string",
+      "maxLength": 100,
+      "minLength": 1,
+      "title": "Name"
+    },
+    "match_text": {
+      "type": "string",
+      "maxLength": 100,
+      "minLength": 1,
+      "title": "Match Text"
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "contains"
+      ],
+      "title": "Mode",
+      "default": "contains"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "expense",
+        "income"
+      ],
+      "title": "Type",
+      "default": "expense"
+    },
+    "account_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Account Id"
+    },
+    "category": {
+      "type": "string",
+      "pattern": "^(subscriptions|groceries|transportation|utilities|healthcare|cinema|restaurants|shops|telecom|fitness|salary|other|custom_[0-9a-f]{32})$",
+      "title": "Category"
+    },
+    "tags": {
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "type": "array",
+      "maxItems": 20,
+      "title": "Tags"
+    },
+    "priority": {
+      "type": "integer",
+      "maximum": 100,
+      "minimum": 0,
+      "title": "Priority",
+      "default": 50
+    },
+    "enabled": {
+      "type": "boolean",
+      "title": "Enabled",
+      "default": true
+    },
+    "id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Id"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision",
+      "default": 0
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "name",
+    "match_text",
+    "category"
+  ],
+  "title": "MerchantRuleWrite"
+}
+```
+
+### PendingTransferPage
+
+```json
+{
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/PendingTransferReceipt"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "next_before_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Before Id"
+    }
+  },
+  "type": "object",
+  "required": [
+    "items",
+    "next_before_id"
+  ],
+  "title": "PendingTransferPage"
+}
+```
+
+### PendingTransferReceipt
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "asset_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Asset Id"
+    },
+    "source_account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Source Account Id"
+    },
+    "destination_account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Destination Account Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "arrived",
+        "returned",
+        "corrected"
+      ],
+      "title": "State"
+    },
+    "principal": {
+      "type": "string",
+      "title": "Principal"
+    },
+    "currency": {
+      "type": "string",
+      "title": "Currency"
+    },
+    "destination_currency": {
+      "type": "string",
+      "title": "Destination Currency"
+    },
+    "departed_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Departed On"
+    },
+    "source_fee": {
+      "type": "string",
+      "title": "Source Fee"
+    },
+    "source_ownership_basis": {
+      "type": "string",
+      "const": "recorded_full_ownership",
+      "title": "Source Ownership Basis"
+    },
+    "movements": {
+      "items": {
+        "$ref": "#/components/schemas/TransferMovement"
+      },
+      "type": "array",
+      "title": "Movements"
+    },
+    "balance": {
+      "$ref": "#/components/schemas/TransferBalance",
+      "readOnly": true
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "asset_id",
+    "source_account_id",
+    "destination_account_id",
+    "revision",
+    "state",
+    "principal",
+    "currency",
+    "destination_currency",
+    "departed_on",
+    "source_fee",
+    "source_ownership_basis",
+    "movements",
+    "balance"
+  ],
+  "title": "PendingTransferReceipt"
+}
+```
+
+### RecordPage_ClassificationResponse_
+
+```json
+{
+  "properties": {
+    "as_of": {
+      "type": "string",
+      "format": "date",
+      "title": "As Of"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/ClassificationResponse"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Cursor"
+    }
+  },
+  "type": "object",
+  "required": [
+    "as_of",
+    "items",
+    "next_cursor"
+  ],
+  "title": "RecordPage[ClassificationResponse]"
+}
+```
+
+### RefundCorrection
+
+```json
+{
+  "properties": {
+    "expected_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Account Revision"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Revision"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expected_account_revision",
+    "expected_revision",
+    "reason"
+  ],
+  "title": "RefundCorrection"
+}
+```
+
+### RefundPreview
+
+```json
+{
+  "properties": {
+    "allocations": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/components/schemas/TransactionAllocation"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Allocations"
+    },
+    "category_balances": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/components/schemas/RefundCategoryBalance"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Category Balances"
+    },
+    "algorithm": {
+      "type": "string",
+      "enum": [
+        "linked_expense_refund_v1",
+        "linked_expense_refund_v2"
+      ],
+      "title": "Algorithm",
+      "default": "linked_expense_refund_v1"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "record",
+        "reverse"
+      ],
+      "title": "Action"
+    },
+    "input": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/RefundReview"
+        },
+        {
+          "$ref": "#/components/schemas/RefundCorrection"
+        }
+      ],
+      "title": "Input"
+    },
+    "input_digest": {
+      "type": "string",
+      "title": "Input Digest"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "currency": {
+      "type": "string",
+      "title": "Currency"
+    },
+    "category": {
+      "type": "string",
+      "pattern": "^(subscriptions|groceries|transportation|utilities|healthcare|cinema|restaurants|shops|telecom|fitness|salary|other|custom_[0-9a-f]{32})$",
+      "title": "Category"
+    },
+    "tags": {
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "type": "array",
+      "title": "Tags"
+    },
+    "amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Amount"
+    },
+    "cash_delta": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Cash Delta"
+    },
+    "expense_delta": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Expense Delta"
+    },
+    "original_expense_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Original Expense Amount"
+    },
+    "active_refunded_before": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Active Refunded Before"
+    },
+    "active_refunded_after": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Active Refunded After"
+    },
+    "remaining_refundable": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Remaining Refundable"
+    },
+    "effective_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Effective On"
+    },
+    "payment_initiated": {
+      "type": "boolean",
+      "const": false,
+      "title": "Payment Initiated",
+      "default": false
+    },
+    "original_expense_rewritten": {
+      "type": "boolean",
+      "const": false,
+      "title": "Original Expense Rewritten",
+      "default": false
+    }
+  },
+  "type": "object",
+  "required": [
+    "action",
+    "input",
+    "input_digest",
+    "account_id",
+    "currency",
+    "category",
+    "tags",
+    "amount",
+    "cash_delta",
+    "expense_delta",
+    "original_expense_amount",
+    "active_refunded_before",
+    "active_refunded_after",
+    "remaining_refundable",
+    "effective_on"
+  ],
+  "title": "RefundPreview"
+}
+```
+
+### RefundResponse
+
+```json
+{
+  "properties": {
+    "allocations": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/components/schemas/TransactionAllocation"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Allocations"
+    },
+    "category_balances": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/components/schemas/RefundCategoryBalance"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Category Balances"
+    },
+    "algorithm": {
+      "type": "string",
+      "enum": [
+        "linked_expense_refund_v1",
+        "linked_expense_refund_v2"
+      ],
+      "title": "Algorithm",
+      "default": "linked_expense_refund_v1"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "record",
+        "reverse"
+      ],
+      "title": "Action"
+    },
+    "input": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/RefundReview"
+        },
+        {
+          "$ref": "#/components/schemas/RefundCorrection"
+        }
+      ],
+      "title": "Input"
+    },
+    "input_digest": {
+      "type": "string",
+      "title": "Input Digest"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "currency": {
+      "type": "string",
+      "title": "Currency"
+    },
+    "category": {
+      "type": "string",
+      "pattern": "^(subscriptions|groceries|transportation|utilities|healthcare|cinema|restaurants|shops|telecom|fitness|salary|other|custom_[0-9a-f]{32})$",
+      "title": "Category"
+    },
+    "tags": {
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "type": "array",
+      "title": "Tags"
+    },
+    "amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Amount"
+    },
+    "cash_delta": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Cash Delta"
+    },
+    "expense_delta": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Expense Delta"
+    },
+    "original_expense_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Original Expense Amount"
+    },
+    "active_refunded_before": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Active Refunded Before"
+    },
+    "active_refunded_after": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Active Refunded After"
+    },
+    "remaining_refundable": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Remaining Refundable"
+    },
+    "effective_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Effective On"
+    },
+    "payment_initiated": {
+      "type": "boolean",
+      "const": false,
+      "title": "Payment Initiated",
+      "default": false
+    },
+    "original_expense_rewritten": {
+      "type": "boolean",
+      "const": false,
+      "title": "Original Expense Rewritten",
+      "default": false
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "original_entry_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Original Entry Id"
+    },
+    "journal_entry_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Journal Entry Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "reversal_of": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Reversal Of"
+    },
+    "account_revision": {
+      "type": "integer",
+      "title": "Account Revision"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    }
+  },
+  "type": "object",
+  "required": [
+    "action",
+    "input",
+    "input_digest",
+    "account_id",
+    "currency",
+    "category",
+    "tags",
+    "amount",
+    "cash_delta",
+    "expense_delta",
+    "original_expense_amount",
+    "active_refunded_before",
+    "active_refunded_after",
+    "remaining_refundable",
+    "effective_on",
+    "id",
+    "original_entry_id",
+    "journal_entry_id",
+    "revision",
+    "reversal_of",
+    "account_revision",
+    "recorded_at"
+  ],
+  "title": "RefundResponse"
+}
+```
+
+### RefundReverse
+
+```json
+{
+  "properties": {
+    "expected_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Account Revision"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Revision"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    },
+    "input_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Input Digest"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expected_account_revision",
+    "expected_revision",
+    "reason",
+    "input_digest"
+  ],
+  "title": "RefundReverse"
+}
+```
+
+### RefundReview
+
+```json
+{
+  "properties": {
+    "allocations": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/components/schemas/TransactionAllocation"
+          },
+          "type": "array",
+          "maxItems": 20,
+          "minItems": 1
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Allocations"
+    },
+    "expected_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Account Revision"
+    },
+    "expected_classification_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Classification Revision"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision"
+    },
+    "amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Amount"
+    },
+    "occurred_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Occurred On"
+    },
+    "receipt_reference": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_./:-]{1,100}$",
+      "title": "Receipt Reference"
+    },
+    "source": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Source"
+    },
+    "already_settled": {
+      "type": "boolean",
+      "const": true,
+      "title": "Already Settled"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expected_account_revision",
+    "expected_classification_revision",
+    "expected_revision",
+    "amount",
+    "occurred_on",
+    "receipt_reference",
+    "source",
+    "already_settled"
+  ],
+  "title": "RefundReview"
+}
+```
+
+### RefundWrite
+
+```json
+{
+  "properties": {
+    "allocations": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/components/schemas/TransactionAllocation"
+          },
+          "type": "array",
+          "maxItems": 20,
+          "minItems": 1
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Allocations"
+    },
+    "expected_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Account Revision"
+    },
+    "expected_classification_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Classification Revision"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision"
+    },
+    "amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Amount"
+    },
+    "occurred_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Occurred On"
+    },
+    "receipt_reference": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_./:-]{1,100}$",
+      "title": "Receipt Reference"
+    },
+    "source": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Source"
+    },
+    "already_settled": {
+      "type": "boolean",
+      "const": true,
+      "title": "Already Settled"
+    },
+    "input_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Input Digest"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expected_account_revision",
+    "expected_classification_revision",
+    "expected_revision",
+    "amount",
+    "occurred_on",
+    "receipt_reference",
+    "source",
+    "already_settled",
+    "input_digest"
+  ],
+  "title": "RefundWrite"
+}
+```
 
 ### ReversalCommand
 
@@ -40,6 +1825,85 @@ These JSON Schema definitions are generated from the verified contract, not samp
     "reason"
   ],
   "title": "ReversalCommand"
+}
+```
+
+### ReviewInput
+
+```json
+{
+  "properties": {
+    "entry_ids": {
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "type": "array",
+      "maxItems": 100,
+      "minItems": 1,
+      "title": "Entry Ids"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "entry_ids"
+  ],
+  "title": "ReviewInput"
+}
+```
+
+### ReviewResponse
+
+```json
+{
+  "properties": {
+    "reviewed": {
+      "type": "integer",
+      "title": "Reviewed"
+    }
+  },
+  "type": "object",
+  "required": [
+    "reviewed"
+  ],
+  "title": "ReviewResponse"
+}
+```
+
+### RuleLookup
+
+```json
+{
+  "properties": {
+    "description": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Description"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "expense",
+        "income"
+      ],
+      "title": "Type"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "description",
+    "type",
+    "account_id"
+  ],
+  "title": "RuleLookup"
 }
 ```
 
@@ -92,6 +1956,78 @@ These JSON Schema definitions are generated from the verified contract, not samp
 ```json
 {
   "properties": {
+    "pending_transfer_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Pending Transfer Id"
+    },
+    "recurring_posting_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Recurring Posting Id"
+    },
+    "recurring_template_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Recurring Template Id"
+    },
+    "internal_transfer_match_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Internal Transfer Match Id"
+    },
+    "transfer_partner_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Transfer Partner Id"
+    },
+    "money_workflow_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Money Workflow Id"
+    },
     "loan_id": {
       "anyOf": [
         {
@@ -280,8 +2216,15 @@ These JSON Schema definitions are generated from the verified contract, not samp
       "title": "Id"
     },
     "account_id": {
-      "type": "string",
-      "format": "uuid",
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
       "title": "Account Id"
     },
     "description": {
@@ -374,5 +2317,822 @@ These JSON Schema definitions are generated from the verified contract, not samp
     "occurred_on"
   ],
   "title": "TransactionResponse"
+}
+```
+
+### TransferArrival
+
+```json
+{
+  "properties": {
+    "confirmed_actual": {
+      "type": "boolean",
+      "const": true,
+      "title": "Confirmed Actual"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    },
+    "source_principal": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Source Principal"
+    },
+    "expected_transfer_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Transfer Revision"
+    },
+    "expected_destination_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Destination Revision"
+    },
+    "received_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Received Amount"
+    },
+    "destination_fee": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Destination Fee",
+      "default": "0"
+    },
+    "received_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Received On"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "confirmed_actual",
+    "reason",
+    "expected_transfer_revision",
+    "expected_destination_revision",
+    "received_amount",
+    "received_on"
+  ],
+  "title": "TransferArrival"
+}
+```
+
+### TransferCorrection
+
+```json
+{
+  "properties": {
+    "expected_transfer_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Transfer Revision"
+    },
+    "expected_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Account Revision"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expected_transfer_revision",
+    "expected_account_revision",
+    "reason"
+  ],
+  "title": "TransferCorrection"
+}
+```
+
+### TransferDeparture
+
+```json
+{
+  "properties": {
+    "confirmed_actual": {
+      "type": "boolean",
+      "const": true,
+      "title": "Confirmed Actual"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    },
+    "source_account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Source Account Id"
+    },
+    "destination_account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Destination Account Id"
+    },
+    "expected_source_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Source Revision"
+    },
+    "expected_destination_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Destination Revision"
+    },
+    "amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Amount"
+    },
+    "source_fee": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Source Fee",
+      "default": "0"
+    },
+    "departed_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Departed On"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "confirmed_actual",
+    "reason",
+    "source_account_id",
+    "destination_account_id",
+    "expected_source_revision",
+    "expected_destination_revision",
+    "amount",
+    "departed_on"
+  ],
+  "title": "TransferDeparture"
+}
+```
+
+### TransferMatchPage
+
+```json
+{
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/TransferMatchResponse"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "next_before_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Before Id"
+    }
+  },
+  "type": "object",
+  "required": [
+    "items",
+    "next_before_id"
+  ],
+  "title": "TransferMatchPage"
+}
+```
+
+### TransferMatchResponse
+
+```json
+{
+  "properties": {
+    "inputs_captured_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Inputs Captured At"
+    },
+    "inputs_are_snapshot": {
+      "type": "boolean",
+      "const": true,
+      "title": "Inputs Are Snapshot",
+      "default": true
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "matched",
+        "unmatched"
+      ],
+      "title": "State"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    },
+    "recorded_by": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Recorded By"
+    },
+    "reason": {
+      "type": "string",
+      "title": "Reason"
+    },
+    "expense": {
+      "$ref": "#/components/schemas/TransactionResponse"
+    },
+    "income": {
+      "$ref": "#/components/schemas/TransactionResponse"
+    }
+  },
+  "type": "object",
+  "required": [
+    "inputs_captured_at",
+    "id",
+    "revision",
+    "state",
+    "recorded_at",
+    "recorded_by",
+    "reason",
+    "expense",
+    "income"
+  ],
+  "title": "TransferMatchResponse"
+}
+```
+
+### TransferMatchWrite
+
+```json
+{
+  "properties": {
+    "expense_entry_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Expense Entry Id"
+    },
+    "income_entry_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Income Entry Id"
+    },
+    "expected_expense_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Expense Account Revision"
+    },
+    "expected_income_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Income Account Revision"
+    },
+    "expected_expense_classification_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Expense Classification Revision"
+    },
+    "expected_income_classification_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Income Classification Revision"
+    },
+    "expected_change_sequence": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Change Sequence"
+    },
+    "confirmed_internal_transfer": {
+      "type": "boolean",
+      "const": true,
+      "title": "Confirmed Internal Transfer"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expense_entry_id",
+    "income_entry_id",
+    "expected_expense_account_revision",
+    "expected_income_account_revision",
+    "expected_expense_classification_revision",
+    "expected_income_classification_revision",
+    "expected_change_sequence",
+    "confirmed_internal_transfer",
+    "reason"
+  ],
+  "title": "TransferMatchWrite"
+}
+```
+
+### TransferReturn
+
+```json
+{
+  "properties": {
+    "confirmed_actual": {
+      "type": "boolean",
+      "const": true,
+      "title": "Confirmed Actual"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    },
+    "source_principal": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Source Principal"
+    },
+    "return_fee": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Return Fee"
+    },
+    "expected_transfer_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Transfer Revision"
+    },
+    "expected_source_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Source Revision"
+    },
+    "returned_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Returned On"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "confirmed_actual",
+    "reason",
+    "expected_transfer_revision",
+    "expected_source_revision",
+    "returned_on"
+  ],
+  "title": "TransferReturn"
+}
+```
+
+### TransferUnmatchWrite
+
+```json
+{
+  "properties": {
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Revision"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expected_revision",
+    "reason"
+  ],
+  "title": "TransferUnmatchWrite"
+}
+```
+
+### WorkflowReceipt
+
+```json
+{
+  "properties": {
+    "asset_type": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "gold",
+            "silver",
+            "platinum",
+            "palladium"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Asset Type"
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "metal_purchase",
+        "bnpl_purchase",
+        "creditor_refund",
+        "reverse"
+      ],
+      "title": "Kind"
+    },
+    "account_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Account Id"
+    },
+    "asset_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Asset Id"
+    },
+    "debt_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Debt Id"
+    },
+    "entry_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Entry Id"
+    },
+    "fee_entry_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Fee Entry Id"
+    },
+    "source_repayment_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Source Repayment Id"
+    },
+    "reversal_of": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Reversal Of"
+    },
+    "occurred_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Occurred On"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "principal_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Principal Amount"
+    },
+    "cost_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Cost Amount"
+    },
+    "account_revision": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Account Revision"
+    },
+    "asset_revision": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Asset Revision"
+    },
+    "debt_revision": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Debt Revision"
+    },
+    "quantity": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Quantity"
+    },
+    "quantity_unit": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Quantity Unit"
+    },
+    "fineness": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Fineness"
+    },
+    "fine_weight_grams": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Fine Weight Grams"
+    },
+    "exact_fine_grams_numerator": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Exact Fine Grams Numerator"
+    },
+    "exact_fine_grams_denominator": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Exact Fine Grams Denominator"
+    },
+    "source": {
+      "type": "string",
+      "title": "Source"
+    },
+    "category": {
+      "type": "string",
+      "title": "Category"
+    },
+    "allocations": {
+      "items": {
+        "$ref": "#/components/schemas/RefundAllocation"
+      },
+      "type": "array",
+      "title": "Allocations"
+    },
+    "market_value_known": {
+      "type": "boolean",
+      "const": false,
+      "title": "Market Value Known",
+      "default": false
+    },
+    "money_moved_by_farz": {
+      "type": "boolean",
+      "const": false,
+      "title": "Money Moved By Farz",
+      "default": false
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "kind",
+    "account_id",
+    "asset_id",
+    "debt_id",
+    "entry_id",
+    "fee_entry_id",
+    "source_repayment_id",
+    "reversal_of",
+    "occurred_on",
+    "recorded_at",
+    "currency",
+    "principal_amount",
+    "cost_amount",
+    "source",
+    "category"
+  ],
+  "title": "WorkflowReceipt"
+}
+```
+
+### WorkflowReverse
+
+```json
+{
+  "properties": {
+    "expected_account_revision": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "maximum": 9007199254740990,
+          "minimum": 1
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Expected Account Revision"
+    },
+    "expected_asset_revision": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "maximum": 9007199254740990,
+          "minimum": 1
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Expected Asset Revision"
+    },
+    "expected_debt_revision": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "maximum": 9007199254740990,
+          "minimum": 1
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Expected Debt Revision"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    },
+    "confirmed": {
+      "type": "boolean",
+      "const": true,
+      "title": "Confirmed"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "reason",
+    "confirmed"
+  ],
+  "title": "WorkflowReverse"
 }
 ```

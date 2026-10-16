@@ -7,18 +7,179 @@ Use `/valuation-snapshots`, not the former `/valuations` alias. Previewing, reco
 
 Private operations require an authorized Clerk user bearer and workspace membership. Optional/sensitive services retain their policy/entitlement/fresh-authentication gates.
 
-| Complete route | Required operation headers (besides authentication) | Declared success |
-| --- | --- | --- |
-| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshots/preview` | — | 200 application/json ValuationPreview |
-| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshots` | — | 200 application/json ValuationSnapshotSummary[] |
-| `POST /api/v1/workspaces/{workspace_id}/valuation-snapshots` | `Idempotency-Key` | 200 application/json ValuationSnapshotResponse |
-| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshots/{snapshot_id}` | — | 200 application/json ValuationSnapshotResponse |
-| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshots/{snapshot_id}/report.csv` | — | 200 text/csv |
-| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshots/{snapshot_id}/report.html` | — | 200 text/html |
+Snapshot jobs expose explicit creation/status/run/cancel contracts. Job admission or forecast completion is not an external valuation or automatic background scheduling guarantee.
+
+| Complete route | Authentication | Required operation headers | Declared success |
+| --- | --- | --- | --- |
+| `POST /api/v1/workspaces/{workspace_id}/valuation-snapshot-jobs` | Clerk user bearer | `Idempotency-Key` | 202 application/json SnapshotJobsResponse |
+| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshot-jobs/{task_id}` | Clerk user bearer | — | 200 application/json SnapshotJobStatus |
+| `POST /api/v1/workspaces/{workspace_id}/valuation-snapshot-jobs/{task_id}/run` | Clerk user bearer | — | 200 application/json SnapshotJobStatus |
+| `POST /api/v1/workspaces/{workspace_id}/valuation-snapshot-jobs/{task_id}/cancel` | Clerk user bearer | — | 200 application/json SnapshotJobStatus |
+| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshots/preview` | Clerk user bearer | — | 200 application/json ValuationPreview |
+| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshots` | Clerk user bearer | — | 200 application/json ValuationSnapshotSummary[] |
+| `POST /api/v1/workspaces/{workspace_id}/valuation-snapshots` | Clerk user bearer | `Idempotency-Key` | 200 application/json ValuationSnapshotResponse |
+| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshots/{snapshot_id}` | Clerk user bearer | — | 200 application/json ValuationSnapshotResponse |
+| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshots/{snapshot_id}/report.csv` | Clerk user bearer | — | 200 text/csv |
+| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshots/{snapshot_id}/report.html` | Clerk user bearer | — | 200 text/html |
 
 ## Exact request/response models
 
 These JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).
+
+### SnapshotJobRun
+
+```json
+{
+  "properties": {
+    "expected_attempt": {
+      "type": "integer",
+      "maximum": 3,
+      "minimum": 0,
+      "title": "Expected Attempt"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expected_attempt"
+  ],
+  "title": "SnapshotJobRun"
+}
+```
+
+### SnapshotJobStatus
+
+```json
+{
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Task Id"
+    },
+    "period": {
+      "type": "string",
+      "format": "date",
+      "title": "Period"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "running",
+        "succeeded",
+        "failed",
+        "canceled",
+        "expired"
+      ],
+      "title": "State"
+    },
+    "attempt": {
+      "type": "integer",
+      "title": "Attempt"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Expires At"
+    },
+    "snapshot_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Snapshot Id"
+    },
+    "outcome": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "captured",
+            "already_saved"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Outcome"
+    },
+    "failure_code": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Failure Code"
+    }
+  },
+  "type": "object",
+  "required": [
+    "task_id",
+    "period",
+    "state",
+    "attempt",
+    "expires_at"
+  ],
+  "title": "SnapshotJobStatus"
+}
+```
+
+### SnapshotJobsResponse
+
+```json
+{
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/SnapshotJobItem"
+      },
+      "type": "array",
+      "title": "Items"
+    }
+  },
+  "type": "object",
+  "required": [
+    "items"
+  ],
+  "title": "SnapshotJobsResponse"
+}
+```
+
+### SnapshotJobsWrite
+
+```json
+{
+  "properties": {
+    "from_period": {
+      "type": "string",
+      "format": "date",
+      "title": "From Period"
+    },
+    "through_period": {
+      "type": "string",
+      "format": "date",
+      "title": "Through Period"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "from_period",
+    "through_period"
+  ],
+  "title": "SnapshotJobsWrite"
+}
+```
 
 ### ValuationPreview
 
@@ -128,7 +289,8 @@ These JSON Schema definitions are generated from the verified contract, not samp
       "type": "string",
       "enum": [
         "month_end_reference_v1",
-        "month_end_reference_v2"
+        "month_end_reference_v2",
+        "month_end_reference_v3"
       ],
       "title": "Algorithm",
       "default": "month_end_reference_v1"
@@ -163,6 +325,15 @@ These JSON Schema definitions are generated from the verified contract, not samp
 ```json
 {
   "properties": {
+    "capture_source": {
+      "type": "string",
+      "enum": [
+        "owner_reviewed",
+        "owner_requested_job"
+      ],
+      "title": "Capture Source",
+      "default": "owner_reviewed"
+    },
     "id": {
       "type": "string",
       "format": "uuid",
@@ -221,6 +392,15 @@ These JSON Schema definitions are generated from the verified contract, not samp
 ```json
 {
   "properties": {
+    "capture_source": {
+      "type": "string",
+      "enum": [
+        "owner_reviewed",
+        "owner_requested_job"
+      ],
+      "title": "Capture Source",
+      "default": "owner_reviewed"
+    },
     "id": {
       "type": "string",
       "format": "uuid",

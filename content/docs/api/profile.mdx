@@ -7,13 +7,16 @@ Use `/me.workspace_id`; it is null before onboarding. Current personal signup us
 
 Private operations require an authorized Clerk user bearer and workspace membership. Optional/sensitive services retain their policy/entitlement/fresh-authentication gates.
 
-| Complete route | Required operation headers (besides authentication) | Declared success |
-| --- | --- | --- |
-| `GET /api/v1/me` | — | 200 application/json ProfileResponse |
-| `POST /api/v1/eligibility/check` | — | 200 application/json EligibilityResponse |
-| `POST /api/v1/onboarding` | — | 200 application/json ProfileResponse |
-| `PATCH /api/v1/workspaces/{workspace_id}/preferences` | — | 200 application/json ProfileResponse |
-| `POST /api/v1/workspaces/{workspace_id}/setup` | `Idempotency-Key` | 200 application/json SetupState |
+General preferences include current numbering/date-display contracts. Financial workspace timezone and notification delivery timezone are separate; native authorization and provider activation remain independently gated.
+
+| Complete route | Authentication | Required operation headers | Declared success |
+| --- | --- | --- | --- |
+| `POST /api/v1/eligibility/check` | Public / handler-specific | — | 200 application/json EligibilityResponse |
+| `GET /api/v1/me` | Clerk user bearer | — | 200 application/json ProfileResponse |
+| `PATCH /api/v1/me` | Clerk user bearer | `Idempotency-Key` | 200 application/json ProfileResponse |
+| `POST /api/v1/onboarding` | Clerk user bearer | — | 200 application/json ProfileResponse |
+| `PATCH /api/v1/workspaces/{workspace_id}/preferences` | Clerk user bearer | — | 200 application/json ProfileResponse |
+| `POST /api/v1/workspaces/{workspace_id}/setup` | Clerk user bearer | `Idempotency-Key` | 200 application/json SetupState |
 
 ## Exact request/response models
 
@@ -183,6 +186,21 @@ These JSON Schema definitions are generated from the verified contract, not samp
 ```json
 {
   "properties": {
+    "numbering_convention": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "international",
+            "indian"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Numbering Convention"
+    },
     "terminology": {
       "anyOf": [
         {
@@ -229,6 +247,7 @@ These JSON Schema definitions are generated from the verified contract, not samp
     },
     "expected_revision": {
       "type": "integer",
+      "exclusiveMaximum": 9007199254740991,
       "minimum": 0,
       "title": "Expected Revision"
     },
@@ -285,6 +304,29 @@ These JSON Schema definitions are generated from the verified contract, not samp
 ```json
 {
   "properties": {
+    "numbering_convention": {
+      "type": "string",
+      "enum": [
+        "international",
+        "indian"
+      ],
+      "title": "Numbering Convention",
+      "default": "international"
+    },
+    "account_state": {
+      "type": "string",
+      "enum": [
+        "active",
+        "deactivated"
+      ],
+      "title": "Account State",
+      "default": "active"
+    },
+    "account_revision": {
+      "type": "integer",
+      "title": "Account Revision",
+      "default": 0
+    },
     "terminology": {
       "type": "string",
       "enum": [

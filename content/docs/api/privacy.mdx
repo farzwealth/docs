@@ -1,0 +1,602 @@
+---
+title: Privacy requests and consents
+description: Current unified API contracts, workflow and activation boundaries.
+---
+
+Owners can submit access, correction, erasure, restriction, objection, portability, consent-withdrawal and human-review requests. Submit the explicit confirmed body with a UUID command key and recent signed authentication. Request history/actions are revision-controlled and append-only; JSON/CSV/HTML downloads are request evidence, not proof that erasure or complete portability has occurred.
+
+Receipt or escalation does not itself erase data, revoke consent, send email or prove legal fulfillment. Country-specific legal deadlines and optional processing approvals require qualified cited review; an internal response target is not a legal deadline. Remaining operator/legal review, retention purge, complete erasure and backup tombstone recovery remain open.
+
+Optional consent grants and withdrawals have their own current-version and authentication rules. A consent checkbox does not configure a provider or supply country approval. See [owned-record exports](/docs/api/owned-records) for the implemented20-group export, which remains narrower than complete portability.
+
+| Complete route | Authentication | Required operation headers | Declared success |
+| --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/consents` | Clerk user bearer | — | 200 application/json ConsentStatus[] |
+| `POST /api/v1/workspaces/{workspace_id}/consents` | Clerk user bearer | `Idempotency-Key` | 200 application/json ConsentEventResponse |
+| `GET /api/v1/workspaces/{workspace_id}/consents/{purpose}/history` | Clerk user bearer | — | 200 application/json ConsentEventResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/privacy/requests` | Clerk user bearer | `Idempotency-Key` | 201 application/json PrivacyRequestResponse |
+| `GET /api/v1/workspaces/{workspace_id}/privacy/requests` | Clerk user bearer | — | 200 application/json PrivacyRequestPage |
+| `GET /api/v1/workspaces/{workspace_id}/privacy/requests/{request_id}` | Clerk user bearer | — | 200 application/json PrivacyRequestResponse |
+| `POST /api/v1/workspaces/{workspace_id}/privacy/requests/{request_id}/actions` | Clerk user bearer | `Idempotency-Key` | 200 application/json PrivacyRequestResponse |
+| `GET /api/v1/workspaces/{workspace_id}/privacy/requests/{request_id}/history` | Clerk user bearer | — | 200 application/json PrivacyRequestEventResponse[] |
+| `GET /api/v1/workspaces/{workspace_id}/privacy/requests/{request_id}/download.json` | Clerk user bearer | — | 200 application/json |
+| `GET /api/v1/workspaces/{workspace_id}/privacy/requests/{request_id}/report.csv` | Clerk user bearer | — | 200 text/csv |
+| `GET /api/v1/workspaces/{workspace_id}/privacy/requests/{request_id}/report.html` | Clerk user bearer | — | 200 text/html |
+
+## Exact request/response models
+
+These JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).
+
+### ConsentEventResponse
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "purpose": {
+      "type": "string",
+      "enum": [
+        "ai_processing",
+        "marketing_email",
+        "optional_analytics",
+        "zakat_calculations"
+      ],
+      "title": "Purpose"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "grant",
+        "withdraw"
+      ],
+      "title": "Decision"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    },
+    "recorded_by": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Recorded By"
+    },
+    "country": {
+      "type": "string",
+      "title": "Country"
+    },
+    "locale": {
+      "type": "string",
+      "enum": [
+        "en",
+        "ar",
+        "fr",
+        "ru"
+      ],
+      "title": "Locale"
+    },
+    "channel": {
+      "type": "string",
+      "const": "authenticated_api",
+      "title": "Channel"
+    },
+    "notice_version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Notice Version"
+    },
+    "notice_digest": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Notice Digest"
+    },
+    "notice_text": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Notice Text"
+    },
+    "withdrawn_grant_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Withdrawn Grant Id"
+    },
+    "withdrawn_notice_version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Withdrawn Notice Version"
+    },
+    "withdrawn_notice_digest": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Withdrawn Notice Digest"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "purpose",
+    "revision",
+    "decision",
+    "recorded_at",
+    "recorded_by",
+    "country",
+    "locale",
+    "channel",
+    "notice_version",
+    "notice_digest",
+    "notice_text"
+  ],
+  "title": "ConsentEventResponse"
+}
+```
+
+### ConsentStatus
+
+```json
+{
+  "properties": {
+    "purpose": {
+      "type": "string",
+      "enum": [
+        "ai_processing",
+        "marketing_email",
+        "optional_analytics",
+        "zakat_calculations"
+      ],
+      "title": "Purpose"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "granted": {
+      "type": "boolean",
+      "title": "Granted"
+    },
+    "notice": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/ConsentNotice"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "notice_digest": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Notice Digest"
+    },
+    "latest_event": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/ConsentEventResponse"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "type": "object",
+  "required": [
+    "purpose",
+    "revision",
+    "granted",
+    "notice",
+    "notice_digest",
+    "latest_event"
+  ],
+  "title": "ConsentStatus"
+}
+```
+
+### ConsentWrite
+
+```json
+{
+  "properties": {
+    "purpose": {
+      "type": "string",
+      "enum": [
+        "ai_processing",
+        "marketing_email",
+        "optional_analytics",
+        "zakat_calculations"
+      ],
+      "title": "Purpose"
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "grant",
+        "withdraw"
+      ],
+      "title": "Decision"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision"
+    },
+    "notice_version": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 80
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Notice Version"
+    },
+    "notice_digest": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Notice Digest"
+    },
+    "locale": {
+      "type": "string",
+      "enum": [
+        "en",
+        "ar",
+        "fr",
+        "ru"
+      ],
+      "title": "Locale",
+      "default": "en"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "purpose",
+    "decision",
+    "expected_revision"
+  ],
+  "title": "ConsentWrite"
+}
+```
+
+### PrivacyRequestAction
+
+```json
+{
+  "properties": {
+    "action": {
+      "type": "string",
+      "enum": [
+        "add_information",
+        "withdraw_request",
+        "request_human_review"
+      ],
+      "title": "Action"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Revision"
+    },
+    "details": {
+      "type": "string",
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Details"
+    },
+    "confirmed": {
+      "type": "boolean",
+      "const": true,
+      "title": "Confirmed"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "action",
+    "expected_revision",
+    "details",
+    "confirmed"
+  ],
+  "title": "PrivacyRequestAction"
+}
+```
+
+### PrivacyRequestEventResponse
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "request_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Request Id"
+    },
+    "sequence": {
+      "type": "integer",
+      "title": "Sequence"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "received",
+        "add_information",
+        "withdraw_request",
+        "request_human_review"
+      ],
+      "title": "Action"
+    },
+    "details": {
+      "type": "string",
+      "title": "Details"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "request_id",
+    "sequence",
+    "action",
+    "details",
+    "created_at"
+  ],
+  "title": "PrivacyRequestEventResponse"
+}
+```
+
+### PrivacyRequestInput
+
+```json
+{
+  "properties": {
+    "kind": {
+      "type": "string",
+      "enum": [
+        "access",
+        "correction",
+        "erasure",
+        "restriction",
+        "objection",
+        "portability",
+        "consent_withdrawal",
+        "human_review"
+      ],
+      "title": "Kind"
+    },
+    "details": {
+      "type": "string",
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Details"
+    },
+    "confirmed": {
+      "type": "boolean",
+      "const": true,
+      "title": "Confirmed"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "kind",
+    "details",
+    "confirmed"
+  ],
+  "title": "PrivacyRequestInput"
+}
+```
+
+### PrivacyRequestPage
+
+```json
+{
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/PrivacyRequestResponse"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "next_offset": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Offset"
+    }
+  },
+  "type": "object",
+  "required": [
+    "items",
+    "next_offset"
+  ],
+  "title": "PrivacyRequestPage"
+}
+```
+
+### PrivacyRequestResponse
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "access",
+        "correction",
+        "erasure",
+        "restriction",
+        "objection",
+        "portability",
+        "consent_withdrawal",
+        "human_review"
+      ],
+      "title": "Kind"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "details": {
+      "type": "string",
+      "title": "Details"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "received",
+        "human_review_requested",
+        "withdrawn"
+      ],
+      "title": "State"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+    },
+    "internal_target_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Internal Target At"
+    },
+    "legal_deadline_at": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Legal Deadline At"
+    },
+    "legal_review_required": {
+      "type": "boolean",
+      "title": "Legal Review Required"
+    },
+    "policy_version": {
+      "type": "string",
+      "title": "Policy Version"
+    },
+    "policy_digest": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Policy Digest"
+    },
+    "execution_complete": {
+      "type": "boolean",
+      "const": false,
+      "title": "Execution Complete",
+      "default": false
+    },
+    "notification_delivered": {
+      "type": "boolean",
+      "const": false,
+      "title": "Notification Delivered",
+      "default": false
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "kind",
+    "revision",
+    "details",
+    "state",
+    "created_at",
+    "internal_target_at",
+    "legal_deadline_at",
+    "legal_review_required",
+    "policy_version",
+    "policy_digest"
+  ],
+  "title": "PrivacyRequestResponse"
+}
+```

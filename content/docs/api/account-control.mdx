@@ -1,0 +1,436 @@
+---
+title: Account lifecycle and plans
+description: Current unified API contracts, workflow and activation boundaries.
+---
+
+Account status/actions/history support reviewed changes to residence, age band and adulthood, plus reversible deactivation/reactivation. The backend retains financial records, encryption wrappers and consumed trial dates. Deactivation is not deletion; optional consents are withdrawn and current durable work is fenced/canceled. Reactivation does not automatically regrant consent or restart a trial. Sensitive commands use current revisions, explicit confirmation, UUID idempotency and signed recent authentication as specified in the contract.
+
+Paused owners retain limited profile/account, privacy, export and security access. Ordinary finance and new optional grants remain denied. Client-supplied access-purpose or privileged customer flags cannot grant exceptions.
+
+GET `/plan` returns server-evaluated access. GET `/trial` exposes reviewed availability; POST requires the current terms version and explicit acceptance/confirmation. Trial activation is unavailable without approved terms/country policy. The app-managed14-day no-card lifecycle does not charge on expiry and does not grant AI, developer API or MCP access. Billing is unconfigured, and verified provider Paid entitlement remains separate. Farz does not use Clerk Billing.
+
+| Complete route | Authentication | Required operation headers | Declared success |
+| --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/plan` | Clerk user bearer | — | 200 application/json PlanResponse |
+| `GET /api/v1/workspaces/{workspace_id}/trial` | Clerk user bearer | — | 200 application/json TrialEligibility |
+| `POST /api/v1/workspaces/{workspace_id}/trial` | Clerk user bearer | `Idempotency-Key` | 201 application/json PlanResponse |
+| `GET /api/v1/workspaces/{workspace_id}/account` | Clerk user bearer | — | 200 application/json AccountState |
+| `POST /api/v1/workspaces/{workspace_id}/account/actions` | Clerk user bearer | `Idempotency-Key` | 200 application/json AccountState |
+| `GET /api/v1/workspaces/{workspace_id}/account/history` | Clerk user bearer | — | 200 application/json AccountEvent[] |
+
+## Exact request/response models
+
+These JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).
+
+### AccountAction
+
+```json
+{
+  "properties": {
+    "action": {
+      "type": "string",
+      "enum": [
+        "correct_residence",
+        "correct_age",
+        "became_adult",
+        "review_policy",
+        "deactivate",
+        "reactivate"
+      ],
+      "title": "Action"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "exclusiveMaximum": 9007199254740991,
+      "minimum": 0,
+      "title": "Expected Revision"
+    },
+    "confirmed": {
+      "type": "boolean",
+      "const": true,
+      "title": "Confirmed"
+    },
+    "residence": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "AE",
+            "SA",
+            "BH",
+            "KW",
+            "QA",
+            "OM"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Residence"
+    },
+    "age": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "maximum": 120,
+          "minimum": 13
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Age"
+    },
+    "policy_version": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Policy Version"
+    },
+    "terms_accepted": {
+      "anyOf": [
+        {
+          "type": "boolean",
+          "const": true
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Terms Accepted"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "action",
+    "expected_revision",
+    "confirmed"
+  ],
+  "title": "AccountAction"
+}
+```
+
+### AccountEvent
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "action": {
+      "type": "string",
+      "title": "Action"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+    },
+    "before": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Before"
+    },
+    "after": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "After"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "revision",
+    "action",
+    "created_at",
+    "before",
+    "after"
+  ],
+  "title": "AccountEvent"
+}
+```
+
+### AccountState
+
+```json
+{
+  "properties": {
+    "workspace_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Workspace Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "active",
+        "deactivated"
+      ],
+      "title": "State"
+    },
+    "residence": {
+      "type": "string",
+      "title": "Residence"
+    },
+    "age_band": {
+      "type": "string",
+      "title": "Age Band"
+    },
+    "policy_version": {
+      "type": "string",
+      "title": "Policy Version"
+    },
+    "current_personal_policy": {
+      "type": "string",
+      "title": "Current Personal Policy",
+      "default": "gcc-personal-self-declared-v1"
+    },
+    "deletion_complete": {
+      "type": "boolean",
+      "const": false,
+      "title": "Deletion Complete",
+      "default": false
+    },
+    "privacy_available": {
+      "type": "boolean",
+      "const": true,
+      "title": "Privacy Available",
+      "default": true
+    },
+    "export_available": {
+      "type": "boolean",
+      "const": true,
+      "title": "Export Available",
+      "default": true
+    },
+    "trial_restarted": {
+      "type": "boolean",
+      "const": false,
+      "title": "Trial Restarted",
+      "default": false
+    }
+  },
+  "type": "object",
+  "required": [
+    "workspace_id",
+    "revision",
+    "state",
+    "residence",
+    "age_band",
+    "policy_version"
+  ],
+  "title": "AccountState"
+}
+```
+
+### PlanResponse
+
+```json
+{
+  "properties": {
+    "plan": {
+      "type": "string",
+      "enum": [
+        "Free",
+        "Trial",
+        "Paid"
+      ],
+      "title": "Plan"
+    },
+    "trial_consumed": {
+      "type": "boolean",
+      "title": "Trial Consumed"
+    },
+    "trial_started_at": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Trial Started At"
+    },
+    "trial_ends_at": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Trial Ends At"
+    },
+    "evaluated_at": {
+      "type": "string",
+      "title": "Evaluated At"
+    },
+    "core_records_available": {
+      "type": "boolean",
+      "const": true,
+      "title": "Core Records Available",
+      "default": true
+    },
+    "privacy_security_available": {
+      "type": "boolean",
+      "const": true,
+      "title": "Privacy Security Available",
+      "default": true
+    },
+    "developer_api_available": {
+      "type": "boolean",
+      "const": false,
+      "title": "Developer Api Available",
+      "default": false
+    },
+    "mcp_available": {
+      "type": "boolean",
+      "const": false,
+      "title": "Mcp Available",
+      "default": false
+    },
+    "ai_available": {
+      "type": "boolean",
+      "const": false,
+      "title": "Ai Available",
+      "default": false
+    },
+    "card_required": {
+      "type": "boolean",
+      "const": false,
+      "title": "Card Required",
+      "default": false
+    },
+    "auto_charge": {
+      "type": "boolean",
+      "const": false,
+      "title": "Auto Charge",
+      "default": false
+    },
+    "provider": {
+      "type": "null",
+      "title": "Provider"
+    }
+  },
+  "type": "object",
+  "required": [
+    "plan",
+    "trial_consumed",
+    "trial_started_at",
+    "trial_ends_at",
+    "evaluated_at"
+  ],
+  "title": "PlanResponse"
+}
+```
+
+### TrialEligibility
+
+```json
+{
+  "properties": {
+    "available": {
+      "type": "boolean",
+      "title": "Available"
+    },
+    "eligible": {
+      "type": "boolean",
+      "title": "Eligible"
+    },
+    "already_consumed": {
+      "type": "boolean",
+      "title": "Already Consumed"
+    },
+    "policy": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/TrialPolicy"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "evaluated_at": {
+      "type": "string",
+      "title": "Evaluated At"
+    },
+    "reason": {
+      "type": "string",
+      "enum": [
+        "unconfigured",
+        "country_review_required",
+        "not_eligible",
+        "already_consumed",
+        "eligible"
+      ],
+      "title": "Reason"
+    }
+  },
+  "type": "object",
+  "required": [
+    "available",
+    "eligible",
+    "already_consumed",
+    "policy",
+    "evaluated_at",
+    "reason"
+  ],
+  "title": "TrialEligibility"
+}
+```
+
+### TrialStart
+
+```json
+{
+  "properties": {
+    "policy_version": {
+      "type": "string",
+      "maxLength": 100,
+      "minLength": 1,
+      "title": "Policy Version"
+    },
+    "terms_accepted": {
+      "type": "boolean",
+      "const": true,
+      "title": "Terms Accepted"
+    },
+    "confirmed": {
+      "type": "boolean",
+      "const": true,
+      "title": "Confirmed"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "policy_version",
+    "terms_accepted",
+    "confirmed"
+  ],
+  "title": "TrialStart"
+}
+```

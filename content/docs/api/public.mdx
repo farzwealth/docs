@@ -1,0 +1,194 @@
+---
+title: Public status and FX
+description: Current unified API contracts, workflow and activation boundaries.
+---
+
+Public capability and health endpoints need no user token. Readiness verifies configured schema/runtime prerequisites; it is not a certificate of complete provider, recovery or native readiness. Capabilities are the current operational source for optional integration availability.
+
+As checked16October2026, identity is configured, lending is available, and AI, billing, email, market, imports, personal API and MCP integrations report `not_configured`. Market FX declarations do not imply licensed live asset/metal feeds. Missing quotes remain unavailable, never invented zero values.
+
+The API root GET/HEAD redirects to https://docs.api.farz.app. Actual `/api/v1` paths retain their own routing and authentication; the root redirect is outside the generated operation index.
+
+| Complete route | Authentication | Required operation headers | Declared success |
+| --- | --- | --- | --- |
+| `GET /api/v1/health/live` | Public / handler-specific | — | 200 application/json |
+| `GET /api/v1/health/ready` | Public / handler-specific | — | 200 application/json |
+| `GET /api/v1/capabilities` | Public / handler-specific | — | 200 application/json CapabilitiesResponse |
+| `GET /api/v1/market/fx` | Public / handler-specific | — | 200 application/json FeedResponse |
+
+## Exact request/response models
+
+These JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).
+
+### CapabilitiesResponse
+
+```json
+{
+  "properties": {
+    "lending_available": {
+      "type": "boolean",
+      "title": "Lending Available",
+      "default": true
+    },
+    "public_app_url": {
+      "type": "string",
+      "title": "Public App Url",
+      "default": "https://dash.farz.app"
+    },
+    "api_external_url": {
+      "type": "string",
+      "title": "Api External Url",
+      "default": "https://api.farz.app/api/v1"
+    },
+    "currency_metadata_version": {
+      "type": "string",
+      "title": "Currency Metadata Version",
+      "default": "iso4217-farz-2026-10-11-v1"
+    },
+    "currency_minor_units": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "type": "object",
+      "title": "Currency Minor Units",
+      "default": {
+        "AED": 2,
+        "USD": 2,
+        "GBP": 2,
+        "EUR": 2,
+        "SAR": 2,
+        "BHD": 3,
+        "KWD": 3,
+        "QAR": 2,
+        "OMR": 3,
+        "JOD": 3,
+        "TRY": 2
+      }
+    },
+    "consent_grant_recent_auth_seconds": {
+      "type": "integer",
+      "const": 300,
+      "title": "Consent Grant Recent Auth Seconds",
+      "default": 300
+    },
+    "consent_withdrawal_recent_auth_required": {
+      "type": "boolean",
+      "const": false,
+      "title": "Consent Withdrawal Recent Auth Required",
+      "default": false
+    },
+    "export_recent_auth_seconds": {
+      "type": "integer",
+      "const": 300,
+      "title": "Export Recent Auth Seconds",
+      "default": 300
+    },
+    "export_recent_auth_evidence": {
+      "type": "string",
+      "const": "provider_signed_first_factor_age",
+      "title": "Export Recent Auth Evidence",
+      "default": "provider_signed_first_factor_age"
+    },
+    "currencies": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array",
+      "title": "Currencies",
+      "default": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ]
+    },
+    "identity_configured": {
+      "type": "boolean",
+      "title": "Identity Configured"
+    },
+    "synthetic": {
+      "type": "boolean",
+      "title": "Synthetic"
+    },
+    "integrations": {
+      "additionalProperties": {
+        "type": "string",
+        "const": "not_configured"
+      },
+      "type": "object",
+      "title": "Integrations"
+    }
+  },
+  "type": "object",
+  "required": [
+    "identity_configured",
+    "synthetic",
+    "integrations"
+  ],
+  "title": "CapabilitiesResponse"
+}
+```
+
+### FeedResponse
+
+```json
+{
+  "properties": {
+    "provider": {
+      "type": "string",
+      "title": "Provider",
+      "default": "Frankfurter"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "available",
+        "unavailable",
+        "disabled"
+      ],
+      "title": "Status"
+    },
+    "checked_at": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Checked At"
+    },
+    "currencies": {
+      "items": {
+        "additionalProperties": {
+          "type": "string"
+        },
+        "type": "object"
+      },
+      "type": "array",
+      "title": "Currencies"
+    },
+    "records": {
+      "items": {
+        "$ref": "#/components/schemas/FXObservationResponse"
+      },
+      "type": "array",
+      "title": "Records"
+    }
+  },
+  "type": "object",
+  "required": [
+    "status"
+  ],
+  "title": "FeedResponse"
+}
+```

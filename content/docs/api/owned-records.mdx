@@ -1,0 +1,203 @@
+---
+title: Owned-record exports
+description: Current unified API contracts, workflow and activation boundaries.
+---
+
+These routes export20 selected financial/profile/consent record groups as paged JSON or CSV. They are not a complete portability archive or a restore format. They require current Clerk ownership and signed recent first-factor authentication on the manifest and every page; refreshing a JWT alone is insufficient. Free/manual users retain this access, including scoped export access while deactivated.
+
+1. GET `/reports/owned-records/manifest/json` under the workspace. Repeated `sections` selects a subset; omission selects all20. Unknown or duplicate sections return422.
+2. Keep the returned `manifest_token` private. The manifest contains an export UUID, counts, full-section digests and a15-minute expiry.
+3. GET `/reports/owned-records/{section}/json?manifest_token=...&limit=25` or the sibling `/csv`. Follow `next_cursor` until null. Default25/maximum100; page size may change. JSON/CSV cursors are interchangeable within the same section/export.
+4. Preserve Decimal strings. JSON supplies page and full-section SHA-256 digests; canonical sorted-key compact UTF-8 JSON permits independent continuity checks. CSV nests the typed record in `data_json`, preserving Unicode and exact strings.
+
+Manifest/cursors bind identity, workspace, lifecycle, sequence, local date and record projections. Expiry, mutations, midnight or changed authority/projection returns409; restart from a fresh manifest. Tokens are not bearer credentials or public download URLs. Responses are no-store; exporting creates no financial movement or durable archive job. The response truthfully retains `complete_account_portability:false`.
+
+| Complete route | Authentication | Required operation headers | Declared success |
+| --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/reports/owned-records/manifest/json` | Clerk user bearer | — | 200 application/json ManifestResponse |
+| `GET /api/v1/workspaces/{workspace_id}/reports/owned-records/{section}/json` | Clerk user bearer | — | 200 application/json ExportPage |
+| `GET /api/v1/workspaces/{workspace_id}/reports/owned-records/{section}/csv` | Clerk user bearer | — | 200 text/csv |
+
+## Exact request/response models
+
+These JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).
+
+### ExportPage
+
+```json
+{
+  "properties": {
+    "format": {
+      "type": "string",
+      "const": "owned_records_page_v1",
+      "title": "Format",
+      "default": "owned_records_page_v1"
+    },
+    "export_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Export Id"
+    },
+    "section": {
+      "type": "string",
+      "enum": [
+        "profile",
+        "accounts",
+        "transactions",
+        "annotations",
+        "budgets",
+        "recurring",
+        "recurring_overrides",
+        "goals",
+        "assets",
+        "asset_valuations",
+        "asset_lifecycle",
+        "debts",
+        "debt_observations",
+        "debt_repayments",
+        "lending",
+        "lending_repayments",
+        "rent",
+        "classifications",
+        "scenarios",
+        "consents"
+      ],
+      "title": "Section"
+    },
+    "as_of": {
+      "type": "string",
+      "format": "date",
+      "title": "As Of"
+    },
+    "total_records": {
+      "type": "integer",
+      "title": "Total Records"
+    },
+    "section_sha256": {
+      "type": "string",
+      "title": "Section Sha256"
+    },
+    "page_sha256": {
+      "type": "string",
+      "title": "Page Sha256"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/ExportRecord"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Cursor"
+    },
+    "complete_account_portability": {
+      "type": "boolean",
+      "const": false,
+      "title": "Complete Account Portability",
+      "default": false
+    }
+  },
+  "type": "object",
+  "required": [
+    "export_id",
+    "section",
+    "as_of",
+    "total_records",
+    "section_sha256",
+    "page_sha256",
+    "items",
+    "next_cursor"
+  ],
+  "title": "ExportPage"
+}
+```
+
+### ManifestResponse
+
+```json
+{
+  "properties": {
+    "format": {
+      "type": "string",
+      "const": "owned_records_v1",
+      "title": "Format",
+      "default": "owned_records_v1"
+    },
+    "export_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Export Id"
+    },
+    "workspace_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Workspace Id"
+    },
+    "as_of": {
+      "type": "string",
+      "format": "date",
+      "title": "As Of"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Expires At"
+    },
+    "sections": {
+      "items": {
+        "$ref": "#/components/schemas/SectionInfo"
+      },
+      "type": "array",
+      "title": "Sections"
+    },
+    "complete_account_portability": {
+      "type": "boolean",
+      "const": false,
+      "title": "Complete Account Portability",
+      "default": false
+    },
+    "scope": {
+      "type": "string",
+      "const": "selected_owned_financial_profile_and_consent_records",
+      "title": "Scope",
+      "default": "selected_owned_financial_profile_and_consent_records"
+    },
+    "omitted": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array",
+      "title": "Omitted"
+    },
+    "manifest_token": {
+      "type": "string",
+      "title": "Manifest Token"
+    }
+  },
+  "type": "object",
+  "required": [
+    "export_id",
+    "workspace_id",
+    "as_of",
+    "created_at",
+    "expires_at",
+    "sections",
+    "manifest_token"
+  ],
+  "title": "ManifestResponse"
+}
+```

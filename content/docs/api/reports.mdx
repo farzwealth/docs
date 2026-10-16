@@ -7,18 +7,54 @@ Create a scoped export task, inspect/execute its state according to the declared
 
 Private operations require an authorized Clerk user bearer and workspace membership. Optional/sensitive services retain their policy/entitlement/fresh-authentication gates.
 
-| Complete route | Required operation headers (besides authentication) | Declared success |
-| --- | --- | --- |
-| `POST /api/v1/workspaces/{workspace_id}/exports` | `Idempotency-Key` | 202 application/json ExportStatus |
-| `GET /api/v1/workspaces/{workspace_id}/exports/{task_id}` | — | 200 application/json ExportStatus |
-| `POST /api/v1/workspaces/{workspace_id}/exports/{task_id}/execute` | — | 200 application/json ExportStatus |
-| `POST /api/v1/workspaces/{workspace_id}/exports/{task_id}/cancel` | — | 200 application/json ExportStatus |
-| `GET /api/v1/workspaces/{workspace_id}/exports/{task_id}/download.csv` | — | 200 text/csv |
-| `GET /api/v1/workspaces/{workspace_id}/exports/{task_id}/download.json` | — | 200 application/json |
+The reference also covers activity/obligation/account statements, ledger queries and durable report exports. Download formats and task execution differ by family; inspect each declared contract. [Owned-record exports](/docs/api/owned-records) use a separate15-minute manifest workflow.
+
+| Complete route | Authentication | Required operation headers | Declared success |
+| --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/reports/net-worth.csv` | Clerk user bearer | — | 200 text/csv |
+| `GET /api/v1/workspaces/{workspace_id}/reports/net-worth.html` | Clerk user bearer | — | 200 text/html |
+| `GET /api/v1/workspaces/{workspace_id}/reports/transactions.csv` | Clerk user bearer | — | 200 text/csv |
+| `GET /api/v1/workspaces/{workspace_id}/reports/transactions.html` | Clerk user bearer | — | 200 text/html |
+| `POST /api/v1/workspaces/{workspace_id}/exports` | Clerk user bearer | `Idempotency-Key` | 202 application/json ExportStatus |
+| `GET /api/v1/workspaces/{workspace_id}/exports/{task_id}` | Clerk user bearer | — | 200 application/json ExportStatus |
+| `POST /api/v1/workspaces/{workspace_id}/exports/{task_id}/execute` | Clerk user bearer | — | 200 application/json ExportStatus |
+| `POST /api/v1/workspaces/{workspace_id}/exports/{task_id}/cancel` | Clerk user bearer | — | 200 application/json ExportStatus |
+| `GET /api/v1/workspaces/{workspace_id}/exports/{task_id}/download.csv` | Clerk user bearer | — | 200 text/csv |
+| `GET /api/v1/workspaces/{workspace_id}/exports/{task_id}/download.json` | Clerk user bearer | — | 200 application/json |
+| `GET /api/v1/workspaces/{workspace_id}/reports/ledger-query.csv` | Clerk user bearer | — | 200 text/csv |
+| `GET /api/v1/workspaces/{workspace_id}/reports/ledger-query.html` | Clerk user bearer | — | 200 text/html |
+| `POST /api/v1/workspaces/{workspace_id}/report-exports` | Clerk user bearer | `Idempotency-Key` | 202 application/json ExportStatus |
+| `GET /api/v1/workspaces/{workspace_id}/report-exports/{task_id}` | Clerk user bearer | — | 200 application/json ExportStatus |
+| `POST /api/v1/workspaces/{workspace_id}/report-exports/{task_id}/cancel` | Clerk user bearer | `Idempotency-Key` | 200 application/json ExportStatus |
+| `GET /api/v1/workspaces/{workspace_id}/report-exports/{task_id}/download` | Clerk user bearer | — | 200 application/pdf; 200 text/csv; 200 application/json |
+| `GET /api/v1/workspaces/{workspace_id}/reports/activity-insights/{format}` | Clerk user bearer | — | 200 application/json; 200 text/csv; 200 text/html |
+| `GET /api/v1/workspaces/{workspace_id}/reports/upcoming-obligations/{format}` | Clerk user bearer | — | 200 application/json; 200 text/csv; 200 text/html |
+| `GET /api/v1/workspaces/{workspace_id}/reports/accounts/{account_id}/statement/{format}` | Clerk user bearer | — | 200 application/json; 200 text/csv; 200 text/html |
 
 ## Exact request/response models
 
 These JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).
+
+### ExportCancel
+
+```json
+{
+  "properties": {
+    "expected_attempt": {
+      "type": "integer",
+      "maximum": 3,
+      "minimum": 0,
+      "title": "Expected Attempt"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expected_attempt"
+  ],
+  "title": "ExportCancel"
+}
+```
 
 ### ExportSpec
 
@@ -114,5 +150,53 @@ These JSON Schema definitions are generated from the verified contract, not samp
     "expires_at"
   ],
   "title": "ExportStatus"
+}
+```
+
+### ReportExportSpec
+
+```json
+{
+  "properties": {
+    "format": {
+      "type": "string",
+      "enum": [
+        "csv",
+        "json",
+        "pdf"
+      ],
+      "title": "Format",
+      "default": "csv"
+    },
+    "start": {
+      "type": "string",
+      "format": "date",
+      "title": "Start"
+    },
+    "end": {
+      "type": "string",
+      "format": "date",
+      "title": "End"
+    },
+    "account_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Account Id"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "start",
+    "end"
+  ],
+  "title": "ReportExportSpec"
 }
 ```

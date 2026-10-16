@@ -7,14 +7,138 @@ Use these actual workspace routes instead of the former `/summary` alias. Net wo
 
 Private operations require an authorized Clerk user bearer and workspace membership. Optional/sensitive services retain their policy/entitlement/fresh-authentication gates.
 
-| Complete route | Required operation headers (besides authentication) | Declared success |
-| --- | --- | --- |
-| `GET /api/v1/workspaces/{workspace_id}/dashboard` | — | 200 application/json DashboardResponse |
-| `GET /api/v1/workspaces/{workspace_id}/cashflow` | — | 200 application/json CashflowResponse |
+| Complete route | Authentication | Required operation headers | Declared success |
+| --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/scenarios/page` | Clerk user bearer | — | 200 application/json RecordPage_ScenarioResponse_ |
+| `GET /api/v1/workspaces/{workspace_id}/dashboard` | Clerk user bearer | — | 200 application/json DashboardResponse |
+| `GET /api/v1/workspaces/{workspace_id}/forecast` | Clerk user bearer | — | 200 application/json ForecastPage |
+| `GET /api/v1/workspaces/{workspace_id}/cashflow` | Clerk user bearer | — | 200 application/json CashflowResponse |
+| `POST /api/v1/workspaces/{workspace_id}/scenarios/preview` | Clerk user bearer | — | 200 application/json ScenarioPreview |
+| `GET /api/v1/workspaces/{workspace_id}/scenarios` | Clerk user bearer | — | 200 application/json ScenarioResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/scenarios` | Clerk user bearer | `Idempotency-Key` | 200 application/json ScenarioResponse |
+| `GET /api/v1/workspaces/{workspace_id}/activity-insights` | Clerk user bearer | — | 200 application/json ActivityInsights |
+| `GET /api/v1/workspaces/{workspace_id}/upcoming-obligations` | Clerk user bearer | — | 200 application/json UpcomingPage |
 
 ## Exact request/response models
 
 These JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).
+
+### ActivityInsights
+
+```json
+{
+  "properties": {
+    "conversion_basis": {
+      "type": "string",
+      "const": "dated_reference_per_category_component_rounded_18_places",
+      "title": "Conversion Basis",
+      "default": "dated_reference_per_category_component_rounded_18_places"
+    },
+    "version": {
+      "type": "string",
+      "const": "actual_activity_v1",
+      "title": "Version",
+      "default": "actual_activity_v1"
+    },
+    "start": {
+      "type": "string",
+      "format": "date",
+      "title": "Start"
+    },
+    "end": {
+      "type": "string",
+      "format": "date",
+      "title": "End"
+    },
+    "base_currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Base Currency"
+    },
+    "timezone": {
+      "type": "string",
+      "title": "Timezone"
+    },
+    "change_sequence": {
+      "type": "integer",
+      "title": "Change Sequence"
+    },
+    "summary": {
+      "$ref": "#/components/schemas/LedgerSearchSummary"
+    },
+    "categories": {
+      "items": {
+        "$ref": "#/components/schemas/ActivityBucket"
+      },
+      "type": "array",
+      "title": "Categories"
+    },
+    "days": {
+      "items": {
+        "$ref": "#/components/schemas/ActivityDay"
+      },
+      "type": "array",
+      "title": "Days"
+    },
+    "budgets": {
+      "items": {
+        "$ref": "#/components/schemas/BudgetVariance"
+      },
+      "type": "array",
+      "title": "Budgets"
+    },
+    "classification_is_current": {
+      "type": "boolean",
+      "const": true,
+      "title": "Classification Is Current",
+      "default": true
+    },
+    "ownership_is_current": {
+      "type": "boolean",
+      "const": true,
+      "title": "Ownership Is Current",
+      "default": true
+    },
+    "native_amounts_are_gross_activity": {
+      "type": "boolean",
+      "const": true,
+      "title": "Native Amounts Are Gross Activity",
+      "default": true
+    },
+    "forecast_included": {
+      "type": "boolean",
+      "const": false,
+      "title": "Forecast Included",
+      "default": false
+    }
+  },
+  "type": "object",
+  "required": [
+    "start",
+    "end",
+    "base_currency",
+    "timezone",
+    "change_sequence",
+    "summary",
+    "categories",
+    "days",
+    "budgets"
+  ],
+  "title": "ActivityInsights"
+}
+```
 
 ### CashflowResponse
 
@@ -280,5 +404,590 @@ These JSON Schema definitions are generated from the verified contract, not samp
     "synthetic"
   ],
   "title": "DashboardResponse"
+}
+```
+
+### ForecastPage
+
+```json
+{
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/ForecastOccurrence"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "truncated": {
+      "type": "boolean",
+      "title": "Truncated",
+      "default": false
+    },
+    "start": {
+      "type": "string",
+      "format": "date",
+      "title": "Start"
+    },
+    "end": {
+      "type": "string",
+      "format": "date",
+      "title": "End"
+    }
+  },
+  "type": "object",
+  "required": [
+    "items",
+    "start",
+    "end"
+  ],
+  "title": "ForecastPage"
+}
+```
+
+### RecordPage_ScenarioResponse_
+
+```json
+{
+  "properties": {
+    "as_of": {
+      "type": "string",
+      "format": "date",
+      "title": "As Of"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/ScenarioResponse"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Cursor"
+    }
+  },
+  "type": "object",
+  "required": [
+    "as_of",
+    "items",
+    "next_cursor"
+  ],
+  "title": "RecordPage[ScenarioResponse]"
+}
+```
+
+### ScenarioPreview
+
+```json
+{
+  "properties": {
+    "inputs": {
+      "$ref": "#/components/schemas/ScenarioWrite"
+    },
+    "calculation": {
+      "$ref": "#/components/schemas/ScenarioCalculation"
+    }
+  },
+  "type": "object",
+  "required": [
+    "inputs",
+    "calculation"
+  ],
+  "title": "ScenarioPreview"
+}
+```
+
+### ScenarioResponse
+
+```json
+{
+  "properties": {
+    "algorithm": {
+      "type": "string",
+      "enum": [
+        "constant_cashflow_v1",
+        "explicit_stress_v2"
+      ],
+      "title": "Algorithm",
+      "default": "constant_cashflow_v1"
+    },
+    "monthly_net_basis": {
+      "type": "string",
+      "enum": [
+        "constant",
+        "first_projection_month"
+      ],
+      "title": "Monthly Net Basis",
+      "default": "constant"
+    },
+    "baseline_ending_balance": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Baseline Ending Balance"
+    },
+    "difference_from_baseline": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Difference From Baseline"
+    },
+    "first_deficit_basis": {
+      "type": "string",
+      "const": "end_of_month_cash_order_not_modeled",
+      "title": "First Deficit Basis",
+      "default": "end_of_month_cash_order_not_modeled"
+    },
+    "opening_after_cost": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Opening After Cost"
+    },
+    "adjusted_income": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Adjusted Income"
+    },
+    "adjusted_expenses": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Adjusted Expenses"
+    },
+    "monthly_net": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Monthly Net"
+    },
+    "ending_balance": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Ending Balance"
+    },
+    "first_deficit_month": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "First Deficit Month"
+    },
+    "points": {
+      "items": {
+        "$ref": "#/components/schemas/ScenarioPoint"
+      },
+      "type": "array",
+      "title": "Points"
+    },
+    "basis": {
+      "type": "string",
+      "enum": [
+        "user_assumptions_no_returns_or_fx",
+        "user_assumptions_explicit_stress"
+      ],
+      "title": "Basis",
+      "default": "user_assumptions_no_returns_or_fx"
+    },
+    "stress": {
+      "anyOf": [
+        {
+          "oneOf": [
+            {
+              "$ref": "#/components/schemas/IncomeStress"
+            },
+            {
+              "$ref": "#/components/schemas/PaymentStress"
+            },
+            {
+              "$ref": "#/components/schemas/CurrencyStress"
+            },
+            {
+              "$ref": "#/components/schemas/PurchaseStress"
+            },
+            {
+              "$ref": "#/components/schemas/EmergencyStress"
+            }
+          ],
+          "discriminator": {
+            "propertyName": "kind",
+            "mapping": {
+              "currency_movement": "#/components/schemas/CurrencyStress",
+              "emergency_fund": "#/components/schemas/EmergencyStress",
+              "income_loss": "#/components/schemas/IncomeStress",
+              "major_purchase": "#/components/schemas/PurchaseStress",
+              "rate_change": "#/components/schemas/PaymentStress",
+              "vacancy": "#/components/schemas/IncomeStress"
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Stress"
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "title": {
+      "type": "string",
+      "title": "Title"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "income_loss",
+        "vacancy",
+        "higher_costs",
+        "major_purchase",
+        "emergency_fund"
+      ],
+      "title": "Kind"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "liquid_balance": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Liquid Balance"
+    },
+    "monthly_income": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Monthly Income"
+    },
+    "monthly_expenses": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Monthly Expenses"
+    },
+    "income_reduction": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Income Reduction"
+    },
+    "expense_increase": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Expense Increase"
+    },
+    "one_off_cost": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "One Off Cost"
+    },
+    "months": {
+      "type": "integer",
+      "title": "Months"
+    }
+  },
+  "type": "object",
+  "required": [
+    "opening_after_cost",
+    "adjusted_income",
+    "adjusted_expenses",
+    "monthly_net",
+    "ending_balance",
+    "first_deficit_month",
+    "points",
+    "id",
+    "revision",
+    "title",
+    "kind",
+    "currency",
+    "liquid_balance",
+    "monthly_income",
+    "monthly_expenses",
+    "income_reduction",
+    "expense_increase",
+    "one_off_cost",
+    "months"
+  ],
+  "title": "ScenarioResponse"
+}
+```
+
+### ScenarioWrite
+
+```json
+{
+  "properties": {
+    "stress": {
+      "anyOf": [
+        {
+          "oneOf": [
+            {
+              "$ref": "#/components/schemas/IncomeStress"
+            },
+            {
+              "$ref": "#/components/schemas/PaymentStress"
+            },
+            {
+              "$ref": "#/components/schemas/CurrencyStress"
+            },
+            {
+              "$ref": "#/components/schemas/PurchaseStress"
+            },
+            {
+              "$ref": "#/components/schemas/EmergencyStress"
+            }
+          ],
+          "discriminator": {
+            "propertyName": "kind",
+            "mapping": {
+              "currency_movement": "#/components/schemas/CurrencyStress",
+              "emergency_fund": "#/components/schemas/EmergencyStress",
+              "income_loss": "#/components/schemas/IncomeStress",
+              "major_purchase": "#/components/schemas/PurchaseStress",
+              "rate_change": "#/components/schemas/PaymentStress",
+              "vacancy": "#/components/schemas/IncomeStress"
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Stress"
+    },
+    "id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Id"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision",
+      "default": 0
+    },
+    "title": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Title"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "income_loss",
+        "vacancy",
+        "higher_costs",
+        "major_purchase",
+        "emergency_fund"
+      ],
+      "title": "Kind",
+      "default": "income_loss"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "liquid_balance": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Liquid Balance"
+    },
+    "monthly_income": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Monthly Income"
+    },
+    "monthly_expenses": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Monthly Expenses"
+    },
+    "income_reduction": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Income Reduction",
+      "default": "0"
+    },
+    "expense_increase": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Expense Increase",
+      "default": "0"
+    },
+    "one_off_cost": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "One Off Cost",
+      "default": "0"
+    },
+    "months": {
+      "type": "integer",
+      "maximum": 120,
+      "minimum": 1,
+      "title": "Months",
+      "default": 12
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "title",
+    "currency",
+    "liquid_balance",
+    "monthly_income",
+    "monthly_expenses"
+  ],
+  "title": "ScenarioWrite"
+}
+```
+
+### UpcomingPage
+
+```json
+{
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "upcoming_obligations_v1",
+      "title": "Version",
+      "default": "upcoming_obligations_v1"
+    },
+    "start": {
+      "type": "string",
+      "format": "date",
+      "title": "Start"
+    },
+    "end": {
+      "type": "string",
+      "format": "date",
+      "title": "End"
+    },
+    "today": {
+      "type": "string",
+      "format": "date",
+      "title": "Today"
+    },
+    "timezone": {
+      "type": "string",
+      "title": "Timezone"
+    },
+    "change_sequence": {
+      "type": "integer",
+      "title": "Change Sequence"
+    },
+    "total_items": {
+      "type": "integer",
+      "title": "Total Items"
+    },
+    "totals": {
+      "items": {
+        "$ref": "#/components/schemas/UpcomingTotals"
+      },
+      "type": "array",
+      "title": "Totals"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/UpcomingItem"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Cursor"
+    },
+    "initiates_payments": {
+      "type": "boolean",
+      "const": false,
+      "title": "Initiates Payments",
+      "default": false
+    },
+    "forecast_is_proof_of_nonpayment": {
+      "type": "boolean",
+      "const": false,
+      "title": "Forecast Is Proof Of Nonpayment",
+      "default": false
+    }
+  },
+  "type": "object",
+  "required": [
+    "start",
+    "end",
+    "today",
+    "timezone",
+    "change_sequence",
+    "total_items",
+    "totals",
+    "items",
+    "next_cursor"
+  ],
+  "title": "UpcomingPage"
 }
 ```

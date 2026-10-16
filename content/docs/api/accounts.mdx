@@ -7,10 +7,25 @@ GET accounts returns `AccountResponse[]`, with decimal-string `balance` and sepa
 
 Private operations require an authorized Clerk user bearer and workspace membership. Optional/sensitive services retain their policy/entitlement/fresh-authentication gates.
 
-| Complete route | Required operation headers (besides authentication) | Declared success |
-| --- | --- | --- |
-| `GET /api/v1/workspaces/{workspace_id}/accounts` | — | 200 application/json AccountResponse[] |
-| `POST /api/v1/workspaces/{workspace_id}/accounts` | `Idempotency-Key` | 201 application/json AccountResponse |
+For filters and historical balances use `/accounts/page`; the legacy `/accounts` array is unchanged. Card statement/payment, statement comparison and reconciliation routes record reviewed facts, not a bank connection. Private statements distinguish actual balances from declared imported statement values.
+
+| Complete route | Authentication | Required operation headers | Declared success |
+| --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/accounts/page` | Clerk user bearer | — | 200 application/json AccountPage |
+| `GET /api/v1/workspaces/{workspace_id}/accounts` | Clerk user bearer | — | 200 application/json AccountResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/accounts` | Clerk user bearer | `Idempotency-Key` | 201 application/json AccountResponse |
+| `POST /api/v1/workspaces/{workspace_id}/accounts/adjustments` | Clerk user bearer | `Idempotency-Key` | 200 application/json TransactionResponse |
+| `POST /api/v1/workspaces/{workspace_id}/accounts/{account_id}/settings` | Clerk user bearer | `Idempotency-Key` | 200 application/json AccountResponse |
+| `GET /api/v1/workspaces/{workspace_id}/accounts/{account_id}/statement-comparisons` | Clerk user bearer | — | 200 application/json StatementComparisonResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/accounts/{account_id}/statement-comparisons` | Clerk user bearer | `Idempotency-Key` | 200 application/json StatementComparisonResponse |
+| `GET /api/v1/workspaces/{workspace_id}/accounts/{account_id}/reconciliation` | Clerk user bearer | — | 200 application/json ReconciliationResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/accounts/{account_id}/reconciliation` | Clerk user bearer | `Idempotency-Key` | 200 application/json ReconciliationResponse |
+| `POST /api/v1/workspaces/{workspace_id}/accounts/{account_id}/card-statements/preview` | Clerk user bearer | — | 200 application/json CardPreview |
+| `POST /api/v1/workspaces/{workspace_id}/accounts/{account_id}/card-statements` | Clerk user bearer | `Idempotency-Key` | 201 application/json CardStatementResponse |
+| `GET /api/v1/workspaces/{workspace_id}/accounts/{account_id}/card-statements` | Clerk user bearer | — | 200 application/json CardStatementPage |
+| `GET /api/v1/workspaces/{workspace_id}/card-statements/{statement_id}` | Clerk user bearer | — | 200 application/json CardStatementResponse |
+| `POST /api/v1/workspaces/{workspace_id}/accounts/{account_id}/card-payments` | Clerk user bearer | `Idempotency-Key` | 201 application/json CardPaymentResponse |
+| `GET /api/v1/workspaces/{workspace_id}/accounts/{account_id}/statement` | Clerk user bearer | — | 200 application/json AccountStatement |
 
 ## Exact request/response models
 
@@ -21,6 +36,29 @@ These JSON Schema definitions are generated from the verified contract, not samp
 ```json
 {
   "properties": {
+    "owner_fraction": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Owner Fraction"
+    },
+    "opening_balance_confirmed": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Opening Balance Confirmed"
+    },
     "name": {
       "type": "string",
       "maxLength": 100,
@@ -90,11 +128,90 @@ These JSON Schema definitions are generated from the verified contract, not samp
 }
 ```
 
+### AccountPage
+
+```json
+{
+  "properties": {
+    "as_of": {
+      "type": "string",
+      "format": "date",
+      "title": "As Of"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/AccountResponse"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Cursor"
+    }
+  },
+  "type": "object",
+  "required": [
+    "as_of",
+    "items",
+    "next_cursor"
+  ],
+  "title": "AccountPage"
+}
+```
+
 ### AccountResponse
 
 ```json
 {
   "properties": {
+    "owner_fraction": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Owner Fraction",
+      "default": "1"
+    },
+    "owned_balance": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Owned Balance"
+    },
+    "opening_balance": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Opening Balance"
+    },
+    "opening_balance_status": {
+      "type": "string",
+      "enum": [
+        "user_recorded",
+        "user_confirmed",
+        "legacy_unconfirmed"
+      ],
+      "title": "Opening Balance Status",
+      "default": "legacy_unconfirmed"
+    },
     "liquidity": {
       "type": "string",
       "enum": [
@@ -182,5 +299,1517 @@ These JSON Schema definitions are generated from the verified contract, not samp
     "opening_date"
   ],
   "title": "AccountResponse"
+}
+```
+
+### AccountStatement
+
+```json
+{
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "account_statement_v1",
+      "title": "Version",
+      "default": "account_statement_v1"
+    },
+    "summary": {
+      "$ref": "#/components/schemas/StatementSummary"
+    },
+    "comparison": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/StatementComparisonResponse"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "comparison_is_current": {
+      "type": "boolean",
+      "title": "Comparison Is Current"
+    },
+    "reconciliation": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/ReconciliationResponse"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/StatementItem"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Cursor"
+    }
+  },
+  "type": "object",
+  "required": [
+    "summary",
+    "comparison",
+    "comparison_is_current",
+    "reconciliation",
+    "items",
+    "next_cursor"
+  ],
+  "title": "AccountStatement"
+}
+```
+
+### AccountUpdate
+
+```json
+{
+  "properties": {
+    "owner_fraction": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Owner Fraction"
+    },
+    "confirmed_opening_balance": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Confirmed Opening Balance"
+    },
+    "liquidity": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "liquid",
+            "illiquid",
+            "unknown"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Liquidity"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Revision"
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 100,
+      "minLength": 1,
+      "title": "Name"
+    },
+    "institution": {
+      "type": "string",
+      "maxLength": 100,
+      "title": "Institution",
+      "default": ""
+    },
+    "masked_reference": {
+      "type": "string",
+      "pattern": "^[0-9]{0,4}$",
+      "title": "Masked Reference",
+      "default": ""
+    },
+    "archived": {
+      "type": "boolean",
+      "title": "Archived",
+      "default": false
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expected_revision",
+    "name"
+  ],
+  "title": "AccountUpdate"
+}
+```
+
+### AdjustmentWrite
+
+```json
+{
+  "properties": {
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "expected_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Account Revision"
+    },
+    "observed_balance": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Observed Balance"
+    },
+    "occurred_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Occurred On"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "account_id",
+    "expected_account_revision",
+    "observed_balance",
+    "occurred_on",
+    "reason"
+  ],
+  "title": "AdjustmentWrite"
+}
+```
+
+### CardFacts
+
+```json
+{
+  "properties": {
+    "period_start": {
+      "type": "string",
+      "format": "date",
+      "title": "Period Start"
+    },
+    "period_end": {
+      "type": "string",
+      "format": "date",
+      "title": "Period End"
+    },
+    "outstanding_principal": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Outstanding Principal"
+    },
+    "pending_charges": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Pending Charges"
+    },
+    "payments": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Payments"
+    },
+    "credit_balance": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Credit Balance"
+    },
+    "credit_limit": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Credit Limit"
+    },
+    "reported_balance": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Reported Balance"
+    },
+    "source": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Source"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "period_start",
+    "period_end",
+    "outstanding_principal",
+    "pending_charges",
+    "payments",
+    "credit_balance",
+    "credit_limit",
+    "reported_balance",
+    "source"
+  ],
+  "title": "CardFacts"
+}
+```
+
+### CardPaymentResponse
+
+```json
+{
+  "properties": {
+    "transaction": {
+      "$ref": "#/components/schemas/TransactionResponse"
+    },
+    "source_balance": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Source Balance"
+    },
+    "card_balance": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Card Balance"
+    },
+    "card_credit_balance": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Card Credit Balance"
+    }
+  },
+  "type": "object",
+  "required": [
+    "transaction",
+    "source_balance",
+    "card_balance",
+    "card_credit_balance"
+  ],
+  "title": "CardPaymentResponse"
+}
+```
+
+### CardPaymentWrite
+
+```json
+{
+  "properties": {
+    "already_paid": {
+      "type": "boolean",
+      "const": true,
+      "title": "Already Paid"
+    },
+    "source_account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Source Account Id"
+    },
+    "expected_source_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Source Revision"
+    },
+    "expected_card_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Card Revision"
+    },
+    "amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Amount"
+    },
+    "occurred_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Occurred On"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Description"
+    },
+    "overpayment_confirmed": {
+      "type": "boolean",
+      "title": "Overpayment Confirmed",
+      "default": false
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "already_paid",
+    "source_account_id",
+    "expected_source_revision",
+    "expected_card_revision",
+    "amount",
+    "occurred_on",
+    "description"
+  ],
+  "title": "CardPaymentWrite"
+}
+```
+
+### CardPreview
+
+```json
+{
+  "properties": {
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "account_revision": {
+      "type": "integer",
+      "title": "Account Revision"
+    },
+    "change_sequence": {
+      "type": "integer",
+      "title": "Change Sequence"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "period_start": {
+      "type": "string",
+      "format": "date",
+      "title": "Period Start"
+    },
+    "period_end": {
+      "type": "string",
+      "format": "date",
+      "title": "Period End"
+    },
+    "ledger_balance": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Ledger Balance"
+    },
+    "ledger_payment_total": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Ledger Payment Total"
+    },
+    "payment_entry_ids": {
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "type": "array",
+      "title": "Payment Entry Ids"
+    },
+    "statement_net_components": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Statement Net Components"
+    },
+    "reported_vs_ledger_difference": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Reported Vs Ledger Difference"
+    },
+    "components_vs_reported_difference": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Components Vs Reported Difference"
+    },
+    "payments_difference": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Payments Difference"
+    },
+    "conservative_headroom_estimate": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Conservative Headroom Estimate"
+    },
+    "input_digest": {
+      "type": "string",
+      "title": "Input Digest"
+    }
+  },
+  "type": "object",
+  "required": [
+    "account_id",
+    "account_revision",
+    "change_sequence",
+    "currency",
+    "period_start",
+    "period_end",
+    "ledger_balance",
+    "ledger_payment_total",
+    "payment_entry_ids",
+    "statement_net_components",
+    "reported_vs_ledger_difference",
+    "components_vs_reported_difference",
+    "payments_difference",
+    "conservative_headroom_estimate",
+    "input_digest"
+  ],
+  "title": "CardPreview"
+}
+```
+
+### CardStatementPage
+
+```json
+{
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/CardStatementResponse"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "next_before_revision": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Before Revision"
+    }
+  },
+  "type": "object",
+  "required": [
+    "items",
+    "next_before_revision"
+  ],
+  "title": "CardStatementPage"
+}
+```
+
+### CardStatementResponse
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    },
+    "recorded_by": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Recorded By"
+    },
+    "previous_statement_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Previous Statement Id"
+    },
+    "reason": {
+      "type": "string",
+      "title": "Reason"
+    },
+    "facts": {
+      "$ref": "#/components/schemas/CardFacts"
+    },
+    "comparison": {
+      "$ref": "#/components/schemas/CardPreview"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "account_id",
+    "revision",
+    "recorded_at",
+    "recorded_by",
+    "previous_statement_id",
+    "reason",
+    "facts",
+    "comparison"
+  ],
+  "title": "CardStatementResponse"
+}
+```
+
+### CardStatementWrite
+
+```json
+{
+  "properties": {
+    "period_start": {
+      "type": "string",
+      "format": "date",
+      "title": "Period Start"
+    },
+    "period_end": {
+      "type": "string",
+      "format": "date",
+      "title": "Period End"
+    },
+    "outstanding_principal": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Outstanding Principal"
+    },
+    "pending_charges": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Pending Charges"
+    },
+    "payments": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Payments"
+    },
+    "credit_balance": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Credit Balance"
+    },
+    "credit_limit": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Credit Limit"
+    },
+    "reported_balance": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Reported Balance"
+    },
+    "source": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Source"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision"
+    },
+    "expected_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Account Revision"
+    },
+    "expected_change_sequence": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Change Sequence"
+    },
+    "input_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Input Digest"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "period_start",
+    "period_end",
+    "outstanding_principal",
+    "pending_charges",
+    "payments",
+    "credit_balance",
+    "credit_limit",
+    "reported_balance",
+    "source",
+    "expected_revision",
+    "expected_account_revision",
+    "expected_change_sequence",
+    "input_digest",
+    "reason"
+  ],
+  "title": "CardStatementWrite"
+}
+```
+
+### ReconciliationResponse
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "close",
+        "reopen"
+      ],
+      "title": "Action"
+    },
+    "through": {
+      "type": "string",
+      "format": "date",
+      "title": "Through"
+    },
+    "comparison_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Comparison Id"
+    },
+    "balance": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Balance"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "journal_entry_ids": {
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "type": "array",
+      "title": "Journal Entry Ids"
+    },
+    "classification_revisions": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "type": "object",
+      "title": "Classification Revisions"
+    },
+    "statement_source": {
+      "type": "string",
+      "title": "Statement Source"
+    },
+    "reason": {
+      "type": "string",
+      "title": "Reason"
+    },
+    "previous_event_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Previous Event Id"
+    },
+    "account_revision": {
+      "type": "integer",
+      "title": "Account Revision"
+    },
+    "recorded_by": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Recorded By"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "account_id",
+    "revision",
+    "recorded_at",
+    "action",
+    "through",
+    "comparison_id",
+    "balance",
+    "currency",
+    "journal_entry_ids",
+    "classification_revisions",
+    "statement_source",
+    "reason",
+    "previous_event_id",
+    "account_revision",
+    "recorded_by"
+  ],
+  "title": "ReconciliationResponse"
+}
+```
+
+### ReconciliationWrite
+
+```json
+{
+  "properties": {
+    "action": {
+      "type": "string",
+      "enum": [
+        "close",
+        "reopen"
+      ],
+      "title": "Action"
+    },
+    "comparison_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Comparison Id"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision"
+    },
+    "expected_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Account Revision"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "action",
+    "expected_revision",
+    "expected_account_revision",
+    "reason"
+  ],
+  "title": "ReconciliationWrite"
+}
+```
+
+### StatementComparisonResponse
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "through": {
+      "type": "string",
+      "format": "date",
+      "title": "Through"
+    },
+    "statement_balance": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Statement Balance"
+    },
+    "ledger_balance": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Ledger Balance"
+    },
+    "difference": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Difference"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "source": {
+      "type": "string",
+      "title": "Source"
+    },
+    "account_revision": {
+      "type": "integer",
+      "title": "Account Revision"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "matched",
+        "discrepant"
+      ],
+      "title": "Status"
+    },
+    "journal_entry_ids": {
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "type": "array",
+      "title": "Journal Entry Ids"
+    },
+    "recorded_by": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Recorded By"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "account_id",
+    "revision",
+    "through",
+    "statement_balance",
+    "ledger_balance",
+    "difference",
+    "currency",
+    "source",
+    "account_revision",
+    "status",
+    "journal_entry_ids",
+    "recorded_by",
+    "recorded_at"
+  ],
+  "title": "StatementComparisonResponse"
+}
+```
+
+### StatementComparisonWrite
+
+```json
+{
+  "properties": {
+    "through": {
+      "type": "string",
+      "format": "date",
+      "title": "Through"
+    },
+    "statement_balance": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Statement Balance"
+    },
+    "source": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Source"
+    },
+    "expected_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Account Revision"
+    },
+    "expected_comparison_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Comparison Revision",
+      "default": 0
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "through",
+    "statement_balance",
+    "source",
+    "expected_account_revision"
+  ],
+  "title": "StatementComparisonWrite"
+}
+```
+
+### TransactionResponse
+
+```json
+{
+  "properties": {
+    "pending_transfer_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Pending Transfer Id"
+    },
+    "recurring_posting_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Recurring Posting Id"
+    },
+    "recurring_template_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Recurring Template Id"
+    },
+    "internal_transfer_match_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Internal Transfer Match Id"
+    },
+    "transfer_partner_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Transfer Partner Id"
+    },
+    "money_workflow_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Money Workflow Id"
+    },
+    "loan_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Loan Id"
+    },
+    "lending_repayment_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Lending Repayment Id"
+    },
+    "fx_transfer": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/FXTransferMetadata"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "fx_rounding": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/FXRoundingMetadata"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "cash_delta": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Cash Delta"
+    },
+    "investment_settlement_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Investment Settlement Id"
+    },
+    "deposit_payout_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Deposit Payout Id"
+    },
+    "refund_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Refund Id"
+    },
+    "original_expense_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Original Expense Id"
+    },
+    "investment_event_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Investment Event Id"
+    },
+    "asset_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Asset Id"
+    },
+    "debt_repayment_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Debt Repayment Id"
+    },
+    "debt_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Debt Id"
+    },
+    "rule_snapshot": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/MerchantRuleResponse"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "classification_revision": {
+      "type": "integer",
+      "title": "Classification Revision",
+      "default": 0
+    },
+    "tags": {
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "type": "array",
+      "title": "Tags"
+    },
+    "allocations": {
+      "items": {
+        "$ref": "#/components/schemas/TransactionAllocation"
+      },
+      "type": "array",
+      "title": "Allocations"
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "account_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Account Id"
+    },
+    "description": {
+      "type": "string",
+      "title": "Description"
+    },
+    "amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Amount"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "category": {
+      "type": "string",
+      "title": "Category"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "expense",
+        "income",
+        "transfer",
+        "opening",
+        "reversal",
+        "adjustment",
+        "debt_principal",
+        "asset_purchase",
+        "asset_sale",
+        "asset_redemption",
+        "refund",
+        "fx_rounding",
+        "loan_advance",
+        "loan_repayment"
+      ],
+      "title": "Type"
+    },
+    "occurred_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Occurred On"
+    },
+    "reviewed": {
+      "type": "boolean",
+      "title": "Reviewed",
+      "default": false
+    },
+    "reversal_of": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Reversal Of"
+    },
+    "reversed": {
+      "type": "boolean",
+      "title": "Reversed",
+      "default": false
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "account_id",
+    "description",
+    "amount",
+    "currency",
+    "category",
+    "type",
+    "occurred_on"
+  ],
+  "title": "TransactionResponse"
 }
 ```

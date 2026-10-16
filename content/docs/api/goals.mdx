@@ -7,10 +7,13 @@ Goal reads and writes use the actual GoalResponse/GoalCreate schemas. Projection
 
 Private operations require an authorized Clerk user bearer and workspace membership. Optional/sensitive services retain their policy/entitlement/fresh-authentication gates.
 
-| Complete route | Required operation headers (besides authentication) | Declared success |
-| --- | --- | --- |
-| `GET /api/v1/workspaces/{workspace_id}/goals` | — | 200 application/json GoalResponse[] |
-| `POST /api/v1/workspaces/{workspace_id}/goals` | `Idempotency-Key` | 200 application/json GoalResponse |
+`/goals/page` adds bounded active/achieved/on-track discovery. A projection or contribution plan is not a posted cash movement.
+
+| Complete route | Authentication | Required operation headers | Declared success |
+| --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/goals/page` | Clerk user bearer | — | 200 application/json RecordPage_GoalResponse_ |
+| `GET /api/v1/workspaces/{workspace_id}/goals` | Clerk user bearer | — | 200 application/json GoalResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/goals` | Clerk user bearer | `Idempotency-Key` | 200 application/json GoalResponse |
 
 ## Exact request/response models
 
@@ -214,5 +217,44 @@ These JSON Schema definitions are generated from the verified contract, not samp
     "target_date"
   ],
   "title": "GoalWrite"
+}
+```
+
+### RecordPage_GoalResponse_
+
+```json
+{
+  "properties": {
+    "as_of": {
+      "type": "string",
+      "format": "date",
+      "title": "As Of"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/GoalResponse"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Cursor"
+    }
+  },
+  "type": "object",
+  "required": [
+    "as_of",
+    "items",
+    "next_cursor"
+  ],
+  "title": "RecordPage[GoalResponse]"
 }
 ```

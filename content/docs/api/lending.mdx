@@ -7,15 +7,18 @@ Record money already lent from an active bank/cash account as cash exchanged for
 
 Private operations require an authorized Clerk user bearer and workspace membership. Optional/sensitive services retain their policy/entitlement/fresh-authentication gates.
 
-| Complete route | Required operation headers (besides authentication) | Declared success |
-| --- | --- | --- |
-| `GET /api/v1/workspaces/{workspace_id}/lending` | — | 200 application/json LendingLoanResponse[] |
-| `POST /api/v1/workspaces/{workspace_id}/lending` | `Idempotency-Key` | 200 application/json LendingLoanResponse |
-| `GET /api/v1/workspaces/{workspace_id}/lending/{loan_id}` | — | 200 application/json LendingLoanResponse |
-| `GET /api/v1/workspaces/{workspace_id}/lending/{loan_id}/repayments` | — | 200 application/json LendingRepaymentResponse[] |
-| `POST /api/v1/workspaces/{workspace_id}/lending/{loan_id}/reclaim` | `Idempotency-Key` | 200 application/json LendingRepaymentResponse |
-| `POST /api/v1/workspaces/{workspace_id}/lending/{loan_id}/correct-advance` | `Idempotency-Key` | 200 application/json LendingRepaymentResponse |
-| `POST /api/v1/workspaces/{workspace_id}/lending/{loan_id}/repayments/{repayment_id}/reversal` | `Idempotency-Key` | 200 application/json LendingRepaymentResponse |
+`/lending/page` adds bounded currency/state/overdue discovery. Reclaim continues to record an actual repayment, including partial amounts; a notification or reminder does not settle the receivable.
+
+| Complete route | Authentication | Required operation headers | Declared success |
+| --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/lending/page` | Clerk user bearer | — | 200 application/json RecordPage_LendingLoanResponse_ |
+| `GET /api/v1/workspaces/{workspace_id}/lending` | Clerk user bearer | — | 200 application/json LendingLoanResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/lending` | Clerk user bearer | `Idempotency-Key` | 200 application/json LendingLoanResponse |
+| `GET /api/v1/workspaces/{workspace_id}/lending/{loan_id}` | Clerk user bearer | — | 200 application/json LendingLoanResponse |
+| `GET /api/v1/workspaces/{workspace_id}/lending/{loan_id}/repayments` | Clerk user bearer | — | 200 application/json LendingRepaymentResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/lending/{loan_id}/reclaim` | Clerk user bearer | `Idempotency-Key` | 200 application/json LendingRepaymentResponse |
+| `POST /api/v1/workspaces/{workspace_id}/lending/{loan_id}/correct-advance` | Clerk user bearer | `Idempotency-Key` | 200 application/json LendingRepaymentResponse |
+| `POST /api/v1/workspaces/{workspace_id}/lending/{loan_id}/repayments/{repayment_id}/reversal` | Clerk user bearer | `Idempotency-Key` | 200 application/json LendingRepaymentResponse |
 
 ## Exact request/response models
 
@@ -400,5 +403,44 @@ These JSON Schema definitions are generated from the verified contract, not samp
     "recorded_at"
   ],
   "title": "LendingRepaymentResponse"
+}
+```
+
+### RecordPage_LendingLoanResponse_
+
+```json
+{
+  "properties": {
+    "as_of": {
+      "type": "string",
+      "format": "date",
+      "title": "As Of"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/LendingLoanResponse"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Cursor"
+    }
+  },
+  "type": "object",
+  "required": [
+    "as_of",
+    "items",
+    "next_cursor"
+  ],
+  "title": "RecordPage[LendingLoanResponse]"
 }
 ```

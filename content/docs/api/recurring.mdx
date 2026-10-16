@@ -1,0 +1,1904 @@
+---
+title: Recurring plans and rent
+description: Current unified API contracts, workflow and activation boundaries.
+---
+
+Recurring and rent plans project obligations; they do not charge a bank or prove nonpayment. Overrides, business-day rules, calendar display and reviewed rent proration/amendments preserve original and adjusted dates separately. GET pages provide bounded discovery; legacy arrays remain available.
+
+Confirmed recurring posting previews compare expected and actually paid amounts and bind current source/account/occurrence revisions. Commit records a balanced actual income/expense with the declared UUID key and explicit actual confirmation. Reversal uses the existing append-only correction rules. No automatic payment scheduler is installed.
+
+Rent receipt matching links actual eligible payment sources to plans; unmatching does not fabricate a refund. Use the exact preview, receipt and amendment schemas rather than inferring payments from a forecast.
+
+| Complete route | Authentication | Required operation headers | Declared success |
+| --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/recurring/page` | Clerk user bearer | — | 200 application/json RecordPage_RecurringResponse_ |
+| `GET /api/v1/workspaces/{workspace_id}/rent/page` | Clerk user bearer | — | 200 application/json RecordPage_RentResponse_ |
+| `GET /api/v1/workspaces/{workspace_id}/recurring` | Clerk user bearer | — | 200 application/json RecurringResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/recurring` | Clerk user bearer | `Idempotency-Key` | 200 application/json RecurringResponse |
+| `POST /api/v1/workspaces/{workspace_id}/recurring/overrides` | Clerk user bearer | `Idempotency-Key` | 200 application/json RecurringOverrideResponse |
+| `POST /api/v1/workspaces/{workspace_id}/rent/proration/preview` | Clerk user bearer | — | 200 application/json RentProrationPreview |
+| `GET /api/v1/workspaces/{workspace_id}/rent/payment-sources/{entry_id}` | Clerk user bearer | — | 200 application/json RentPaymentSource |
+| `GET /api/v1/workspaces/{workspace_id}/rent/{plan_id}/receipts` | Clerk user bearer | — | 200 application/json RentReceiptResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/rent/{plan_id}/receipts` | Clerk user bearer | `Idempotency-Key` | 200 application/json RentReceiptResponse |
+| `POST /api/v1/workspaces/{workspace_id}/rent/{plan_id}/receipts/{receipt_id}/unmatch` | Clerk user bearer | `Idempotency-Key` | 200 application/json RentReceiptResponse |
+| `GET /api/v1/workspaces/{workspace_id}/rent/{plan_id}/amendments` | Clerk user bearer | — | 200 application/json RentAmendmentResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/rent/{plan_id}/amendments` | Clerk user bearer | `Idempotency-Key` | 200 application/json RentAmendmentResponse |
+| `GET /api/v1/workspaces/{workspace_id}/rent/{plan_id}/effective` | Clerk user bearer | — | 200 application/json RentAmendmentState |
+| `GET /api/v1/workspaces/{workspace_id}/rent` | Clerk user bearer | — | 200 application/json RentResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/rent` | Clerk user bearer | `Idempotency-Key` | 200 application/json RentResponse |
+| `POST /api/v1/workspaces/{workspace_id}/recurring/{template_id}/postings/preview` | Clerk user bearer | — | 200 application/json OccurrencePreview |
+| `POST /api/v1/workspaces/{workspace_id}/recurring/{template_id}/postings` | Clerk user bearer | `Idempotency-Key` | 201 application/json OccurrenceReceipt |
+| `GET /api/v1/workspaces/{workspace_id}/recurring/{template_id}/postings` | Clerk user bearer | — | 200 application/json OccurrencePage |
+| `GET /api/v1/workspaces/{workspace_id}/calendar/display` | Clerk user bearer | — | 200 application/json CalendarDisplay |
+
+## Exact request/response models
+
+These JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).
+
+### CalendarDisplay
+
+```json
+{
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "calendar_display_v1",
+      "title": "Version",
+      "default": "calendar_display_v1"
+    },
+    "calendar": {
+      "type": "string",
+      "const": "umm_al_qura",
+      "title": "Calendar",
+      "default": "umm_al_qura"
+    },
+    "dataset": {
+      "type": "string",
+      "const": "hijridate-2.3.0",
+      "title": "Dataset",
+      "default": "hijridate-2.3.0"
+    },
+    "supported_gregorian_start": {
+      "type": "string",
+      "format": "date",
+      "title": "Supported Gregorian Start"
+    },
+    "supported_gregorian_end": {
+      "type": "string",
+      "format": "date",
+      "title": "Supported Gregorian End"
+    },
+    "purpose": {
+      "type": "string",
+      "const": "civil_date_display_only",
+      "title": "Purpose",
+      "default": "civil_date_display_only"
+    },
+    "gregorian_is_authoritative": {
+      "type": "boolean",
+      "const": true,
+      "title": "Gregorian Is Authoritative",
+      "default": true
+    },
+    "local_moon_sighting_verified": {
+      "type": "boolean",
+      "const": false,
+      "title": "Local Moon Sighting Verified",
+      "default": false
+    },
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/CalendarDisplayItem"
+      },
+      "type": "array",
+      "title": "Items"
+    }
+  },
+  "type": "object",
+  "required": [
+    "supported_gregorian_start",
+    "supported_gregorian_end",
+    "items"
+  ],
+  "title": "CalendarDisplay"
+}
+```
+
+### OccurrenceFacts
+
+```json
+{
+  "properties": {
+    "original_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Original Date"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Amount"
+    },
+    "occurred_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Occurred On"
+    },
+    "confirmed_actual": {
+      "type": "boolean",
+      "const": true,
+      "title": "Confirmed Actual"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "original_date",
+    "account_id",
+    "amount",
+    "occurred_on",
+    "confirmed_actual"
+  ],
+  "title": "OccurrenceFacts"
+}
+```
+
+### OccurrencePage
+
+```json
+{
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/OccurrenceReceipt"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "next_before_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Before Id"
+    }
+  },
+  "type": "object",
+  "required": [
+    "items",
+    "next_before_id"
+  ],
+  "title": "OccurrencePage"
+}
+```
+
+### OccurrencePreview
+
+```json
+{
+  "properties": {
+    "template_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Template Id"
+    },
+    "original_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Original Date"
+    },
+    "due_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Due On"
+    },
+    "template_revision": {
+      "type": "integer",
+      "title": "Template Revision"
+    },
+    "override_revision": {
+      "type": "integer",
+      "title": "Override Revision"
+    },
+    "account_revision": {
+      "type": "integer",
+      "title": "Account Revision"
+    },
+    "occurrence_revision": {
+      "type": "integer",
+      "title": "Occurrence Revision"
+    },
+    "change_sequence": {
+      "type": "integer",
+      "title": "Change Sequence"
+    },
+    "currency": {
+      "type": "string",
+      "title": "Currency"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "expense",
+        "income"
+      ],
+      "title": "Type"
+    },
+    "expected_amount": {
+      "type": "string",
+      "title": "Expected Amount"
+    },
+    "actual_amount": {
+      "type": "string",
+      "title": "Actual Amount"
+    },
+    "amount_difference": {
+      "type": "string",
+      "title": "Amount Difference"
+    },
+    "previous_posting_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Previous Posting Id"
+    },
+    "input_digest": {
+      "type": "string",
+      "title": "Input Digest"
+    }
+  },
+  "type": "object",
+  "required": [
+    "template_id",
+    "original_date",
+    "due_on",
+    "template_revision",
+    "override_revision",
+    "account_revision",
+    "occurrence_revision",
+    "change_sequence",
+    "currency",
+    "type",
+    "expected_amount",
+    "actual_amount",
+    "amount_difference",
+    "previous_posting_id",
+    "input_digest"
+  ],
+  "title": "OccurrencePreview"
+}
+```
+
+### OccurrenceReceipt
+
+```json
+{
+  "properties": {
+    "transaction_is_snapshot": {
+      "type": "boolean",
+      "const": true,
+      "title": "Transaction Is Snapshot",
+      "default": true
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "template_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Template Id"
+    },
+    "original_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Original Date"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "posted",
+        "corrected"
+      ],
+      "title": "State"
+    },
+    "correction_entry_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Correction Entry Id"
+    },
+    "recorded_by": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Recorded By"
+    },
+    "reason": {
+      "type": "string",
+      "title": "Reason"
+    },
+    "inputs": {
+      "$ref": "#/components/schemas/OccurrenceFacts"
+    },
+    "preview": {
+      "$ref": "#/components/schemas/OccurrencePreview"
+    },
+    "transaction": {
+      "$ref": "#/components/schemas/TransactionResponse"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "template_id",
+    "original_date",
+    "revision",
+    "recorded_at",
+    "state",
+    "correction_entry_id",
+    "recorded_by",
+    "reason",
+    "inputs",
+    "preview",
+    "transaction"
+  ],
+  "title": "OccurrenceReceipt"
+}
+```
+
+### OccurrenceWrite
+
+```json
+{
+  "properties": {
+    "original_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Original Date"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Amount"
+    },
+    "occurred_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Occurred On"
+    },
+    "confirmed_actual": {
+      "type": "boolean",
+      "const": true,
+      "title": "Confirmed Actual"
+    },
+    "expected_template_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Template Revision"
+    },
+    "expected_override_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Override Revision"
+    },
+    "expected_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Account Revision"
+    },
+    "expected_occurrence_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Occurrence Revision"
+    },
+    "expected_change_sequence": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Change Sequence"
+    },
+    "input_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Input Digest"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "original_date",
+    "account_id",
+    "amount",
+    "occurred_on",
+    "confirmed_actual",
+    "expected_template_revision",
+    "expected_override_revision",
+    "expected_account_revision",
+    "expected_occurrence_revision",
+    "expected_change_sequence",
+    "input_digest",
+    "reason"
+  ],
+  "title": "OccurrenceWrite"
+}
+```
+
+### RecordPage_RecurringResponse_
+
+```json
+{
+  "properties": {
+    "as_of": {
+      "type": "string",
+      "format": "date",
+      "title": "As Of"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/RecurringResponse"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Cursor"
+    }
+  },
+  "type": "object",
+  "required": [
+    "as_of",
+    "items",
+    "next_cursor"
+  ],
+  "title": "RecordPage[RecurringResponse]"
+}
+```
+
+### RecordPage_RentResponse_
+
+```json
+{
+  "properties": {
+    "as_of": {
+      "type": "string",
+      "format": "date",
+      "title": "As Of"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/RentResponse"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Cursor"
+    }
+  },
+  "type": "object",
+  "required": [
+    "as_of",
+    "items",
+    "next_cursor"
+  ],
+  "title": "RecordPage[RentResponse]"
+}
+```
+
+### RecurringOverrideResponse
+
+```json
+{
+  "properties": {
+    "template_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Template Id"
+    },
+    "expected_template_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Template Revision"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision",
+      "default": 0
+    },
+    "original_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Original Date"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "scheduled",
+        "skipped",
+        "rescheduled"
+      ],
+      "title": "Status"
+    },
+    "due_on": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Due On"
+    },
+    "amount": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Amount"
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "template_id",
+    "expected_template_revision",
+    "original_date",
+    "status",
+    "id",
+    "revision"
+  ],
+  "title": "RecurringOverrideResponse"
+}
+```
+
+### RecurringOverrideWrite
+
+```json
+{
+  "properties": {
+    "template_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Template Id"
+    },
+    "expected_template_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Template Revision"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision",
+      "default": 0
+    },
+    "original_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Original Date"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "scheduled",
+        "skipped",
+        "rescheduled"
+      ],
+      "title": "Status"
+    },
+    "due_on": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Due On"
+    },
+    "amount": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Amount"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "template_id",
+    "expected_template_revision",
+    "original_date",
+    "status"
+  ],
+  "title": "RecurringOverrideWrite"
+}
+```
+
+### RecurringResponse
+
+```json
+{
+  "properties": {
+    "business_calendar": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/RecurringBusinessCalendar"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "property_charge": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/PropertyChargeInput"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision",
+      "default": 0
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Description"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "expense",
+        "income"
+      ],
+      "title": "Type",
+      "default": "expense"
+    },
+    "category": {
+      "type": "string",
+      "pattern": "^(subscriptions|groceries|transportation|utilities|healthcare|cinema|restaurants|shops|telecom|fitness|salary|other|custom_[0-9a-f]{32})$",
+      "title": "Category",
+      "default": "other"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Amount"
+    },
+    "starts_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Starts On"
+    },
+    "ends_on": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Ends On"
+    },
+    "frequency": {
+      "type": "string",
+      "enum": [
+        "once",
+        "weekly",
+        "monthly",
+        "quarterly",
+        "yearly"
+      ],
+      "title": "Frequency",
+      "default": "monthly"
+    },
+    "month_end": {
+      "type": "boolean",
+      "title": "Month End",
+      "default": false
+    },
+    "account_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Account Id"
+    },
+    "active": {
+      "type": "boolean",
+      "title": "Active",
+      "default": true
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "id",
+    "description",
+    "currency",
+    "amount",
+    "starts_on",
+    "revision"
+  ],
+  "title": "RecurringResponse"
+}
+```
+
+### RecurringWrite
+
+```json
+{
+  "properties": {
+    "business_calendar": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/RecurringBusinessCalendar"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "property_charge": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/PropertyChargeInput"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Id"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision",
+      "default": 0
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Description"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "expense",
+        "income"
+      ],
+      "title": "Type",
+      "default": "expense"
+    },
+    "category": {
+      "type": "string",
+      "pattern": "^(subscriptions|groceries|transportation|utilities|healthcare|cinema|restaurants|shops|telecom|fitness|salary|other|custom_[0-9a-f]{32})$",
+      "title": "Category",
+      "default": "other"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Amount"
+    },
+    "starts_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Starts On"
+    },
+    "ends_on": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Ends On"
+    },
+    "frequency": {
+      "type": "string",
+      "enum": [
+        "once",
+        "weekly",
+        "monthly",
+        "quarterly",
+        "yearly"
+      ],
+      "title": "Frequency",
+      "default": "monthly"
+    },
+    "month_end": {
+      "type": "boolean",
+      "title": "Month End",
+      "default": false
+    },
+    "account_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Account Id"
+    },
+    "active": {
+      "type": "boolean",
+      "title": "Active",
+      "default": true
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "description",
+    "currency",
+    "amount",
+    "starts_on"
+  ],
+  "title": "RecurringWrite"
+}
+```
+
+### RentAmendmentResponse
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "plan_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Plan Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "adjust",
+        "skip",
+        "restore",
+        "terminate"
+      ],
+      "title": "Action"
+    },
+    "plan_revision_at_review": {
+      "type": "integer",
+      "title": "Plan Revision At Review"
+    },
+    "from_date": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "From Date"
+    },
+    "proration": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/RentProrationInput"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "reason": {
+      "type": "string",
+      "title": "Reason"
+    },
+    "recorded_by": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Recorded By"
+    },
+    "changes": {
+      "items": {
+        "$ref": "#/components/schemas/RentForecastChange"
+      },
+      "type": "array",
+      "title": "Changes"
+    },
+    "basis": {
+      "type": "string",
+      "const": "forecast_only_no_lease_settlement",
+      "title": "Basis",
+      "default": "forecast_only_no_lease_settlement"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "id",
+    "plan_id",
+    "revision",
+    "recorded_at",
+    "action",
+    "plan_revision_at_review",
+    "from_date",
+    "reason",
+    "recorded_by",
+    "changes"
+  ],
+  "title": "RentAmendmentResponse"
+}
+```
+
+### RentAmendmentState
+
+```json
+{
+  "properties": {
+    "plan_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Plan Id"
+    },
+    "plan_revision": {
+      "type": "integer",
+      "title": "Plan Revision"
+    },
+    "amendment_revision": {
+      "type": "integer",
+      "title": "Amendment Revision"
+    },
+    "receipt_revision": {
+      "type": "integer",
+      "title": "Receipt Revision",
+      "default": 0
+    },
+    "currency": {
+      "type": "string",
+      "title": "Currency"
+    },
+    "active": {
+      "type": "boolean",
+      "title": "Active"
+    },
+    "payments": {
+      "items": {
+        "$ref": "#/components/schemas/RentEffectivePayment"
+      },
+      "type": "array",
+      "title": "Payments"
+    },
+    "basis": {
+      "type": "string",
+      "const": "forecast_only_no_lease_settlement",
+      "title": "Basis",
+      "default": "forecast_only_no_lease_settlement"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "plan_id",
+    "plan_revision",
+    "amendment_revision",
+    "currency",
+    "active",
+    "payments"
+  ],
+  "title": "RentAmendmentState"
+}
+```
+
+### RentAmendmentWrite
+
+```json
+{
+  "properties": {
+    "expected_plan_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Plan Revision"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "adjust",
+        "skip",
+        "restore",
+        "terminate"
+      ],
+      "title": "Action"
+    },
+    "original_date": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Original Date"
+    },
+    "from_date": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "From Date"
+    },
+    "due_on": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Due On"
+    },
+    "amount": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Amount"
+    },
+    "proration": {
+      "anyOf": [
+        {
+          "$ref": "#/components/schemas/RentProrationInput"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 240,
+      "minLength": 1,
+      "title": "Reason"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expected_plan_revision",
+    "expected_revision",
+    "action",
+    "reason"
+  ],
+  "title": "RentAmendmentWrite"
+}
+```
+
+### RentPaymentSource
+
+```json
+{
+  "properties": {
+    "source_entry_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Source Entry Id"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "currency": {
+      "type": "string",
+      "title": "Currency"
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "income",
+        "expense"
+      ],
+      "title": "Direction"
+    },
+    "amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Amount"
+    },
+    "matched_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Matched Amount"
+    },
+    "available_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Available Amount"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "source_entry_id",
+    "account_id",
+    "currency",
+    "direction",
+    "amount",
+    "matched_amount",
+    "available_amount",
+    "revision"
+  ],
+  "title": "RentPaymentSource"
+}
+```
+
+### RentProrationInput
+
+```json
+{
+  "properties": {
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "full_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Full Amount"
+    },
+    "period_start": {
+      "type": "string",
+      "format": "date",
+      "title": "Period Start"
+    },
+    "period_end": {
+      "type": "string",
+      "format": "date",
+      "title": "Period End"
+    },
+    "occupied_periods": {
+      "items": {
+        "$ref": "#/components/schemas/OccupiedPeriod"
+      },
+      "type": "array",
+      "maxItems": 120,
+      "title": "Occupied Periods"
+    },
+    "basis": {
+      "type": "string",
+      "const": "explicit_actual_calendar_days",
+      "title": "Basis",
+      "default": "explicit_actual_calendar_days"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "currency",
+    "full_amount",
+    "period_start",
+    "period_end",
+    "occupied_periods"
+  ],
+  "title": "RentProrationInput"
+}
+```
+
+### RentProrationPreview
+
+```json
+{
+  "properties": {
+    "input": {
+      "$ref": "#/components/schemas/RentProrationInput"
+    },
+    "period_days": {
+      "type": "integer",
+      "title": "Period Days"
+    },
+    "occupied_days": {
+      "type": "integer",
+      "title": "Occupied Days"
+    },
+    "vacant_days": {
+      "type": "integer",
+      "title": "Vacant Days"
+    },
+    "prorated_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Prorated Amount"
+    },
+    "minor_digits": {
+      "type": "integer",
+      "title": "Minor Digits"
+    },
+    "rounding": {
+      "type": "string",
+      "const": "half_even_to_native_minor_unit",
+      "title": "Rounding",
+      "default": "half_even_to_native_minor_unit"
+    },
+    "basis": {
+      "type": "string",
+      "const": "forecast_assumption_no_contract_or_cash_effect",
+      "title": "Basis",
+      "default": "forecast_assumption_no_contract_or_cash_effect"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "input",
+    "period_days",
+    "occupied_days",
+    "vacant_days",
+    "prorated_amount",
+    "minor_digits"
+  ],
+  "title": "RentProrationPreview"
+}
+```
+
+### RentReceiptResponse
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "plan_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Plan Id"
+    },
+    "source_entry_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Source Entry Id"
+    },
+    "reversal_of": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Reversal Of"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "match",
+        "unmatch"
+      ],
+      "title": "Action"
+    },
+    "reason": {
+      "type": "string",
+      "title": "Reason"
+    },
+    "recorded_by": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Recorded By"
+    },
+    "source_occurred_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Source Occurred On"
+    },
+    "source_account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Source Account Id"
+    },
+    "source_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Source Amount"
+    },
+    "original_match_input": {
+      "$ref": "#/components/schemas/RentReceiptWrite"
+    },
+    "currency": {
+      "type": "string",
+      "title": "Currency"
+    },
+    "total_matched": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Total Matched"
+    },
+    "allocations": {
+      "items": {
+        "$ref": "#/components/schemas/RentPaymentAllocation"
+      },
+      "type": "array",
+      "title": "Allocations"
+    },
+    "basis": {
+      "type": "string",
+      "const": "existing_journal_match_no_cash_posting",
+      "title": "Basis",
+      "default": "existing_journal_match_no_cash_posting"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "id",
+    "plan_id",
+    "source_entry_id",
+    "reversal_of",
+    "revision",
+    "recorded_at",
+    "action",
+    "reason",
+    "recorded_by",
+    "source_occurred_on",
+    "source_account_id",
+    "source_amount",
+    "original_match_input",
+    "currency",
+    "total_matched",
+    "allocations"
+  ],
+  "title": "RentReceiptResponse"
+}
+```
+
+### RentReceiptUnmatch
+
+```json
+{
+  "properties": {
+    "expected_receipt_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Receipt Revision"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 240,
+      "minLength": 1,
+      "title": "Reason"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expected_receipt_revision",
+    "reason"
+  ],
+  "title": "RentReceiptUnmatch"
+}
+```
+
+### RentReceiptWrite
+
+```json
+{
+  "properties": {
+    "source_entry_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Source Entry Id"
+    },
+    "expected_plan_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Plan Revision"
+    },
+    "expected_amendment_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Amendment Revision"
+    },
+    "expected_receipt_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Receipt Revision"
+    },
+    "expected_source_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Source Revision"
+    },
+    "allocations": {
+      "items": {
+        "$ref": "#/components/schemas/RentPaymentAllocation"
+      },
+      "type": "array",
+      "maxItems": 120,
+      "minItems": 1,
+      "title": "Allocations"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 240,
+      "minLength": 1,
+      "title": "Reason"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "source_entry_id",
+    "expected_plan_revision",
+    "expected_amendment_revision",
+    "expected_receipt_revision",
+    "expected_source_revision",
+    "allocations",
+    "reason"
+  ],
+  "title": "RentReceiptWrite"
+}
+```
+
+### RentResponse
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "title": {
+      "type": "string",
+      "title": "Title"
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "income",
+        "expense"
+      ],
+      "title": "Direction"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "total_rent": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Total Rent"
+    },
+    "starts_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Starts On"
+    },
+    "term_months": {
+      "type": "integer",
+      "title": "Term Months"
+    },
+    "cheque_count": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "enum": [
+            1,
+            2,
+            3,
+            4,
+            6,
+            12
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Cheque Count"
+    },
+    "payments": {
+      "items": {
+        "$ref": "#/components/schemas/RentPayment"
+      },
+      "type": "array",
+      "title": "Payments"
+    },
+    "active": {
+      "type": "boolean",
+      "title": "Active"
+    },
+    "ends_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Ends On"
+    },
+    "scheduled_payments": {
+      "items": {
+        "$ref": "#/components/schemas/RentPayment"
+      },
+      "type": "array",
+      "title": "Scheduled Payments"
+    },
+    "minor_digits": {
+      "type": "integer",
+      "title": "Minor Digits"
+    },
+    "basis": {
+      "type": "string",
+      "const": "rent_plan_no_payment_record",
+      "title": "Basis",
+      "default": "rent_plan_no_payment_record"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "revision",
+    "title",
+    "direction",
+    "currency",
+    "total_rent",
+    "starts_on",
+    "term_months",
+    "cheque_count",
+    "payments",
+    "active",
+    "ends_on",
+    "scheduled_payments",
+    "minor_digits"
+  ],
+  "title": "RentResponse"
+}
+```
+
+### RentWrite
+
+```json
+{
+  "properties": {
+    "id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Id"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision",
+      "default": 0
+    },
+    "title": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Title"
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "income",
+        "expense"
+      ],
+      "title": "Direction",
+      "default": "expense"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "total_rent": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Total Rent"
+    },
+    "starts_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Starts On"
+    },
+    "term_months": {
+      "type": "integer",
+      "maximum": 120,
+      "minimum": 1,
+      "title": "Term Months",
+      "default": 12
+    },
+    "cheque_count": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "enum": [
+            1,
+            2,
+            3,
+            4,
+            6,
+            12
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Cheque Count",
+      "default": 1
+    },
+    "payments": {
+      "items": {
+        "$ref": "#/components/schemas/RentPayment"
+      },
+      "type": "array",
+      "maxItems": 120,
+      "title": "Payments"
+    },
+    "active": {
+      "type": "boolean",
+      "title": "Active",
+      "default": true
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "title",
+    "currency",
+    "total_rent",
+    "starts_on"
+  ],
+  "title": "RentWrite"
+}
+```

@@ -1,0 +1,19 @@
+---
+title: Signed provider webhooks
+description: Current unified API contracts, workflow and activation boundaries.
+---
+
+These are **provider ingress**, not Clerk user-bearer endpoints. Clerk lifecycle events use `ClerkWebhookSignature`; Resend receipts use `ResendSignature`. Both require the original JSON bytes, `svix-id`, `svix-timestamp` and `svix-signature`. Do not manually construct signatures or replace them with a user token. Bodies are bounded to64KiB; only verified current/retained signing keys and bounded timestamps authorize effects.
+
+Clerk lifecycle processing also validates the configured instance/environment before effects. Resend accepts supported sent, delivered, delayed, bounced, complained and failed evidence; tracking events are unsupported. Successful204 has no response body. Receipt acknowledgement follows durable acceptance; event-ID reuse with different bytes conflicts. Recipient/content is not retained in the minimized Resend receipt table.
+
+Email bindings are absent in the current production release, so the Resend route's presence is not evidence of active delivery or webhook configuration. Provider webhook activation is operator-managed; never put signing secrets in a client or documentation example.
+
+| Complete route | Authentication | Required operation headers | Declared success |
+| --- | --- | --- | --- |
+| `POST /api/v1/webhooks/clerk` | Clerk Svix signature | `svix-id`, `svix-timestamp`, `svix-signature` | 204 (no response body) |
+| `POST /api/v1/webhooks/resend` | Resend Svix signature | `svix-id`, `svix-timestamp`, `svix-signature` | 204 (no response body) |
+
+## Exact request/response models
+
+These JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).

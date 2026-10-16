@@ -9,7 +9,12 @@ if(!schema.openapi?.startsWith('3.')||!operations.length||operations.some(({path
 const snapshot=JSON.stringify(schema,null,2)+'\n';
 writeFileSync('public/openapi.json',snapshot);
 const hash=createHash('sha256').update(snapshot).digest('hex');
-const rows=operations.map(({path,method,operation})=>`| \`${method.toUpperCase()} ${path}\` | ${operation.security?.length?'Clerk bearer':'Public / handler-specific'} | ${operation.summary?.replaceAll('|','\\|')||operation.operationId} |`).join('\n');
+const authLabel=operation=>{
+ const names={HTTPBearer:'Clerk user bearer',ClerkWebhookSignature:'Clerk Svix signature',ResendSignature:'Resend Svix signature'};
+ if(!operation.security?.length)return 'Public / handler-specific';
+ return operation.security.map(group=>Object.keys(group).map(name=>{if(!names[name])throw new Error(`Unknown security scheme ${name}`);return names[name];}).join(' + ')).join(' or ');
+};
+const rows=operations.map(({path,method,operation})=>`| \`${method.toUpperCase()} ${path}\` | ${authLabel(operation)} | ${operation.summary?.replaceAll('|','\\|')||operation.operationId} |`).join('\n');
 writeFileSync('content/docs/api/endpoints.mdx',`---\ntitle: Complete route index\ndescription: Generated operations from the verified unified backend OpenAPI contract.\n---\n\nThis snapshot contains **${Object.keys(schema.paths).length} declared paths and ${operations.length} operations**. It describes the unified first-party API, including mutations. Optional provider routes may still return unavailable; a declared route is not proof of provider activation. Read [availability](/docs) and [authentication](/docs/concepts/authentication) first.\n\n[Download this exact schema](/openapi.json) or [inspect the deployed schema](https://api.farz.app/openapi.json). Snapshot SHA-256: \`${hash}\`. The API root redirect and framework schema-serving route are outside this operation index.\n\n| Method and complete path | OpenAPI security | Operation |\n| --- | --- | --- |\n${rows}\n\nRequest parameters, required headers, request bodies, response schemas and validation constraints are specified in the JSON contract. Runtime authorization, conflict, entitlement, freshness and rate-limit errors are also explained in the [error guide](/docs/concepts/errors); generated responses do not enumerate every service error.\n`);
 console.log(`Generated ${operations.length} operations across ${Object.keys(schema.paths).length} paths.`);
 const guides=JSON.parse(readFileSync(new URL('./api-guides.json',import.meta.url),'utf8'));
@@ -22,21 +27,23 @@ for(const [slug,paths] of Object.entries(guides)){
   for(const [method,operation] of Object.entries(schema.paths[path])){
    if(!methods.has(method))continue;
    const headers=(operation.parameters||[]).filter(p=>p.in==='header'&&p.required).map(p=>`\`${p.name}\``);
+   for(const group of operation.security||[])for(const name of Object.keys(group)){const security=schema.components.securitySchemes[name];if(security?.type==='apiKey'&&security.in==='header')headers.push(`\`${security.name}\``);}
    const body=operation.requestBody?.content?.['application/json']?.schema;
    if(body?.$ref)models.add(body.$ref.split('/').at(-1));
    const responses=[];
    for(const [status,response] of Object.entries(operation.responses)){
     if(!status.startsWith('2'))continue;
+    if(!Object.keys(response.content||{}).length)responses.push(`${status} (no response body)`);
     for(const [type,content] of Object.entries(response.content||{})){
      const ref=content.schema?.$ref||content.schema?.items?.$ref;
      if(ref)models.add(ref.split('/').at(-1));
      responses.push(`${status} ${type}${ref?' '+ref.split('/').at(-1)+(content.schema?.type==='array'?'[]':''):''}`);
     }
    }
-   guideRows.push(`| \`${method.toUpperCase()} ${path}\` | ${headers.join(', ')||'—'} | ${responses.join('; ')||'See schema'} |`);
+   guideRows.push(`| \`${method.toUpperCase()} ${path}\` | ${authLabel(operation)} | ${headers.join(', ')||'—'} | ${responses.join('; ')||'See schema'} |`);
   }
  }
- let content=introduction+'\n| Complete route | Required operation headers (besides authentication) | Declared success |\n| --- | --- | --- |\n'+guideRows.join('\n')+'\n\n## Exact request/response models\n\nThese JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).\n';
+ let content=introduction+'\n| Complete route | Authentication | Required operation headers | Declared success |\n| --- | --- | --- | --- |\n'+guideRows.join('\n')+'\n\n## Exact request/response models\n\nThese JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).\n';
  for(const name of [...models].sort()){
   const model=schema.components.schemas[name];if(!model)throw new Error(`Missing model ${name}`);
   content+=`\n### ${name}\n\n\`\`\`json\n${JSON.stringify(model,null,2)}\n\`\`\`\n`;

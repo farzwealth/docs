@@ -151,7 +151,7 @@ npm run preview
 
 Internal documentation repository for Farz Wealth. All rights reserved.
 
-## API accuracy verification — 11 October 2026
+## API accuracy verification — 16 October 2026
 
 The published site previously presented deferred developer-key, OAuth and MCP features as available. Current docs use the live unified `/api/v1` contract, supported Clerk user authentication and workspace-scoped read/write routes. Optional integrations remain explicitly unconfigured. Farz does not use Clerk Billing.
 
@@ -165,3 +165,15 @@ npm run build
 ```
 
 Review runtime capabilities and authorization separately; schema declarations do not prove external-provider or native activation. The retained MCP/OAuth URLs describe their unavailable status and contain no invented setup instructions.
+
+
+The reviewed schema matches the live API on16October2026: **224 paths/264
+operations, production schema0076**. All operations are assigned to21 exact-model
+resource guides. Notification delivery and automatic scheduling remain gated;
+provider signatures are distinguished from Clerk user bearers. See
+[verification evidence](verification/api-refresh-2026-10-16.md).
+
+`docs.md` is an entry-point summary of the current API; the former proposed
+Developer API specification has been removed to avoid conflicting setup advice.
+The docs branch/PR is distinct from publishing the Cloudflare site; verify the
+site's served schema and availability text after deployment.

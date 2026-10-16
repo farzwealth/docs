@@ -22,3 +22,14 @@ Get the current token when making a request; do not persist it or private financ
 ## Future developer access
 
 Paid developer keys are **deferred**. They must be issued by Clerk and gated using backend-verified Farz subscription state from the selected payment provider; Farz does not use Clerk Billing. The old instructions for90-day keys, settings controls, read scopes and globally immediate revocation were planned claims, not verified live behavior. OAuth delegation and MCP are also unavailable. Do not route first-party app users through developer keys.
+
+## Provider signatures and browser methods
+
+Clerk lifecycle and Resend receipt [webhooks](/docs/api/webhooks) authenticate
+provider-signed original bytes using Svix headers. Their OpenAPI security schemes
+are not user-bearer authentication and do not grant financial workspace access.
+
+Production dashboard preflight permits GET, POST, PATCH and PUT with explicitly
+allowed headers. PUT notification preferences are supported; lookalike origins
+and cookie-based credentials are not granted access. This does not authorize the
+docs origin or arbitrary third-party browsers to call private finance endpoints.

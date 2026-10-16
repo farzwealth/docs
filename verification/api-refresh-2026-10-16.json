@@ -1,0 +1,22 @@
+{
+  "verified_at": "2026-10-16T16:36:20+04:00",
+  "backend_source_commit": "0c5d843601e5255aef51056bb8e6af82e62290d5",
+  "serving_commit": "4344f29f11b78d67ac4061757d09859ec47c2195",
+  "paths": 224,
+  "operations": 264,
+  "resource_guides": 21,
+  "snapshot_sha256": "d726095a0b6370d92db964d2da96f4655226768c961974b466c88f32c748e1cc",
+  "source_live_snapshot_equal_as_json": true,
+  "contract_verifier": "passed",
+  "regeneration_byte_identical": true,
+  "typescript": "passed",
+  "next_production_build": "passed",
+  "rendered_routes": 39,
+  "served_schema_equal": true,
+  "llms_current": true,
+  "browser_views": 6,
+  "browser_errors": 0,
+  "publication": "updated PR; Cloudflare publication not verified",
+  "backend_changed": false,
+  "new_checklist_closures": 0
+}

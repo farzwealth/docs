@@ -7,19 +7,346 @@ Use `/debts`, not the former `/liabilities` alias. Owned liability fractions are
 
 Private operations require an authorized Clerk user bearer and workspace membership. Optional/sensitive services retain their policy/entitlement/fresh-authentication gates.
 
-| Complete route | Required operation headers (besides authentication) | Declared success |
-| --- | --- | --- |
-| `GET /api/v1/workspaces/{workspace_id}/debts` | — | 200 application/json DebtResponse[] |
-| `POST /api/v1/workspaces/{workspace_id}/debts` | `Idempotency-Key` | 200 application/json DebtResponse |
-| `GET /api/v1/workspaces/{workspace_id}/debts/{debt_id}/observations` | — | 200 application/json DebtObservationResponse[] |
-| `GET /api/v1/workspaces/{workspace_id}/debts/{debt_id}/repayments` | — | 200 application/json DebtRepaymentResponse[] |
-| `POST /api/v1/workspaces/{workspace_id}/debts/{debt_id}/repayments` | `Idempotency-Key` | 200 application/json DebtRepaymentResponse |
-| `GET /api/v1/workspaces/{workspace_id}/debts/{debt_id}/installment-overrides` | — | 200 application/json DebtInstallmentOverrideResponse[] |
-| `POST /api/v1/workspaces/{workspace_id}/debts/{debt_id}/installment-overrides` | `Idempotency-Key` | 200 application/json DebtInstallmentOverrideResponse |
+The routes include lifecycle/amortization previews, actual principal/cost repayment, reversals, BNPL purchases and creditor refunds. Refunds/corrections record actual reviewed events; none initiate payment.
+
+| Complete route | Authentication | Required operation headers | Declared success |
+| --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/debts/page` | Clerk user bearer | — | 200 application/json RecordPage_DebtResponse_ |
+| `GET /api/v1/workspaces/{workspace_id}/debts` | Clerk user bearer | — | 200 application/json DebtResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/debts` | Clerk user bearer | `Idempotency-Key` | 200 application/json DebtResponse |
+| `POST /api/v1/workspaces/{workspace_id}/debts/representation-preview` | Clerk user bearer | — | 200 application/json DebtRepresentationWarning[] |
+| `GET /api/v1/workspaces/{workspace_id}/debts/{debt_id}/observations` | Clerk user bearer | — | 200 application/json DebtObservationResponse[] |
+| `GET /api/v1/workspaces/{workspace_id}/debts/{debt_id}/repayments` | Clerk user bearer | — | 200 application/json DebtRepaymentResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/debts/{debt_id}/repayments` | Clerk user bearer | `Idempotency-Key` | 200 application/json DebtRepaymentResponse |
+| `POST /api/v1/workspaces/{workspace_id}/debts/{debt_id}/repayments/{repayment_id}/reversal` | Clerk user bearer | `Idempotency-Key` | 200 application/json DebtRepaymentResponse |
+| `GET /api/v1/workspaces/{workspace_id}/debts/{debt_id}/installment-overrides` | Clerk user bearer | — | 200 application/json DebtInstallmentOverrideResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/debts/{debt_id}/installment-overrides` | Clerk user bearer | `Idempotency-Key` | 200 application/json DebtInstallmentOverrideResponse |
+| `POST /api/v1/workspaces/{workspace_id}/debts/{debt_id}/lifecycle` | Clerk user bearer | `Idempotency-Key` | 200 application/json DebtLifecycleResponse |
+| `GET /api/v1/workspaces/{workspace_id}/debts/{debt_id}/lifecycle` | Clerk user bearer | — | 200 application/json DebtLifecycleResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/debts/amortization/preview` | Clerk user bearer | — | 200 application/json AmortizationProjection |
+| `POST /api/v1/workspaces/{workspace_id}/debts/bnpl-purchases` | Clerk user bearer | `Idempotency-Key` | 201 application/json WorkflowReceipt |
+| `POST /api/v1/workspaces/{workspace_id}/debts/{debt_id}/creditor-refunds` | Clerk user bearer | `Idempotency-Key` | 201 application/json WorkflowReceipt |
 
 ## Exact request/response models
 
 These JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).
+
+### AmortizationPreviewInput
+
+```json
+{
+  "properties": {
+    "cost_model": {
+      "$ref": "#/components/schemas/LoanCostInput"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "installment_count": {
+      "type": "integer",
+      "maximum": 120,
+      "minimum": 1,
+      "title": "Installment Count"
+    },
+    "first_due_on": {
+      "type": "string",
+      "format": "date",
+      "title": "First Due On"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "cost_model",
+    "currency",
+    "installment_count",
+    "first_due_on"
+  ],
+  "title": "AmortizationPreviewInput"
+}
+```
+
+### AmortizationProjection
+
+```json
+{
+  "properties": {
+    "algorithm": {
+      "type": "string",
+      "enum": [
+        "monthly_cost_v1",
+        "monthly_recast_balloon_v2",
+        "monthly_capitalized_grace_v3"
+      ],
+      "title": "Algorithm",
+      "default": "monthly_cost_v1"
+    },
+    "capitalized_grace_installments": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Capitalized Grace Installments"
+    },
+    "total_capitalized_cost": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Total Capitalized Cost"
+    },
+    "capitalized_cost_basis": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "rounded_monthly_nominal_interest_added_to_principal"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Capitalized Cost Basis"
+    },
+    "fees_during_grace": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "payable_not_capitalized"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Fees During Grace"
+    },
+    "monthly_rate_basis": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "nominal_divided_by_12"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Monthly Rate Basis"
+    },
+    "payment_recast": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "on_explicit_rate_change_or_interest_only_end",
+            "on_rate_change_or_grace_interest_only_end"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Payment Recast"
+    },
+    "balloon_principal": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Balloon Principal"
+    },
+    "interest_only_installments": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Interest Only Installments"
+    },
+    "total_payments": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Total Payments"
+    },
+    "total_cost": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Total Cost"
+    },
+    "total_fees": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Total Fees"
+    },
+    "installments": {
+      "items": {
+        "$ref": "#/components/schemas/AmortizationPayment"
+      },
+      "type": "array",
+      "title": "Installments"
+    }
+  },
+  "type": "object",
+  "required": [
+    "total_payments",
+    "total_cost",
+    "total_fees",
+    "installments"
+  ],
+  "title": "AmortizationProjection"
+}
+```
+
+### BnplPurchase
+
+```json
+{
+  "properties": {
+    "debt": {
+      "$ref": "#/components/schemas/DebtWrite"
+    },
+    "category": {
+      "type": "string",
+      "pattern": "^(subscriptions|groceries|transportation|utilities|healthcare|cinema|restaurants|shops|telecom|fitness|salary|other|custom_[0-9a-f]{32})$",
+      "title": "Category"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Description"
+    },
+    "confirmed": {
+      "type": "boolean",
+      "const": true,
+      "title": "Confirmed"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "debt",
+    "category",
+    "description",
+    "confirmed"
+  ],
+  "title": "BnplPurchase"
+}
+```
+
+### CreditorRefund
+
+```json
+{
+  "properties": {
+    "expected_cost_classification_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Cost Classification Revision",
+      "default": 0
+    },
+    "repayment_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Repayment Id"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "expected_account_revision": {
+      "type": "integer",
+      "maximum": 9007199254740990,
+      "minimum": 1,
+      "title": "Expected Account Revision"
+    },
+    "expected_debt_revision": {
+      "type": "integer",
+      "maximum": 9007199254740990,
+      "minimum": 1,
+      "title": "Expected Debt Revision"
+    },
+    "principal_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Principal Amount"
+    },
+    "cost_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Cost Amount",
+      "default": "0"
+    },
+    "occurred_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Occurred On"
+    },
+    "source": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Source"
+    },
+    "allocations": {
+      "items": {
+        "$ref": "#/components/schemas/RefundAllocation"
+      },
+      "type": "array",
+      "maxItems": 120,
+      "title": "Allocations"
+    },
+    "confirmed_received": {
+      "type": "boolean",
+      "const": true,
+      "title": "Confirmed Received"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "repayment_id",
+    "account_id",
+    "expected_account_revision",
+    "expected_debt_revision",
+    "principal_amount",
+    "occurred_on",
+    "source",
+    "confirmed_received"
+  ],
+  "title": "CreditorRefund"
+}
+```
 
 ### DebtInstallmentOverrideResponse
 
@@ -212,11 +539,191 @@ These JSON Schema definitions are generated from the verified contract, not samp
 }
 ```
 
+### DebtLifecycleResponse
+
+```json
+{
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "debt_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Debt Id"
+    },
+    "observation_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Observation Id"
+    },
+    "revision": {
+      "type": "integer",
+      "title": "Revision"
+    },
+    "debt_revision": {
+      "type": "integer",
+      "title": "Debt Revision"
+    },
+    "effective_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Effective On"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "open",
+        "closed"
+      ],
+      "title": "State"
+    },
+    "closure_kind": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "paid_off",
+            "early_settlement",
+            "forgiven",
+            "other"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Closure Kind"
+    },
+    "reason": {
+      "type": "string",
+      "title": "Reason"
+    },
+    "outstanding_at_review": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Outstanding At Review"
+    },
+    "recorded_by": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Recorded By"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "debt_id",
+    "observation_id",
+    "revision",
+    "debt_revision",
+    "effective_on",
+    "state",
+    "closure_kind",
+    "reason",
+    "outstanding_at_review",
+    "recorded_by",
+    "recorded_at"
+  ],
+  "title": "DebtLifecycleResponse"
+}
+```
+
+### DebtLifecycleWrite
+
+```json
+{
+  "properties": {
+    "expected_debt_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Debt Revision"
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Expected Revision"
+    },
+    "observation_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Observation Id"
+    },
+    "effective_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Effective On"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "open",
+        "closed"
+      ],
+      "title": "State"
+    },
+    "closure_kind": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "paid_off",
+            "early_settlement",
+            "forgiven",
+            "other"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Closure Kind"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expected_debt_revision",
+    "expected_revision",
+    "observation_id",
+    "effective_on",
+    "state",
+    "reason"
+  ],
+  "title": "DebtLifecycleWrite"
+}
+```
+
 ### DebtObservationResponse
 
 ```json
 {
   "properties": {
+    "money_workflow_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Money Workflow Id"
+    },
     "ownership_estimate": {
       "anyOf": [
         {
@@ -612,6 +1119,39 @@ These JSON Schema definitions are generated from the verified contract, not samp
 }
 ```
 
+### DebtRepaymentReverse
+
+```json
+{
+  "properties": {
+    "expected_account_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Account Revision"
+    },
+    "expected_debt_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Expected Debt Revision"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "expected_account_revision",
+    "expected_debt_revision",
+    "reason"
+  ],
+  "title": "DebtRepaymentReverse"
+}
+```
+
 ### DebtRepaymentWrite
 
 ```json
@@ -717,6 +1257,148 @@ These JSON Schema definitions are generated from the verified contract, not samp
     "source"
   ],
   "title": "DebtRepaymentWrite"
+}
+```
+
+### DebtRepresentationPreview
+
+```json
+{
+  "properties": {
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "outstanding": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      "title": "Outstanding"
+    },
+    "observed_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Observed On"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "currency",
+    "outstanding",
+    "observed_on"
+  ],
+  "title": "DebtRepresentationPreview"
+}
+```
+
+### DebtRepresentationWarning
+
+```json
+{
+  "properties": {
+    "owner_fraction": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Owner Fraction",
+      "default": "1"
+    },
+    "owned_card_outstanding": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Owned Card Outstanding"
+    },
+    "equal_owned_amount": {
+      "type": "boolean",
+      "title": "Equal Owned Amount",
+      "default": false
+    },
+    "code": {
+      "type": "string",
+      "const": "possible_card_liability_overlap",
+      "title": "Code",
+      "default": "possible_card_liability_overlap"
+    },
+    "account_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Account Id"
+    },
+    "account_name": {
+      "type": "string",
+      "title": "Account Name"
+    },
+    "account_revision": {
+      "type": "integer",
+      "title": "Account Revision"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "card_outstanding": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Card Outstanding"
+    },
+    "observed_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Observed On"
+    },
+    "equal_amount": {
+      "type": "boolean",
+      "title": "Equal Amount"
+    },
+    "explanation": {
+      "type": "string",
+      "title": "Explanation",
+      "default": "Credit-card ledger balances and manual liabilities both count in net worth, including dated history. Enter only a separate obligation here; recording the card obligation again counts it twice. Equal amounts are a warning, not proof of a duplicate. Archiving an account or pausing a forecast does not erase debt."
+    }
+  },
+  "type": "object",
+  "required": [
+    "account_id",
+    "account_name",
+    "account_revision",
+    "currency",
+    "card_outstanding",
+    "observed_on",
+    "equal_amount"
+  ],
+  "title": "DebtRepresentationWarning"
 }
 ```
 
@@ -1177,5 +1859,355 @@ These JSON Schema definitions are generated from the verified contract, not samp
     "independent_liability"
   ],
   "title": "DebtWrite"
+}
+```
+
+### RecordPage_DebtResponse_
+
+```json
+{
+  "properties": {
+    "as_of": {
+      "type": "string",
+      "format": "date",
+      "title": "As Of"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/DebtResponse"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Cursor"
+    }
+  },
+  "type": "object",
+  "required": [
+    "as_of",
+    "items",
+    "next_cursor"
+  ],
+  "title": "RecordPage[DebtResponse]"
+}
+```
+
+### WorkflowReceipt
+
+```json
+{
+  "properties": {
+    "asset_type": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "gold",
+            "silver",
+            "platinum",
+            "palladium"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Asset Type"
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "metal_purchase",
+        "bnpl_purchase",
+        "creditor_refund",
+        "reverse"
+      ],
+      "title": "Kind"
+    },
+    "account_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Account Id"
+    },
+    "asset_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Asset Id"
+    },
+    "debt_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Debt Id"
+    },
+    "entry_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Entry Id"
+    },
+    "fee_entry_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Fee Entry Id"
+    },
+    "source_repayment_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Source Repayment Id"
+    },
+    "reversal_of": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Reversal Of"
+    },
+    "occurred_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Occurred On"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "AED",
+        "USD",
+        "GBP",
+        "EUR",
+        "SAR",
+        "BHD",
+        "KWD",
+        "QAR",
+        "OMR",
+        "JOD",
+        "TRY"
+      ],
+      "title": "Currency"
+    },
+    "principal_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Principal Amount"
+    },
+    "cost_amount": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$",
+      "title": "Cost Amount"
+    },
+    "account_revision": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Account Revision"
+    },
+    "asset_revision": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Asset Revision"
+    },
+    "debt_revision": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Debt Revision"
+    },
+    "quantity": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Quantity"
+    },
+    "quantity_unit": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Quantity Unit"
+    },
+    "fineness": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Fineness"
+    },
+    "fine_weight_grams": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,39})(?:\\.[0-9]{1,18})?$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Fine Weight Grams"
+    },
+    "exact_fine_grams_numerator": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Exact Fine Grams Numerator"
+    },
+    "exact_fine_grams_denominator": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Exact Fine Grams Denominator"
+    },
+    "source": {
+      "type": "string",
+      "title": "Source"
+    },
+    "category": {
+      "type": "string",
+      "title": "Category"
+    },
+    "allocations": {
+      "items": {
+        "$ref": "#/components/schemas/RefundAllocation"
+      },
+      "type": "array",
+      "title": "Allocations"
+    },
+    "market_value_known": {
+      "type": "boolean",
+      "const": false,
+      "title": "Market Value Known",
+      "default": false
+    },
+    "money_moved_by_farz": {
+      "type": "boolean",
+      "const": false,
+      "title": "Money Moved By Farz",
+      "default": false
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "kind",
+    "account_id",
+    "asset_id",
+    "debt_id",
+    "entry_id",
+    "fee_entry_id",
+    "source_repayment_id",
+    "reversal_of",
+    "occurred_on",
+    "recorded_at",
+    "currency",
+    "principal_amount",
+    "cost_amount",
+    "source",
+    "category"
+  ],
+  "title": "WorkflowReceipt"
 }
 ```

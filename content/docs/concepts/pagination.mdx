@@ -16,3 +16,19 @@ There is no declared `has_more` or generic `meta` field. For `GET /api/v1/worksp
 Prefer `next_cursor` when supplied. Do not send a nonzero offset with a cursor; that returns422. Preserve identity, workspace and filters across traversal. Cursors expire after24hours and anchor the insertion boundary; they do not promise that every mutable annotation or classification is an immutable snapshot. Expiry or changed identity/filters returns409 `CONFLICT`; malformed cursors return422.
 
 When both dates are supplied, start must not follow end. Do not apply the previous docs' universal366-day limit to every endpoint. Other history/import/report collections have their own shapes and constraints; consult [the exact schema](https://api.farz.app/openapi.json).
+
+## New bounded views and exports
+
+For filtered account browsing use `/accounts/page`; the original accounts array
+is unchanged. Record-family `/page` routes, cross-record `/records/search` and the
+notification inbox use their own bounded envelopes and snapshot-bound cursors,
+usually25 items by default and100 maximum. These view cursors expire after one
+hour, allow page-size changes and reject changed filters, sequence/projections,
+authority or workspace-local date with409. Search matches normalized display
+labels, not arbitrary private payloads.
+
+Owned-record exports use a **15-minute manifest** plus section/page cursors.
+Follow every page to verify full-section continuity. An export cursor is not a
+credential or a durable archive. Import review/history pagination has independent
+stage/purpose/page-size rules. Never reuse a transaction, export, inbox or import
+cursor for a different collection.

@@ -3,11 +3,11 @@ title: API availability
 description: Current unified API and the availability of future developer integrations.
 ---
 
-Verified against the deployed API on **11 October 2026**. The current first-party backend is **https://api.farz.app/api/v1**. Web, Android and the separate Swift iOS client share this versioned backend and Clerk user bearer authentication; native private screens remain gated pending security acceptance.
+Verified against the deployed API on **16 October 2026**. The current first-party backend is **https://api.farz.app/api/v1**. Web, Android and the separate Swift iOS client share this versioned backend and Clerk user bearer authentication; native private screens remain gated pending security acceptance.
 
 | Surface | Current status |
 | --- | --- |
-| Unified `/api/v1` | Live; authenticated workspace finance and onboarding |
+| Unified `/api/v1` | Live on schema0076;224 paths/264 operations for authenticated workspace finance, onboarding, privacy and notifications |
 | Paid developer API keys | Deferred; no published key-issuance flow |
 | `/api/developer/v1` | Unavailable; advertised account/transaction routes return404 |
 | MCP | Unconfigured; `/mcp` returns404 |
@@ -21,3 +21,17 @@ Start with the [safe public quickstart](/docs/quickstart), [authentication](/doc
 Personal lending is live: [Reclaim](/docs/api/lending) records money actually received, including partial repayments. It does not initiate a payment or create a reminder.
 
 Future Paid developer keys must be Clerk-issued and authorized by backend-verified payment entitlement. Farz does **not** use Clerk Billing. Key issuance, scopes and delegated access remain separate implementation/activation work, not instructions you can follow today.
+
+## Latest backend additions
+
+The current release includes [private reminders/inbox](/docs/api/notifications),
+[20-group owned-record exports](/docs/api/owned-records),
+[record browsing and sync](/docs/api/discovery),
+[privacy requests and consents](/docs/api/privacy),
+[account lifecycle and plan status](/docs/api/account-control),
+[session controls](/docs/api/security), expanded actual money/reporting workflows
+and [signed provider ingress](/docs/api/webhooks). Their schemas are live; email,
+automatic notification transport, full erasure/portability and native security
+acceptance are separate gates. [Statement intake/review](/docs/api/imports) routes
+exist, but production processing remains unconfigured. PDF/image extraction will
+use approved native model vision, never OCR; it is not activated.

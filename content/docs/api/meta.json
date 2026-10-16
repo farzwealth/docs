@@ -3,10 +3,12 @@
   "pages": [
     "overview",
     "endpoints",
+    "public",
     "profile",
-    "summary",
     "accounts",
     "transactions",
+    "summary",
+    "recurring",
     "assets",
     "liabilities",
     "lending",
@@ -14,6 +16,14 @@
     "goals",
     "valuations",
     "reports",
+    "owned-records",
+    "discovery",
+    "notifications",
+    "imports",
+    "privacy",
+    "account-control",
+    "security",
+    "webhooks",
     "schemas"
   ]
 }

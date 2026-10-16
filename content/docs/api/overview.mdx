@@ -3,14 +3,14 @@ title: Unified API overview
 description: The deployed /api/v1 contract and its declared operations.
 ---
 
-The live first-party base URL is **https://api.farz.app/api/v1**. The generated contract contains132 declared paths and160 operations, including reads and writes. This is different from the earlier site's15-route, read-only planned developer API.
+The live first-party base URL is **https://api.farz.app/api/v1**. The generated contract contains224 declared paths and264 operations, including reads and writes. This is different from the earlier site's15-route, read-only planned developer API.
 
 Use [the complete route index](/docs/api/endpoints) and [OpenAPI JSON](https://api.farz.app/openapi.json) for all query parameters, headers, request schemas and success statuses. Obtain a Clerk user bearer and authorized workspace ID from `/api/v1/me`; see [authentication](/docs/concepts/authentication).
 
 | Guide | Live resource family |
 | --- | --- |
 |[Profile](/docs/api/profile)|`/api/v1/me`, eligibility, onboarding and setup|
-|[Summary](/docs/api/summary)|Workspace `/dashboard`, `/cashflow` and `/allocation`|
+|[Summary](/docs/api/summary)|Workspace `/dashboard`, `/cashflow`, `/forecast`, activity and obligations|
 |[Accounts](/docs/api/accounts)|Workspace `/accounts` and financial journal commands|
 |[Transactions](/docs/api/transactions)|Workspace `/transactions`|
 |[Assets](/docs/api/assets)|Workspace `/assets` and qualified investment event/history routes|
@@ -19,7 +19,17 @@ Use [the complete route index](/docs/api/endpoints) and [OpenAPI JSON](https://a
 |[Budgets](/docs/api/budgets)|Workspace `/budgets`|
 |[Goals](/docs/api/goals)|Workspace `/goals`|
 |[Valuations](/docs/api/valuations)|Workspace `/valuation-snapshots`|
-|[Reports](/docs/api/reports)|Workspace `/exports` tasks and protected downloads|
+|[Reports](/docs/api/reports)|Workspace reports, `/exports` and `/report-exports` tasks/downloads|
+|[Owned records](/docs/api/owned-records)|20-group manifest/paged JSON/CSV exports|
+|[Discovery and sync](/docs/api/discovery)|Bounded pages, record search, portfolio queries and sync cursors|
+|[Notifications](/docs/api/notifications)|Preferences, inbox/actions, explicit generation and gated delivery|
+|[Statement imports](/docs/api/imports)|Quarantine, processing jobs, review, confirmation, commit/history; production processing unavailable|
+|[Privacy and consents](/docs/api/privacy)|Request intake/history/receipts and optional consent history|
+|[Account and plans](/docs/api/account-control)|Lifecycle, plan status and independently gated trials|
+|[Session security](/docs/api/security)|Local inventory/blocking and separately gated provider revocation|
+|[Provider webhooks](/docs/api/webhooks)|Clerk/Resend Svix signatures, not user tokens|
+|[Recurring and rent](/docs/api/recurring)|Plans, overrides, actual posting and matching|
+|[Public status](/docs/api/public)|Capabilities, health and conditional FX|
 
 A declared optional provider route does not mean that provider is active. Live capabilities currently report developer API, MCP, billing, email, AI and general import integrations as unconfigured. Do not use `/api/developer/v1` or guess aliases such as `/summary` and `/reports`.
 

@@ -26,3 +26,11 @@ Validation errors populate `field_errors` with `field` and `message`; the field 
 `retry=true` on429/503 is an advisory, not permission to duplicate a financial operation. Honor the rate delay, use bounded backoff/jitter, and keep the same idempotency key for an unchanged mutation. On409, refresh authoritative revisions/history and review the change. Do not silently retry with altered content or a new key. Requests for inaccessible records must not reveal another workspace's data.
 
 The generated schema primarily documents success and validation responses; it does not list every runtime authorization/conflict/service error.
+
+Expired private report artifacts can return410 `REQUEST_FAILED`; ingress also
+uses400/413/415 for malformed framing, excessive size or unsupported media.
+Statuses outside the default table use `REQUEST_FAILED` unless a service provides
+a specific code. Provider webhooks have their own signature/configuration errors;
+keep the original delivery bytes for supported retries instead of substituting a
+customer token. No successful receipt implies payment, full erasure or provider
+activation.

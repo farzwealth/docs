@@ -115,7 +115,7 @@ export default function HomePage() {
           </div>
           <h2 className="text-sm font-semibold text-fd-foreground mb-1">REST API Reference</h2>
           <p className="text-xs text-fd-muted-foreground leading-relaxed">
-            Inspect the verified unified API: 132 declared paths and 160 read/write operations.
+            Inspect the verified unified API: 224 declared paths and 264 read/write operations.
           </p>
         </Link>
 

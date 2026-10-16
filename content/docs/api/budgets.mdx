@@ -7,14 +7,226 @@ Budget list/write schemas are endpoint-specific. Posted spending and explicit re
 
 Private operations require an authorized Clerk user bearer and workspace membership. Optional/sensitive services retain their policy/entitlement/fresh-authentication gates.
 
-| Complete route | Required operation headers (besides authentication) | Declared success |
-| --- | --- | --- |
-| `GET /api/v1/workspaces/{workspace_id}/budgets` | — | 200 application/json BudgetResponse[] |
-| `POST /api/v1/workspaces/{workspace_id}/budgets` | `Idempotency-Key` | 200 application/json BudgetResponse |
+Reviewed repetition has separate preview/commit routes; explicit selected months/revisions and confirmation are required. A repeated budget is a plan, not money spent. `/budgets/page` adds bounded period-filtered discovery.
+
+| Complete route | Authentication | Required operation headers | Declared success |
+| --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/budgets/page` | Clerk user bearer | — | 200 application/json RecordPage_BudgetResponse_ |
+| `GET /api/v1/workspaces/{workspace_id}/budgets` | Clerk user bearer | — | 200 application/json BudgetResponse[] |
+| `POST /api/v1/workspaces/{workspace_id}/budgets` | Clerk user bearer | `Idempotency-Key` | 200 application/json BudgetResponse |
+| `POST /api/v1/workspaces/{workspace_id}/budgets/repeat/preview` | Clerk user bearer | — | 200 application/json BudgetRepeatPreview |
+| `POST /api/v1/workspaces/{workspace_id}/budgets/repeat` | Clerk user bearer | `Idempotency-Key` | 200 application/json BudgetRepeatReceipt |
 
 ## Exact request/response models
 
 These JSON Schema definitions are generated from the verified contract, not sample financial records. Resolve `$ref` entries through [OpenAPI JSON](/openapi.json). All query/body constraints and additional operations appear in the [complete index](/docs/api/endpoints).
+
+### BudgetRepeatPreview
+
+```json
+{
+  "properties": {
+    "policy": {
+      "type": "string",
+      "const": "reviewed_budget_repeat_v1",
+      "title": "Policy",
+      "default": "reviewed_budget_repeat_v1"
+    },
+    "selection": {
+      "$ref": "#/components/schemas/BudgetRepeatSelection"
+    },
+    "sources": {
+      "items": {
+        "$ref": "#/components/schemas/BudgetRepeatSource"
+      },
+      "type": "array",
+      "title": "Sources"
+    },
+    "targets": {
+      "items": {
+        "$ref": "#/components/schemas/BudgetRepeatTarget"
+      },
+      "type": "array",
+      "title": "Targets"
+    },
+    "change_sequence": {
+      "type": "integer",
+      "title": "Change Sequence"
+    },
+    "input_digest": {
+      "type": "string",
+      "title": "Input Digest"
+    }
+  },
+  "type": "object",
+  "required": [
+    "selection",
+    "sources",
+    "targets",
+    "change_sequence",
+    "input_digest"
+  ],
+  "title": "BudgetRepeatPreview"
+}
+```
+
+### BudgetRepeatReceipt
+
+```json
+{
+  "properties": {
+    "is_snapshot": {
+      "type": "boolean",
+      "const": true,
+      "title": "Is Snapshot",
+      "default": true
+    },
+    "preview": {
+      "$ref": "#/components/schemas/BudgetRepeatPreview"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/RepeatedBudget"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "change_sequence": {
+      "type": "integer",
+      "title": "Change Sequence"
+    },
+    "created_count": {
+      "type": "integer",
+      "title": "Created Count"
+    },
+    "replaced_count": {
+      "type": "integer",
+      "title": "Replaced Count"
+    },
+    "unchanged_count": {
+      "type": "integer",
+      "title": "Unchanged Count"
+    }
+  },
+  "type": "object",
+  "required": [
+    "preview",
+    "items",
+    "change_sequence",
+    "created_count",
+    "replaced_count",
+    "unchanged_count"
+  ],
+  "title": "BudgetRepeatReceipt"
+}
+```
+
+### BudgetRepeatSelection
+
+```json
+{
+  "properties": {
+    "source_period": {
+      "type": "string",
+      "format": "date",
+      "title": "Source Period"
+    },
+    "source_budget_ids": {
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "type": "array",
+      "maxItems": 20,
+      "minItems": 1,
+      "title": "Source Budget Ids"
+    },
+    "starts_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Starts On"
+    },
+    "months": {
+      "type": "integer",
+      "maximum": 12,
+      "minimum": 1,
+      "title": "Months"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "source_period",
+    "source_budget_ids",
+    "starts_on",
+    "months"
+  ],
+  "title": "BudgetRepeatSelection"
+}
+```
+
+### BudgetRepeatWrite
+
+```json
+{
+  "properties": {
+    "source_period": {
+      "type": "string",
+      "format": "date",
+      "title": "Source Period"
+    },
+    "source_budget_ids": {
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "type": "array",
+      "maxItems": 20,
+      "minItems": 1,
+      "title": "Source Budget Ids"
+    },
+    "starts_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Starts On"
+    },
+    "months": {
+      "type": "integer",
+      "maximum": 12,
+      "minimum": 1,
+      "title": "Months"
+    },
+    "expected_change_sequence": {
+      "type": "integer",
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "title": "Expected Change Sequence"
+    },
+    "input_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Input Digest"
+    },
+    "confirmed": {
+      "type": "boolean",
+      "const": true,
+      "title": "Confirmed"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "source_period",
+    "source_budget_ids",
+    "starts_on",
+    "months",
+    "expected_change_sequence",
+    "input_digest",
+    "confirmed"
+  ],
+  "title": "BudgetRepeatWrite"
+}
+```
 
 ### BudgetResponse
 
@@ -140,5 +352,44 @@ These JSON Schema definitions are generated from the verified contract, not samp
     "amount"
   ],
   "title": "BudgetWrite"
+}
+```
+
+### RecordPage_BudgetResponse_
+
+```json
+{
+  "properties": {
+    "as_of": {
+      "type": "string",
+      "format": "date",
+      "title": "As Of"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/components/schemas/BudgetResponse"
+      },
+      "type": "array",
+      "title": "Items"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Cursor"
+    }
+  },
+  "type": "object",
+  "required": [
+    "as_of",
+    "items",
+    "next_cursor"
+  ],
+  "title": "RecordPage[BudgetResponse]"
 }
 ```
