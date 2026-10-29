@@ -3,8 +3,6 @@ title: API reference overview
 description: How the Farz app API at /api/v1 is organized, how to authenticate, and how to read each guide.
 ---
 
-**Status: In testing.** The routes in this section are deployed in the Farz API. Most features are still in acceptance testing, so check the status line on each guide.
-
 ## Base URL and workspace
 
 Every route in this section starts with `https://api.farz.app/api/v1`. Routes that act on your money include a workspace ID in the path, as `/api/v1/workspaces/{workspace_id}/...`. Each person has one personal workspace. To find its ID, call `GET /api/v1/workspaces`. The list returns only workspaces you own.
@@ -34,12 +32,12 @@ The guides are grouped by area. Each guide lists every route in its area.
 | Files and reports | [Imports](/docs/api/imports), [Reports](/docs/api/reports) |
 | Account and privacy | [Notifications](/docs/api/notifications), [Privacy](/docs/api/privacy), [Sessions and devices](/docs/api/security), [Support](/docs/api/support), [Sync](/docs/api/sync) |
 | AI and integrations | [Assistant](/docs/api/assistant), [Personal API keys and connectors](/docs/api/integrations) |
-| Commerce | [Billing](/docs/api/billing) (Planned) |
+| Commerce | [Billing](/docs/api/billing) |
 | Provider use only | [Webhooks](/docs/api/webhooks) |
 
 ## Developer REST reference
 
-The personal developer REST API has three routes under `/api/developer/v1`. Its status is Planned. See the [developer REST reference](/docs/developer/reference).
+The personal developer REST API has three routes under `/api/developer/v1`. See the [developer REST reference](/docs/developer/reference).
 
 ## Coverage
 

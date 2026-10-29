@@ -1,29 +1,19 @@
 ---
 title: Overview
-description: What the Farz API offers today, which parts are in testing, and what is planned before full launch.
+description: What the Farz API offers and what is coming before full launch.
 ---
 
 The Farz API is the service behind the Farz app. These docs describe its routes and the parts you can reach from outside the app.
 
-**The Farz app is not public yet.** Most features are deployed but still in testing. Some parts are planned and not built or not enabled. Read the status label on each page before you rely on it.
-
-## Status labels
-
-| Label | Meaning |
-| --- | --- |
-| **Live** | Working in production and available to the people it is meant for. |
-| **In testing** | Deployed. Acceptance testing is not finished, or access is limited to a few testers. |
-| **Planned** | Not built, not deployed, or not enabled. Do not call it. |
-
 ## What you can reach
 
-| Surface | What it is | Status |
-| --- | --- | --- |
-| [Farz app API](/docs/api/overview) at `/api/v1` | The routes the Farz app uses with a signed-in user's token. The API reference covers every route in the current contract. | In testing |
-| [Personal developer REST API](/docs/developer/reference) at `/api/developer/v1` | Three read-only routes for your own profile, accounts and transactions. | Planned. Built, not enabled. |
-| [Remote MCP server](/docs/mcp) at `https://mcp.farz.app/mcp` | Read-only tools for an AI assistant that you approve. | In testing. Calls need a Paid plan or a staff-granted beta grant. |
-| [Personal API keys](/docs/api/integrations) | Keys for the personal developer REST API. | In testing, by staff-granted beta access only. |
-| Payments | Paid plans from Stripe, Ziina, Google Play or RevenueCat. | Planned, after the beta. |
+| Surface | What it is |
+| --- | --- |
+| [Farz app API](/docs/api/overview) at `/api/v1` | The routes the Farz app uses with a signed-in user's token. The API reference covers every route in the current contract. |
+| [Personal developer REST API](/docs/developer/reference) at `/api/developer/v1` | Three read-only routes for your own profile, accounts and transactions. |
+| [Remote MCP server](/docs/mcp) at `https://mcp.farz.app/mcp` | Read-only tools for an AI assistant that you approve. |
+| [Personal API keys](/docs/api/integrations) | Keys for the personal developer REST API. |
+| Payments | Paid plans from Stripe, Ziina, Google Play or RevenueCat. |
 
 Read the [roadmap](/docs/roadmap) for the full list of features planned before launch.
 
