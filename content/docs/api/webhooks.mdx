@@ -1,0 +1,23 @@
+---
+title: Provider webhooks
+description: Signed event endpoints for Clerk, Resend, Stripe and RevenueCat. Not for customer use.
+---
+
+**Not for customers.** Only the named provider can call these routes. They check a signature.
+
+Listed for completeness. Do not call these routes yourself.
+
+## Endpoints
+
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `POST /api/v1/webhooks/clerk` | Clerk Lifecycle Webhook | Provider signature (Clerk) | `svix-id (required)`, `svix-timestamp (required)` | none | object | 204 (no body) |
+| `POST /api/v1/webhooks/resend` | Resend Webhook | Provider signature (Resend) | `svix-id (required)`, `svix-timestamp (required)` | none | object | 204 (no body) |
+| `POST /api/v1/webhooks/revenuecat` | Revenuecat Webhook | Provider signature (RevenueCat) | `Authorization (required)` | none | object | 200 (no body) |
+| `POST /api/v1/webhooks/stripe` | Stripe Webhook | Provider signature (Stripe) | none | none | object | 200 (no body) |
+
+`*` marks a required query parameter. Path parameters are listed in the route.
+
+## Models
+
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.

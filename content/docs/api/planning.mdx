@@ -1,0 +1,484 @@
+---
+title: Planning, forecast, rent and Zakat
+description: Forecasts, cashflow, upcoming obligations, rent, returns, funding comparisons and Zakat estimates.
+---
+
+**Status: In testing.** Deployed in the API. Acceptance testing for this area is not complete.
+
+Forecast dates do not prove that a payment was made.
+
+Zakat results are educational estimates. Each result lists its assumptions.
+
+## Endpoints
+
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/account-funding-plan` | Upcoming account funding gaps | Signed-in user (Clerk bearer) | none | `end*`, `account_id` | none | 200 `FundingPlan` |
+| `GET /api/v1/workspaces/{workspace_id}/calendar/display` | Display | Signed-in user (Clerk bearer) | none | `calendar*`, `dates*` | none | 200 `CalendarDisplay` |
+| `GET /api/v1/workspaces/{workspace_id}/cashflow` | Get Cashflow | Signed-in user (Clerk bearer) | none | `start*` | none | 200 `CashflowResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/forecast` | Get Forecast | Signed-in user (Clerk bearer) | none | `start*`, `end*` | none | 200 `ForecastPage` |
+| `POST /api/v1/workspaces/{workspace_id}/funding-comparison` | Compare pending money and hypothetical account funding | Signed-in user (Clerk bearer) | none | none | `FundingComparisonInput` | 200 `FundingComparison` |
+| `GET /api/v1/workspaces/{workspace_id}/rent` | Get Rent | Signed-in user (Clerk bearer) | none | none | none | 200 array of `RentResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/rent` | Save Rent | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `RentWrite` | 200 `RentResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/rent/page` | Rent Page | Signed-in user (Clerk bearer) | none | `limit`, `cursor`, `q`, `sort`, `currency`, `active`, `direction` | none | 200 `RecordPage_RentResponse_` |
+| `GET /api/v1/workspaces/{workspace_id}/rent/payment-sources/{entry_id}` | Rent Payment Source | Signed-in user (Clerk bearer) | none | none | none | 200 `RentPaymentSource` |
+| `POST /api/v1/workspaces/{workspace_id}/rent/proration/preview` | Preview Rent Proration | Signed-in user (Clerk bearer) | none | none | `RentProrationInput` | 200 `RentProrationPreview` |
+| `GET /api/v1/workspaces/{workspace_id}/rent/{plan_id}/amendments` | Rent Amendment History | Signed-in user (Clerk bearer) | none | none | none | 200 array of `RentAmendmentResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/rent/{plan_id}/amendments` | Amend Rent | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `RentAmendmentWrite` | 200 `RentAmendmentResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/rent/{plan_id}/amendments/page` | rent_amendment_history (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `RentAmendmentHistoryPage` |
+| `GET /api/v1/workspaces/{workspace_id}/rent/{plan_id}/effective` | Effective Rent | Signed-in user (Clerk bearer) | none | none | none | 200 `RentAmendmentState` |
+| `POST /api/v1/workspaces/{workspace_id}/rent/{plan_id}/entries` | Record a security deposit, agency fee or renewal fee for a rent plan | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `RentEntryWrite` | 200 `RentResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/rent/{plan_id}/entries/{entry_id}/settlements` | Record a refund or forfeiture against a rent-related entry | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `RentEntrySettlementWrite` | 200 `RentResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/rent/{plan_id}/receipts` | Rent Receipt History | Signed-in user (Clerk bearer) | none | none | none | 200 array of `RentReceiptResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/rent/{plan_id}/receipts` | Match Rent Receipt | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `RentReceiptWrite` | 200 `RentReceiptResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/rent/{plan_id}/receipts/page` | rent_receipt_history (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `RentReceiptHistoryPage` |
+| `POST /api/v1/workspaces/{workspace_id}/rent/{plan_id}/receipts/{receipt_id}/unmatch` | Unmatch Rent Receipt | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `RentReceiptUnmatch` | 200 `RentReceiptResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/returns` | Return History | Signed-in user (Clerk bearer) | none | `before`, `limit` | none | 200 array of `ReturnObservationResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/returns` | Save Return | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `ReturnSave` | 200 `ReturnObservationResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/returns/preview` | Preview Return | Signed-in user (Clerk bearer) | none | none | `ReturnInput` | 200 `ReturnPreview` |
+| `POST /api/v1/workspaces/{workspace_id}/returns/time-weighted` | Save Time Weighted Return | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `TimeWeightedSave` | 200 `ReturnObservationResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/returns/time-weighted/preview` | Preview Time Weighted Return | Signed-in user (Clerk bearer) | none | none | `TimeWeightedInput` | 200 `TimeWeightedPreview` |
+| `GET /api/v1/workspaces/{workspace_id}/upcoming-obligations` | Upcoming | Signed-in user (Clerk bearer) | none | `start*`, `end*`, `account_id`, `category`, `native_currency`, `origin`, `direction`, `due_state`, `include_skipped`, `limit`, `cursor` | none | 200 `UpcomingPage` |
+| `GET /api/v1/workspaces/{workspace_id}/zakat` | Zakat History | Signed-in user (Clerk bearer) | none | `before`, `limit` | none | 200 array of `ZakatEstimateResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/zakat` | Record Zakat | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `ZakatSave` | 200 `ZakatEstimateResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/zakat/preview` | Preview Zakat | Signed-in user (Clerk bearer) | none | none | `ZakatInput` | 200 `ZakatPreview` |
+
+`*` marks a required query parameter. Path parameters are listed in the route.
+
+## Models
+
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
+
+### `FundingPlan`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `version` | string | no |
+| `today` | string (date) | yes |
+| `end` | string (date) | yes |
+| `timezone` | string | yes |
+| `change_sequence` | integer | yes |
+| `accounts` | array of AccountFunding | yes |
+| `excluded_accounts` | array of AccountResponse | yes |
+| `excluded` | array of ExcludedFunding | yes |
+| `basis` | string | no |
+| `assumes_zero_credit_facility` | boolean | no |
+| `past_due_schedules_included` | boolean | no |
+| `initiates_payments` | boolean | no |
+| `proves_future_solvency` | boolean | no |
+| `assesses_withdrawable_funds` | boolean | no |
+
+### `CalendarDisplay`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `version` | string | no |
+| `calendar` | string | no |
+| `dataset` | string | no |
+| `supported_gregorian_start` | string (date) | yes |
+| `supported_gregorian_end` | string (date) | yes |
+| `purpose` | string | no |
+| `gregorian_is_authoritative` | boolean | no |
+| `local_moon_sighting_verified` | boolean | no |
+| `items` | array of CalendarDisplayItem | yes |
+
+### `CashflowResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `start` | string (date) | yes |
+| `end` | string (date) | yes |
+| `months` | array of CashflowMonth | yes |
+| `totals` | array of CashflowMonth | yes |
+| `skipped` | integer | yes |
+| `basis` | string | no |
+| `forecast_only` | boolean | no |
+| `payment_recorded` | boolean | no |
+
+### `ForecastPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of ForecastOccurrence | yes |
+| `truncated` | boolean | no |
+| `start` | string (date) | yes |
+| `end` | string (date) | yes |
+
+### `FundingComparisonInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `end` | string (date) | yes |
+| `account_id` | string (uuid) (nullable) | no |
+| `include_pending` | boolean | no |
+| `expected_change_sequence` | integer (nullable) | no |
+| `scenarios` | array of FundingScenario | no |
+
+### `FundingComparison`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `version` | string | no |
+| `today` | string (date) | yes |
+| `end` | string (date) | yes |
+| `timezone` | string | yes |
+| `change_sequence` | integer | yes |
+| `input_digest` | string | yes |
+| `pending_included` | boolean | yes |
+| `baseline` | FundingProjection | yes |
+| `scenarios` | array of FundingProjection | yes |
+| `excluded_accounts` | array of AccountResponse | yes |
+| `ordering` | string | no |
+| `native_currencies_separate` | boolean | no |
+| `source_overlap_is_not_deduplicated` | boolean | no |
+| `amounts_are_gross_ledger_not_withdrawable` | boolean | no |
+| `assumes_zero_credit_facility` | boolean | no |
+| `past_due_schedules_included` | boolean | no |
+| `predicts_unrecorded_spending` | boolean | no |
+| `initiates_payments` | boolean | no |
+| `persists_scenarios` | boolean | no |
+| `proves_future_solvency` | boolean | no |
+
+### `RentResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `property_asset_id` | string (uuid) (nullable) | no |
+| `related_entries` | array of RentRelatedEntry | no |
+| `id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `title` | string | yes |
+| `direction` | enum: `income`, `expense` | yes |
+| `currency` | enum (164 values) | yes |
+| `total_rent` | string | yes |
+| `starts_on` | string (date) | yes |
+| `term_months` | integer | yes |
+| `cheque_count` | enum: `1`, `2`, `3`, `4`, `6`, `12` (nullable) | yes |
+| `payments` | array of RentPayment | yes |
+| `active` | boolean | yes |
+| `ends_on` | string (date) | yes |
+| `scheduled_payments` | array of RentPayment | yes |
+| `minor_digits` | integer | yes |
+| `basis` | string | no |
+
+### `RentWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `property_asset_id` | string (uuid) (nullable) | no |
+| `id` | string (uuid) (nullable) | no |
+| `expected_revision` | integer | no |
+| `title` | string | yes |
+| `direction` | enum: `income`, `expense` | no |
+| `currency` | enum (164 values) | yes |
+| `total_rent` | string | yes |
+| `starts_on` | string (date) | yes |
+| `term_months` | integer | no |
+| `cheque_count` | enum: `1`, `2`, `3`, `4`, `6`, `12` (nullable) | no |
+| `payments` | array of RentPayment | no |
+| `active` | boolean | no |
+
+### `RecordPage_RentResponse_`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `as_of` | string (date) | yes |
+| `items` | array of RentResponse | yes |
+| `next_cursor` | string (nullable) | yes |
+
+### `RentPaymentSource`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `source_entry_id` | string (uuid) | yes |
+| `account_id` | string (uuid) | yes |
+| `currency` | string | yes |
+| `direction` | enum: `income`, `expense` | yes |
+| `amount` | string | yes |
+| `matched_amount` | string | yes |
+| `available_amount` | string | yes |
+| `revision` | integer | yes |
+
+### `RentProrationInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `currency` | enum (164 values) | yes |
+| `full_amount` | string | yes |
+| `period_start` | string (date) | yes |
+| `period_end` | string (date) | yes |
+| `occupied_periods` | array of OccupiedPeriod | yes |
+| `basis` | string | no |
+
+### `RentProrationPreview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `input` | RentProrationInput | yes |
+| `period_days` | integer | yes |
+| `occupied_days` | integer | yes |
+| `vacant_days` | integer | yes |
+| `prorated_amount` | string | yes |
+| `minor_digits` | integer | yes |
+| `rounding` | string | no |
+| `basis` | string | no |
+
+### `RentAmendmentResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `plan_id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `recorded_at` | string (date-time) | yes |
+| `action` | enum: `adjust`, `skip`, `restore`, `terminate` | yes |
+| `plan_revision_at_review` | integer | yes |
+| `from_date` | string (date) (nullable) | yes |
+| `proration` | RentProrationInput (nullable) | no |
+| `reason` | string | yes |
+| `recorded_by` | string (uuid) | yes |
+| `changes` | array of RentForecastChange | yes |
+| `basis` | string | no |
+
+### `RentAmendmentWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_plan_revision` | integer | yes |
+| `expected_revision` | integer | yes |
+| `action` | enum: `adjust`, `skip`, `restore`, `terminate` | yes |
+| `original_date` | string (date) (nullable) | no |
+| `from_date` | string (date) (nullable) | no |
+| `due_on` | string (date) (nullable) | no |
+| `amount` | string (nullable) | no |
+| `proration` | RentProrationInput (nullable) | no |
+| `reason` | string | yes |
+
+### `RentAmendmentHistoryPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of RentAmendmentResponse | yes |
+| `next_cursor` | string (nullable) | no |
+
+### `RentAmendmentState`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `plan_id` | string (uuid) | yes |
+| `plan_revision` | integer | yes |
+| `amendment_revision` | integer | yes |
+| `receipt_revision` | integer | no |
+| `currency` | string | yes |
+| `active` | boolean | yes |
+| `payments` | array of RentEffectivePayment | yes |
+| `basis` | string | no |
+
+### `RentEntryWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_plan_revision` | integer | yes |
+| `kind` | enum: `security_deposit`, `agency_fee`, `renewal_fee` | yes |
+| `amount` | string | yes |
+| `occurred_on` | string (date) | yes |
+| `reference` | string | no |
+
+### `RentEntrySettlementWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_plan_revision` | integer | yes |
+| `action` | enum: `refund`, `forfeit` | yes |
+| `amount` | string | yes |
+| `occurred_on` | string (date) | yes |
+| `reason` | string | yes |
+
+### `RentReceiptResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `plan_id` | string (uuid) | yes |
+| `source_entry_id` | string (uuid) | yes |
+| `reversal_of` | string (uuid) (nullable) | yes |
+| `revision` | integer | yes |
+| `recorded_at` | string (date-time) | yes |
+| `action` | enum: `match`, `unmatch` | yes |
+| `reason` | string | yes |
+| `recorded_by` | string (uuid) | yes |
+| `source_occurred_on` | string (date) | yes |
+| `source_account_id` | string (uuid) | yes |
+| `source_amount` | string | yes |
+| `original_match_input` | RentReceiptWrite | yes |
+| `currency` | string | yes |
+| `total_matched` | string | yes |
+| `allocations` | array of RentPaymentAllocation | yes |
+| `basis` | string | no |
+
+### `RentReceiptWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `source_entry_id` | string (uuid) | yes |
+| `expected_plan_revision` | integer | yes |
+| `expected_amendment_revision` | integer | yes |
+| `expected_receipt_revision` | integer | yes |
+| `expected_source_revision` | integer | yes |
+| `allocations` | array of RentPaymentAllocation | yes |
+| `reason` | string | yes |
+
+### `RentReceiptHistoryPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of RentReceiptResponse | yes |
+| `next_cursor` | string (nullable) | no |
+
+### `RentReceiptUnmatch`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_receipt_revision` | integer | yes |
+| `reason` | string | yes |
+
+### `ReturnObservationResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `input_digest` | string | yes |
+| `input` | ReturnInput or TimeWeightedInput | yes |
+| `calculation` | ReturnCalculation or TimeWeightedCalculation | yes |
+| `id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `recorded_at` | string (date-time) | yes |
+
+### `ReturnSave`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `input` | ReturnInput | yes |
+| `input_digest` | string | yes |
+| `expected_revision` | integer | yes |
+
+### `ReturnInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `name` | string | yes |
+| `currency` | enum (164 values) | yes |
+| `valued_on` | string (date) | yes |
+| `asset_id` | string (uuid) (nullable) | no |
+| `flows` | array of ReturnCashflow | yes |
+| `terminal_value` | string | yes |
+| `terminal_source` | string | yes |
+
+### `ReturnPreview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `input_digest` | string | yes |
+| `input` | ReturnInput | yes |
+| `calculation` | ReturnCalculation | yes |
+
+### `TimeWeightedSave`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `input` | TimeWeightedInput | yes |
+| `input_digest` | string | yes |
+| `expected_revision` | integer | yes |
+
+### `TimeWeightedInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `name` | string | yes |
+| `currency` | enum (164 values) | yes |
+| `asset_id` | string (uuid) (nullable) | no |
+| `observations` | array of TimeWeightedObservation | yes |
+| `complete_flow_boundaries_attested` | boolean | yes |
+| `fees_basis` | enum: `net_of_recorded_fees`, `gross_of_recorded_fees`, `unknown` | yes |
+
+### `TimeWeightedPreview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `input_digest` | string | yes |
+| `input` | TimeWeightedInput | yes |
+| `calculation` | TimeWeightedCalculation | yes |
+
+### `UpcomingPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `version` | string | no |
+| `start` | string (date) | yes |
+| `end` | string (date) | yes |
+| `today` | string (date) | yes |
+| `timezone` | string | yes |
+| `change_sequence` | integer | yes |
+| `total_items` | integer | yes |
+| `totals` | array of UpcomingTotals | yes |
+| `items` | array of UpcomingItem | yes |
+| `next_cursor` | string (nullable) | yes |
+| `initiates_payments` | boolean | no |
+| `forecast_is_proof_of_nonpayment` | boolean | no |
+
+### `ZakatEstimateResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `input` | ZakatInput | yes |
+| `input_digest` | string | yes |
+| `consent_event_id` | string (uuid) | yes |
+| `notice_digest` | string | yes |
+| `country` | string | yes |
+| `calculation` | ZakatCalculation | yes |
+| `method_guidance` | ZakatMethodGuidance | no |
+| `id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `recorded_at` | string (date-time) | yes |
+
+### `ZakatSave`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `input` | ZakatInput | yes |
+| `input_digest` | string | yes |
+| `expected_revision` | integer | yes |
+
+### `ZakatInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `as_of` | string (date) | yes |
+| `currency` | enum (164 values) | yes |
+| `method_name` | string | yes |
+| `method_reference` | string | yes |
+| `annual_rate_percent` | string | yes |
+| `rate_source` | string | yes |
+| `calendar` | enum: `lunar`, `solar`, `owner_defined` | yes |
+| `hawl_starts_on` | string (date) | yes |
+| `hawl_ends_on` | string (date) | yes |
+| `hawl_date_source` | string | yes |
+| `wealth_condition_rule` | enum: `continuous_threshold`, `start_end_threshold`, `owner_defined` | yes |
+| `wealth_condition_satisfied` | boolean | yes |
+| `condition_evidence` | string | yes |
+| `nisab` | NisabInput | yes |
+| `items` | array of ZakatItem | yes |
+| `deductions` | array of ZakatDeduction | yes |
+| `amounts_are_native_owned_values` | boolean | yes |
+| `estimate_only_acknowledged` | boolean | yes |
+
+### `ZakatPreview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `input` | ZakatInput | yes |
+| `input_digest` | string | yes |
+| `consent_event_id` | string (uuid) | yes |
+| `notice_digest` | string | yes |
+| `country` | string | yes |
+| `calculation` | ZakatCalculation | yes |
+| `method_guidance` | ZakatMethodGuidance | no |

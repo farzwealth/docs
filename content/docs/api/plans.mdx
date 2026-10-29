@@ -1,0 +1,148 @@
+---
+title: Plans and trial
+description: Read the current plan and its features, read plan history, and start a trial.
+---
+
+**Status: In testing.** A trial can be started once per person. Paid plans are not yet available.
+
+A trial lasts 30 days and can be started once per verified email. The plan response shows whether the developer API and MCP are available to your account.
+
+Paid plans wait for payments, which are Planned for after the beta.
+
+## Endpoints
+
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/me/plan` | Current Personal Plan | Signed-in user (Clerk bearer) | none | none | none | 200 `PersonalPlanResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/plan` | Current Plan | Signed-in user (Clerk bearer) | none | none | none | 200 `PlanResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/plan/features` | Plan Features | Signed-in user (Clerk bearer) | none | none | none | 200 `FeatureMatrix` |
+| `GET /api/v1/workspaces/{workspace_id}/plan/history` | History | Signed-in user (Clerk bearer) | none | `before_revision`, `limit` | none | 200 `PlanHistoryPage` |
+| `POST /api/v1/workspaces/{workspace_id}/plan/refresh` | Refresh | Signed-in user (Clerk bearer) | none | none | none | 200 `PlanObservation` |
+| `GET /api/v1/workspaces/{workspace_id}/trial` | App Trial Eligibility | Signed-in user (Clerk bearer) | none | none | none | 200 `TrialEligibility` |
+| `POST /api/v1/workspaces/{workspace_id}/trial` | Start App Trial | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `TrialStart` | 201 `PlanResponse` |
+
+`*` marks a required query parameter. Path parameters are listed in the route.
+
+## Models
+
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
+
+### `PersonalPlanResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `plan` | enum: `Free`, `Trial`, `Paid` | yes |
+| `trial_consumed` | boolean | yes |
+| `trial_started_at` | string (nullable) | yes |
+| `trial_ends_at` | string (nullable) | yes |
+| `evaluated_at` | string | yes |
+| `core_records_available` | boolean | no |
+| `privacy_security_available` | boolean | no |
+| `developer_api_available` | boolean | no |
+| `mcp_available` | boolean | no |
+| `ai_available` | boolean | no |
+| `card_required` | boolean | no |
+| `auto_charge` | boolean | no |
+| `provider` | string (nullable) | no |
+| `billing_verification` | string | no |
+| `paid_through` | string (nullable) | no |
+| `cadence` | enum: `month`, `year` (nullable) | no |
+| `cancellation_pending` | boolean | no |
+| `renewal_amount` | string (nullable) | no |
+| `renewal_currency` | string (nullable) | no |
+| `ai_resets_at` | string (nullable) | no |
+| `account_state` | enum: `active`, `deactivated`, `suspended`, `deleting`, `deleted` | no |
+| `suspension_is_a_plan` | boolean | no |
+| `feature_matrix` | PlanFeatureMatrix | yes |
+
+### `PlanResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `plan` | enum: `Free`, `Trial`, `Paid` | yes |
+| `trial_consumed` | boolean | yes |
+| `trial_started_at` | string (nullable) | yes |
+| `trial_ends_at` | string (nullable) | yes |
+| `evaluated_at` | string | yes |
+| `core_records_available` | boolean | no |
+| `privacy_security_available` | boolean | no |
+| `developer_api_available` | boolean | no |
+| `mcp_available` | boolean | no |
+| `ai_available` | boolean | no |
+| `card_required` | boolean | no |
+| `auto_charge` | boolean | no |
+| `provider` | string (nullable) | no |
+| `billing_verification` | string | no |
+| `paid_through` | string (nullable) | no |
+| `cadence` | enum: `month`, `year` (nullable) | no |
+| `cancellation_pending` | boolean | no |
+| `renewal_amount` | string (nullable) | no |
+| `renewal_currency` | string (nullable) | no |
+| `ai_resets_at` | string (nullable) | no |
+| `account_state` | enum: `active`, `deactivated`, `suspended`, `deleting`, `deleted` | no |
+| `suspension_is_a_plan` | boolean | no |
+
+### `FeatureMatrix`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `version` | string | no |
+| `plan` | enum: `Free`, `Trial`, `Paid` | yes |
+| `features` | array of FeatureEntry | yes |
+| `ai_has_monthly_limit` | boolean | no |
+| `eligibility_grants_authorization` | boolean | no |
+| `trial_days` | integer | no |
+| `trial_requires_card` | boolean | no |
+| `trial_auto_charges` | boolean | no |
+
+### `PlanHistoryPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of PlanObservation | yes |
+| `next_before_revision` | integer (nullable) | yes |
+
+### `PlanObservation`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `observed_at` | string (date-time) | yes |
+| `plan` | enum: `Free`, `Trial`, `Paid` | yes |
+| `account_state` | enum: `active`, `deactivated` | yes |
+| `lifecycle_revision` | integer | yes |
+| `trial_consumed` | boolean | yes |
+| `trial_started_at` | string (date-time) (nullable) | yes |
+| `trial_ends_at` | string (date-time) (nullable) | yes |
+| `provider` | string (nullable) | yes |
+| `cadence` | enum: `month`, `year` (nullable) | yes |
+| `paid_through` | string (date-time) (nullable) | yes |
+| `billing_verification` | string | yes |
+| `cancellation_pending` | boolean | yes |
+| `auto_charge` | boolean | yes |
+| `cause` | string (nullable) | no |
+| `actor_kind` | enum: `owner`, `provider`, `system`, `staff` (nullable) | no |
+| `source` | enum: `owner_request`, `billing_provider`, `scheduler`, `staff_ledger` (nullable) | no |
+| `expires_at` | string (date-time) (nullable) | no |
+| `grants_access` | boolean | no |
+
+### `TrialEligibility`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `available` | boolean | yes |
+| `eligible` | boolean | yes |
+| `already_consumed` | boolean | yes |
+| `policy` | TrialPolicy (nullable) | yes |
+| `evaluated_at` | string | yes |
+| `ends_at_if_started_now` | string (nullable) | no |
+| `reason` | enum: `unconfigured`, `country_review_required`, `not_eligible`, `already_consumed`, `eligible` | yes |
+
+### `TrialStart`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `policy_version` | string | yes |
+| `terms_accepted` | boolean | yes |
+| `confirmed` | boolean | yes |

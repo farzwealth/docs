@@ -1,0 +1,30 @@
+---
+title: Status and health
+description: Public service status and health probes. No sign-in needed.
+---
+
+**Status: Live.** These routes are operational probes for the API. They return no customer data.
+
+Use these routes to check whether the API is up. They do not need a token.
+
+## Endpoints
+
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/health/live` | Live | None (public) | none | none | none | 200 (no body) |
+| `GET /api/v1/health/ready` | Ready | None (public) | none | none | none | 200 (no body) |
+| `GET /api/v1/status` | Public Service Status | None (public) | none | none | none | 200 `ServiceStatus` |
+
+`*` marks a required query parameter. Path parameters are listed in the route.
+
+## Models
+
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
+
+### `ServiceStatus`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `status` | enum: `operational`, `degraded`, `unknown` | yes |
+| `checked_at` | string (date-time) | yes |
+| `components` | array of StatusComponent | yes |

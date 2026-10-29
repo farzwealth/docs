@@ -1,0 +1,156 @@
+---
+title: Notifications and reminders
+description: In-app notifications, preferences, reminder schedules and delivery status.
+---
+
+**Status: In testing for in-app notifications.** **Planned for email.** Email needs the verified mail sending domain, which is not yet set up.
+
+Read the inbox and your preferences. Email delivery status appears only after email is turned on.
+
+## Endpoints
+
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/email/delivery-notice` | Email Delivery Notice | Signed-in user (Clerk bearer) | none | none | none | 200 `DeliveryNotice` |
+| `POST /api/v1/workspaces/{workspace_id}/notifications/actions` | Actions | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `InboxActions` | 200 `ActionReceipt` |
+| `GET /api/v1/workspaces/{workspace_id}/notifications/delivery-health` | Delivery Health | Signed-in user (Clerk bearer) | none | none | none | 200 `DeliveryHealthResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/notifications/inbox` | Inbox | Signed-in user (Clerk bearer) | none | `unread_only`, `include_dismissed`, `include_snoozed`, `kind`, `limit`, `cursor` | none | 200 `InboxPage` |
+| `GET /api/v1/workspaces/{workspace_id}/notifications/preferences` | Get Preferences | Signed-in user (Clerk bearer) | none | none | none | 200 `PreferenceResponse` |
+| `PUT /api/v1/workspaces/{workspace_id}/notifications/preferences` | Put Preferences | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `PreferenceWrite` | 200 `PreferenceResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/notifications/schedule` | Schedule | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `ScheduleInput` | 200 `ScheduleReceipt` |
+| `POST /api/v1/workspaces/{workspace_id}/notifications/schedule-preview` | Reminders | Signed-in user (Clerk bearer) | none | none | none | 200 `ReminderPreview` |
+| `GET /api/v1/workspaces/{workspace_id}/notifications/{notification_id}/delivery` | Delivery Status | Signed-in user (Clerk bearer) | none | none | none | 200 `DeliveryResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/notifications/{notification_id}/delivery/cancel` | Delivery Cancel | Signed-in user (Clerk bearer) | none | none | none | 200 `DeliveryResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/notifications/{notification_id}/delivery/execute` | Delivery Execute | Signed-in user (Clerk bearer) | none | none | none | 200 `DeliveryResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/notifications/{notification_id}/delivery/receipts` | Delivery Receipts | Signed-in user (Clerk bearer) | none | none | none | 200 `DeliveryResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/notifications/{notification_id}/delivery/reconcile` | Delivery Reconcile | Signed-in user (Clerk bearer) | none | none | `ReconcileDelivery` | 200 `DeliveryResponse` |
+
+`*` marks a required query parameter. Path parameters are listed in the route.
+
+## Models
+
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
+
+### `DeliveryNotice`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `has_problem` | boolean | yes |
+| `window_days` | integer | no |
+| `problem_count` | integer | yes |
+| `kinds` | array of string | yes |
+| `last_problem_at` | string (date-time) (nullable) | yes |
+| `suggested_action` | enum: `check_email_address`, `none` | yes |
+| `contains_address` | boolean | no |
+
+### `InboxActions`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of InboxAction | yes |
+
+### `ActionReceipt`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of InboxItem | yes |
+
+### `DeliveryHealthResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `checked_at` | string (date-time) | yes |
+| `configuration` | enum: `configured`, `not_configured`, `review_required` | yes |
+| `attention_required` | boolean | yes |
+| `issues` | array of DeliveryHealthIssue | yes |
+| `truncated` | boolean | yes |
+
+### `InboxPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of InboxItem | yes |
+| `next_cursor` | string (nullable) | yes |
+| `total_items` | integer | yes |
+| `unread_count` | integer | yes |
+
+### `PreferenceResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `in_app` | boolean | no |
+| `email` | boolean | no |
+| `push` | boolean | no |
+| `kinds` | array of enum: `due`, `maturity`, `goal`, `reconciliation` | no |
+| `timezone` | string | no |
+| `local_time` | string | no |
+| `quiet_hours` | QuietHours (nullable) | no |
+| `advance_days` | integer | no |
+| `reconciliation_accounts` | array of string (uuid) | no |
+| `reconciliation_interval_days` | integer | no |
+| `revision` | integer | yes |
+| `recorded_at` | string (date-time) (nullable) | yes |
+| `email_delivery_available` | boolean | no |
+| `native_push_available` | boolean | no |
+
+### `PreferenceWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `in_app` | boolean | no |
+| `email` | boolean | no |
+| `push` | boolean | no |
+| `kinds` | array of enum: `due`, `maturity`, `goal`, `reconciliation` | no |
+| `timezone` | string | no |
+| `local_time` | string | no |
+| `quiet_hours` | QuietHours (nullable) | no |
+| `advance_days` | integer | no |
+| `reconciliation_accounts` | array of string (uuid) | no |
+| `reconciliation_interval_days` | integer | no |
+| `expected_revision` | integer | yes |
+
+### `ScheduleInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `confirmed` | boolean | yes |
+
+### `ScheduleReceipt`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `evaluated_at` | string (date-time) | yes |
+| `created` | integer | yes |
+| `duplicates` | integer | yes |
+| `email_queued` | integer | yes |
+| `deferred` | integer | yes |
+| `financial_movements` | integer | no |
+| `external_scheduler_active` | boolean | no |
+
+### `ReminderPreview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `evaluated_at` | string (date-time) | yes |
+| `new_candidates` | integer | yes |
+| `existing_duplicates` | integer | yes |
+| `email_candidates` | integer | yes |
+| `changes_saved` | boolean | no |
+| `external_delivery_initiated` | boolean | no |
+| `requires_fresh_validation` | boolean | no |
+
+### `DeliveryResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `notification_id` | string (uuid) | yes |
+| `state` | enum (13 values) | yes |
+| `attempts` | integer | yes |
+| `retry_at` | string (date-time) (nullable) | yes |
+| `attention_required` | boolean | yes |
+
+### `ReconcileDelivery`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `provider_message_id` | string (uuid) | yes |

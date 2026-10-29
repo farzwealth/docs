@@ -1,0 +1,177 @@
+---
+title: Privacy, consents and account deletion
+description: Record consents, file privacy requests, read and download your records, and manage account deletion.
+---
+
+**Status: In testing.** Deployed in the API. Acceptance testing for this area is not complete.
+
+Account deletion starts a grace period. You can cancel the deletion before it finishes.
+
+Exports and privacy reports are downloaded through the request they belong to.
+
+## Endpoints
+
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/account-deletion` | Account Deletion Status | Signed-in user (Clerk bearer) | none | none | none | 200 `DeletionStatus` |
+| `POST /api/v1/workspaces/{workspace_id}/account-deletion` | Request Account Deletion | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `DeletionRequest` | 201 `DeletionStatus` |
+| `POST /api/v1/workspaces/{workspace_id}/account-deletion/cancel` | Cancel Account Deletion | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `DeletionCancel` | 200 `DeletionStatus` |
+| `GET /api/v1/workspaces/{workspace_id}/consents` | Consent Status | Signed-in user (Clerk bearer) | none | none | none | 200 array of `ConsentStatus` |
+| `POST /api/v1/workspaces/{workspace_id}/consents` | Record Consent | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `ConsentWrite` | 200 `ConsentEventResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/consents/page` | consent_status (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `ConsentStatusPage` |
+| `GET /api/v1/workspaces/{workspace_id}/consents/{purpose}/history` | Consent History | Signed-in user (Clerk bearer) | none | `before`, `limit` | none | 200 array of `ConsentEventResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/privacy/requests` | List Privacy Requests | Signed-in user (Clerk bearer) | none | `offset`, `limit` | none | 200 `PrivacyRequestPage` |
+| `POST /api/v1/workspaces/{workspace_id}/privacy/requests` | Submit Privacy Request | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `PrivacyRequestInput` | 201 `PrivacyRequestResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/privacy/requests/{request_id}` | Read Privacy Request | Signed-in user (Clerk bearer) | none | none | none | 200 `PrivacyRequestResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/privacy/requests/{request_id}/actions` | Privacy Request Action | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `PrivacyRequestAction` | 200 `PrivacyRequestResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/privacy/requests/{request_id}/download.json` | Download Privacy Json | Signed-in user (Clerk bearer) | none | `offset`, `limit` | none | 200 object |
+| `GET /api/v1/workspaces/{workspace_id}/privacy/requests/{request_id}/history` | Privacy Request History | Signed-in user (Clerk bearer) | none | `offset`, `limit` | none | 200 array of `PrivacyRequestEventResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/privacy/requests/{request_id}/report.csv` | Download Privacy Csv | Signed-in user (Clerk bearer) | none | `offset`, `limit` | none | 200 (no body) |
+| `GET /api/v1/workspaces/{workspace_id}/privacy/requests/{request_id}/report.html` | Download Privacy Html | Signed-in user (Clerk bearer) | none | `offset`, `limit` | none | 200 (no body) |
+
+`*` marks a required query parameter. Path parameters are listed in the route.
+
+## Models
+
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
+
+### `DeletionStatus`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `workspace_id` | string (uuid) | yes |
+| `state` | enum: `requested`, `grace`, `executing`, `completed`, `delayed`, `canceled`, `needs_attention` | yes |
+| `requested_at` | string (date-time) | yes |
+| `scheduled_for` | string (date-time) | yes |
+| `grace_days` | integer | yes |
+| `can_cancel` | boolean | yes |
+| `subscription` | SubscriptionNotice | yes |
+| `identity_provider` | enum: `pending`, `deleted`, `not_found`, `manual_review`, `skipped` | yes |
+| `backup_notice` | string | no |
+| `support` | string | no |
+| `export_available_during_grace` | boolean | no |
+| `data_deleted` | boolean | no |
+
+### `DeletionRequest`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `confirmed` | boolean | yes |
+| `acknowledge_irreversible` | boolean | yes |
+
+### `DeletionCancel`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `confirmed` | boolean | yes |
+
+### `ConsentStatus`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `purpose` | enum: `ai_processing`, `marketing_email`, `optional_analytics`, `zakat_calculations` | yes |
+| `revision` | integer | yes |
+| `granted` | boolean | yes |
+| `notice` | ConsentNotice (nullable) | yes |
+| `notice_digest` | string (nullable) | yes |
+| `latest_event` | ConsentEventResponse (nullable) | yes |
+
+### `ConsentWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `purpose` | enum: `ai_processing`, `marketing_email`, `optional_analytics`, `zakat_calculations` | yes |
+| `decision` | enum: `grant`, `withdraw` | yes |
+| `expected_revision` | integer | yes |
+| `notice_version` | string (nullable) | no |
+| `notice_digest` | string (nullable) | no |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` | no |
+
+### `ConsentEventResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `purpose` | enum: `ai_processing`, `marketing_email`, `optional_analytics`, `zakat_calculations` | yes |
+| `revision` | integer | yes |
+| `decision` | enum: `grant`, `withdraw` | yes |
+| `recorded_at` | string (date-time) | yes |
+| `recorded_by` | string (uuid) | yes |
+| `country` | string | yes |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` | yes |
+| `channel` | enum: `authenticated_api`, `email_unsubscribe` | yes |
+| `notice_version` | string (nullable) | yes |
+| `notice_digest` | string (nullable) | yes |
+| `notice_text` | string (nullable) | yes |
+| `withdrawn_grant_id` | string (uuid) (nullable) | no |
+| `withdrawn_notice_version` | string (nullable) | no |
+| `withdrawn_notice_digest` | string (nullable) | no |
+
+### `ConsentStatusPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of ConsentStatus | yes |
+| `next_cursor` | string (nullable) | no |
+
+### `PrivacyRequestPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of PrivacyRequestResponse | yes |
+| `next_offset` | integer (nullable) | yes |
+
+### `PrivacyRequestInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `kind` | enum: `access`, `correction`, `erasure`, `restriction`, `objection`, `portability`, `consent_withdrawal`, `human_review` | yes |
+| `details` | string | yes |
+| `confirmed` | boolean | yes |
+
+### `PrivacyRequestResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `kind` | enum: `access`, `correction`, `erasure`, `restriction`, `objection`, `portability`, `consent_withdrawal`, `human_review` | yes |
+| `revision` | integer | yes |
+| `details` | string | yes |
+| `state` | enum: `received`, `human_review_requested`, `withdrawn`, `partially_completed`, `completed`, `refused` | yes |
+| `created_at` | string (date-time) | yes |
+| `internal_target_at` | string (date-time) | yes |
+| `legal_deadline_at` | string (date-time) (nullable) | yes |
+| `legal_review_required` | boolean | yes |
+| `policy_version` | string | yes |
+| `policy_digest` | string (nullable) | yes |
+| `execution_complete` | boolean | no |
+| `notification_delivered` | boolean | no |
+| `response_due_at` | string (date-time) (nullable) | no |
+| `extended_until` | string (date-time) (nullable) | no |
+| `extension_reason` | string (nullable) | no |
+| `verification` | enum: `not_required`, `pending`, `verified`, `failed` (nullable) | no |
+| `decision_code` | string (nullable) | no |
+| `exception_code` | string (nullable) | no |
+| `human_escalation_requested` | boolean | no |
+| `restricts_optional_processing` | boolean | no |
+
+### `PrivacyRequestAction`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `action` | enum: `add_information`, `withdraw_request`, `request_human_review` | yes |
+| `expected_revision` | integer | yes |
+| `details` | string | yes |
+| `confirmed` | boolean | yes |
+
+### `PrivacyRequestEventResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `request_id` | string (uuid) | yes |
+| `sequence` | integer | yes |
+| `action` | enum: `received`, `add_information`, `withdraw_request`, `request_human_review` | yes |
+| `details` | string | yes |
+| `created_at` | string (date-time) | yes |

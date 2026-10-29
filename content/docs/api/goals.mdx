@@ -1,79 +1,133 @@
 ---
-title: Goals
-description: Monitor target amounts, current progress, monthly contributions, and estimated projections for savings goals.
+title: Goals and scenarios
+description: Save goals and what-if scenarios.
 ---
 
-`GET /goals`
+**Status: In testing.** Deployed in the API. Acceptance testing for this area is not complete.
 
-Inspect personal financial savings goals, target dates, recorded progress, and projected completion estimates.
+Goal and scenario projections are estimates under the assumptions shown with them. They are not forecasts of return.
 
----
+## Endpoints
 
-## Authorization
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/goals` | Get Goals | Signed-in user (Clerk bearer) | none | none | none | 200 array of `GoalResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/goals` | Save Goal | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `GoalWrite` | 200 `GoalResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/goals/page` | Goal Page | Signed-in user (Clerk bearer) | none | `limit`, `cursor`, `q`, `sort`, `currency`, `active`, `achieved`, `on_track` | none | 200 `RecordPage_GoalResponse_` |
+| `GET /api/v1/workspaces/{workspace_id}/scenarios` | Get Scenarios | Signed-in user (Clerk bearer) | none | none | none | 200 array of `ScenarioResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/scenarios` | Save Scenario | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `ScenarioWrite` | 200 `ScenarioResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/scenarios/page` | Scenario Page | Signed-in user (Clerk bearer) | none | `limit`, `cursor`, `q`, `sort`, `currency`, `kind`, `has_deficit` | none | 200 `RecordPage_ScenarioResponse_` |
+| `POST /api/v1/workspaces/{workspace_id}/scenarios/preview` | Preview Scenario | Signed-in user (Clerk bearer) | none | none | `ScenarioWrite` | 200 `ScenarioPreview` |
 
-- **Scope Required**: `goals:read`
-- **Plan Requirement**: Active Paid subscription
+`*` marks a required query parameter. Path parameters are listed in the route.
 
----
+## Models
 
-## Query Parameters
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
 
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `active` | boolean | No | Filter by active planning status (`true` or `false`). Omission returns both. |
-| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
-| `cursor` | string | No | Continuation cursor from `next_cursor`. |
+### `GoalResponse`
 
----
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `title` | string | yes |
+| `currency` | enum (164 values) | yes |
+| `target` | string | yes |
+| `saved` | string | yes |
+| `monthly_contribution` | string | yes |
+| `target_date` | string (date) | yes |
+| `active` | boolean | yes |
+| `remaining` | string | yes |
+| `projected_by_target` | string | yes |
+| `contribution_months` | integer | yes |
+| `as_of` | string (date) | yes |
+| `achieved` | boolean | yes |
+| `on_track` | boolean | yes |
+| `basis` | string | no |
 
-## Example Request
+### `GoalWrite`
 
-```bash
-curl --fail-with-body --get \
-  "https://api.farz.app/api/developer/v1/goals" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json' \
-  --data-urlencode 'active=true' \
-  --data-urlencode 'limit=20'
-```
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) (nullable) | no |
+| `expected_revision` | integer | no |
+| `title` | string | yes |
+| `currency` | enum (164 values) | yes |
+| `target` | string | yes |
+| `saved` | string | no |
+| `monthly_contribution` | string | no |
+| `target_date` | string (date) | yes |
+| `active` | boolean | no |
 
----
+### `RecordPage_GoalResponse_`
 
-## Example Response
+| Field | Type | Required |
+| --- | --- | --- |
+| `as_of` | string (date) | yes |
+| `items` | array of GoalResponse | yes |
+| `next_cursor` | string (nullable) | yes |
 
-```json
-{
-  "items": [
-    {
-      "id": "66666666-6666-4666-8666-666666666666",
-      "revision": 3,
-      "title": "Emergency Fund",
-      "target": {
-        "amount": "50000.00",
-        "currency": "AED"
-      },
-      "saved": {
-        "amount": "32000.00",
-        "currency": "AED"
-      },
-      "monthly_contribution": {
-        "amount": "3000.00",
-        "currency": "AED"
-      },
-      "target_date": "2027-04-30",
-      "active": true,
-      "projected_by_target": {
-        "amount": "50000.00",
-        "currency": "AED"
-      },
-      "assumptions": ["straight_line_monthly", "zero_yield"]
-    }
-  ],
-  "next_cursor": null,
-  "has_more": false
-}
-```
+### `ScenarioResponse`
 
-<Callout type="info">
-  Goal `saved` amounts represent progress indicators and are not treated as duplicate assets in portfolio net worth calculations.
-</Callout>
+| Field | Type | Required |
+| --- | --- | --- |
+| `algorithm` | enum: `constant_cashflow_v1`, `explicit_stress_v2` | no |
+| `monthly_net_basis` | enum: `constant`, `first_projection_month` | no |
+| `baseline_ending_balance` | string (nullable) | no |
+| `difference_from_baseline` | string (nullable) | no |
+| `first_deficit_basis` | string | no |
+| `opening_after_cost` | string | yes |
+| `adjusted_income` | string | yes |
+| `adjusted_expenses` | string | yes |
+| `monthly_net` | string | yes |
+| `ending_balance` | string | yes |
+| `first_deficit_month` | integer (nullable) | yes |
+| `points` | array of ScenarioPoint | yes |
+| `basis` | enum: `user_assumptions_no_returns_or_fx`, `user_assumptions_explicit_stress` | no |
+| `stress` | IncomeStress or PaymentStress or CurrencyStress or PurchaseStress or EmergencyStress (nullable) | no |
+| `id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `title` | string | yes |
+| `kind` | enum: `income_loss`, `vacancy`, `higher_costs`, `major_purchase`, `emergency_fund` | yes |
+| `currency` | enum (164 values) | yes |
+| `liquid_balance` | string | yes |
+| `monthly_income` | string | yes |
+| `monthly_expenses` | string | yes |
+| `income_reduction` | string | yes |
+| `expense_increase` | string | yes |
+| `one_off_cost` | string | yes |
+| `months` | integer | yes |
+
+### `ScenarioWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `stress` | IncomeStress or PaymentStress or CurrencyStress or PurchaseStress or EmergencyStress (nullable) | no |
+| `id` | string (uuid) (nullable) | no |
+| `expected_revision` | integer | no |
+| `title` | string | yes |
+| `kind` | enum: `income_loss`, `vacancy`, `higher_costs`, `major_purchase`, `emergency_fund` | no |
+| `currency` | enum (164 values) | yes |
+| `liquid_balance` | string | yes |
+| `monthly_income` | string | yes |
+| `monthly_expenses` | string | yes |
+| `income_reduction` | string | no |
+| `expense_increase` | string | no |
+| `one_off_cost` | string | no |
+| `months` | integer | no |
+
+### `RecordPage_ScenarioResponse_`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `as_of` | string (date) | yes |
+| `items` | array of ScenarioResponse | yes |
+| `next_cursor` | string (nullable) | yes |
+
+### `ScenarioPreview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `inputs` | ScenarioWrite | yes |
+| `calculation` | ScenarioCalculation | yes |

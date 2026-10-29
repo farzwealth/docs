@@ -1,41 +1,46 @@
 ---
-title: REST API Overview
-description: Complete index of all 15 endpoints in the Farz Public Developer API v1.
+title: API reference overview
+description: How the Farz app API at /api/v1 is organized, how to authenticate, and how to read each guide.
 ---
 
-All developer endpoints are served under the versioned base URL:
+**Status: In testing.** The routes in this section are deployed in the Farz API. Most features are still in acceptance testing, so check the status line on each guide.
 
-```text
-https://api.farz.app/api/developer/v1
+## Base URL and workspace
+
+Every route in this section starts with `https://api.farz.app/api/v1`. Routes that act on your money include a workspace ID in the path, as `/api/v1/workspaces/{workspace_id}/...`. Each person has one personal workspace. To find its ID, call `GET /api/v1/workspaces`. The list returns only workspaces you own.
+
+## Authentication
+
+Send the bearer token of the signed-in user in the `Authorization` header:
+
+```http
+Authorization: Bearer <token>
 ```
 
----
+The token comes from the Farz app's sign-in. Developer routes and MCP use a different credential. See [authentication](/docs/concepts/authentication).
 
-## Endpoint Directory
+Some routes need no token. They are marked **None (public)** in each table. Webhook routes accept calls only from the named provider, with a signature.
 
-| Resource | Method & Path | Required Scopes | Description |
-| :--- | :--- | :--- | :--- |
-| **Profile** | [`GET /profile`](/docs/api/profile) | `profile:read` | Read locale, timezone, and reporting currency. |
-| **Summary** | [`GET /summary`](/docs/api/summary) | `reports:read` + domains | Calculate portfolio net worth and domain totals. |
-| **Accounts** | [`GET /accounts`](/docs/api/accounts) | `accounts:read` | List bank, cash, credit, and investment accounts. |
-| **Account** | [`GET /accounts/{account_id}`](/docs/api/accounts#get-an-account) | `accounts:read` | Retrieve a single account balance and status. |
-| **Transactions** | [`GET /transactions`](/docs/api/transactions) | `transactions:read` | Query posted transactions across date ranges. |
-| **Transaction** | [`GET /transactions/{entry_id}`](/docs/api/transactions#get-a-transaction) | `transactions:read` | Retrieve a single posted transaction. |
-| **Assets** | [`GET /assets`](/docs/api/assets) | `assets:read` | List property, securities, crypto, and metal assets. |
-| **Asset** | [`GET /assets/{asset_id}`](/docs/api/assets#get-an-asset) | `assets:read` | Retrieve an asset and its current valuation. |
-| **Asset Lots** | [`GET /assets/{asset_id}/lots`](/docs/api/assets#list-asset-lots) | `assets:read` | Inspect tax lots, acquisition dates, and cost basis. |
-| **Liabilities** | [`GET /liabilities`](/docs/api/liabilities) | `liabilities:read` | List mortgages, loans, BNPL, and credit obligations. |
-| **Schedule** | [`GET /liabilities/{liability_id}/schedule`](/docs/api/liabilities#list-a-liability-schedule) | `liabilities:read` | Inspect scheduled loan/debt payment installments. |
-| **Budgets** | [`GET /budgets`](/docs/api/budgets) | `budgets:read` | Inspect category budgets and period spending. |
-| **Goals** | [`GET /goals`](/docs/api/goals) | `goals:read` | Track target dates and progress across savings goals. |
-| **Valuations** | [`GET /valuations`](/docs/api/valuations) | `valuations:read` | Query immutable historical monthly valuation snapshots. |
-| **Reports** | [`GET /reports`](/docs/api/reports) | `reports:read` + kind | Generate deterministic financial report rows. |
+## Guides
 
----
+The guides are grouped by area. Each guide lists every route in its area.
 
-## Common Query Patterns
+| Area | Guides |
+| --- | --- |
+| Start | [Profile and eligibility](/docs/api/profile), [Plans and trial](/docs/api/plans), [Status and health](/docs/api/public), [Capabilities](/docs/api/discovery) |
+| Money | [Accounts](/docs/api/accounts), [Account actions](/docs/api/account-control), [Transactions](/docs/api/transactions), [Ledger](/docs/api/ledger), [Classifications](/docs/api/classification), [Attachments](/docs/api/attachments) |
+| Holdings and debts | [Assets](/docs/api/assets), [Debts](/docs/api/debts), [Lending](/docs/api/lending), [Valuations](/docs/api/valuations), [Market data](/docs/api/market) |
+| Planning | [Budgets](/docs/api/budgets), [Goals](/docs/api/goals), [Recurring](/docs/api/recurring), [Planning](/docs/api/planning), [Summary](/docs/api/summary) |
+| Files and reports | [Imports](/docs/api/imports), [Reports](/docs/api/reports) |
+| Account and privacy | [Notifications](/docs/api/notifications), [Privacy](/docs/api/privacy), [Sessions and devices](/docs/api/security), [Support](/docs/api/support), [Sync](/docs/api/sync) |
+| AI and integrations | [Assistant](/docs/api/assistant), [Personal API keys and connectors](/docs/api/integrations) |
+| Commerce | [Billing](/docs/api/billing) (Planned) |
+| Provider use only | [Webhooks](/docs/api/webhooks) |
 
-- **Pagination**: All collection endpoints accept `limit` (default: 50, max: 100) and `cursor`.
-- **Date Ranges**: Endpoints accepting dates require inclusive `start` and `end` parameters (maximum range: 366 days).
-- **As of Date**: Endpoints calculating dated balances accept `as_of=YYYY-MM-DD` (defaults to today).
-- **Response Format**: All successful responses return `200 OK` with JSON bodies.
+## Developer REST reference
+
+The personal developer REST API has three routes under `/api/developer/v1`. Its status is Planned. See the [developer REST reference](/docs/developer/reference).
+
+## Coverage
+
+This section covers every route in the current API contract. The contract lists 366 paths under `/api/v1`, four of them provider webhooks. The developer reference covers the three paths under `/api/developer/v1`.

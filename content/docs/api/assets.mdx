@@ -1,96 +1,476 @@
 ---
-title: Assets & Holdings
-description: List personal assets, track real-time security and crypto unit prices, and inspect purchase tax lots.
+title: Assets, investments and vehicles
+description: Save assets, lifecycle events, investment events, settlements, deposit payouts and valuations.
 ---
 
-Track real estate estimates, vehicles, deposits, precious metals, and publicly qualified investment holdings (stocks, ETFs, cryptocurrencies).
+**Status: In testing.** Deployed in the API. Acceptance testing for this area is not complete.
 
----
+Assets include property, stocks, ETFs, crypto, metals, vehicles, deposits and other items. Each asset has one dated estimate. An estimate is not a bank or market confirmation.
 
-## 1. List Assets
+The vehicle depreciation route returns an estimate and labels it as one.
 
-`GET /assets`
+## Endpoints
 
-Returns a paginated list of personal assets, dated estimates, and exchange/chain-qualified holdings.
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/assets` | Get Assets | Signed-in user (Clerk bearer) | none | none | none | 200 array of `AssetResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/assets` | Save Asset | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `AssetWrite` | 200 `AssetResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/assets/page` | Asset Page | Signed-in user (Clerk bearer) | none | `limit`, `cursor`, `q`, `sort`, `currency`, `kind`, `liquidity`, `state` | none | 200 `RecordPage_AssetResponse_` |
+| `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}/deposit-payouts` | Deposit Payout History | Signed-in user (Clerk bearer) | none | `before`, `limit` | none | 200 array of `DepositPayoutResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/deposit-payouts` | Record Deposit Payout | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `DepositPayoutWrite` | 200 `DepositPayoutResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/deposit-payouts/preview` | Preview Deposit Payout | Signed-in user (Clerk bearer) | none | none | `DepositPayoutReview` | 200 `DepositPayoutPreview` |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/deposit-payouts/{receipt_id}/reversal` | Reverse Deposit Payout | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `DepositPayoutReverse` | 200 `DepositPayoutResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/deposit-payouts/{receipt_id}/reversal/preview` | Preview Deposit Payout Reversal | Signed-in user (Clerk bearer) | none | none | `DepositPayoutCorrection` | 200 `DepositPayoutPreview` |
+| `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}/investment-events` | Investment History | Signed-in user (Clerk bearer) | none | `before`, `limit` | none | 200 array of `InvestmentEventResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/investment-events` | Record Investment | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `InvestmentWrite` | 200 `InvestmentEventResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/investment-events/preview` | Preview Investment | Signed-in user (Clerk bearer) | none | none | `InvestmentReview` | 200 `InvestmentPreview` |
+| `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}/investment-events/{event_id}/settlements` | Investment Settlement History | Signed-in user (Clerk bearer) | none | `before`, `limit` | none | 200 array of `SettlementResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/investment-events/{event_id}/settlements/reverse` | Reverse Investment Settlement | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `SettlementReverse` | 200 `SettlementResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}/investment-position` | Investment Position | Signed-in user (Clerk bearer) | none | `through` | none | 200 `InvestmentPosition` |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/investment-settlements` | Record Investment Settlement | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `SettlementWrite` | 200 `SettlementResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/investment-settlements/preview` | Preview Investment Settlement | Signed-in user (Clerk bearer) | none | none | `SettlementReview` | 200 `app__investment_schemas__SettlementPreview` |
+| `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}/lifecycle` | Asset Lifecycle History | Signed-in user (Clerk bearer) | none | none | none | 200 array of `AssetLifecycleResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/lifecycle` | Record Asset Lifecycle | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `AssetLifecycleWrite` | 200 `AssetLifecycleResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}/lifecycle/page` | asset_lifecycle_history (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `AssetLifecycleHistoryPage` |
+| `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}/valuations` | Get Asset History | Signed-in user (Clerk bearer) | none | none | none | 200 array of `AssetValuationResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}/valuations/page` | get_asset_history (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `GetAssetHistoryPage` |
+| `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}/vehicle-schedules` | Insurance and maintenance schedules linked to a vehicle | Signed-in user (Clerk bearer) | none | none | none | 200 `VehicleScheduleView` |
+| `POST /api/v1/workspaces/{workspace_id}/deposits/preview` | Preview Deposit | Signed-in user (Clerk bearer) | none | none | `DepositPreviewInput` | 200 `DepositScenarioPreview` |
+| `POST /api/v1/workspaces/{workspace_id}/vehicles/depreciation-preview` | Preview an explicit, labelled vehicle depreciation estimate | Signed-in user (Clerk bearer) | none | none | `DepreciationInput` | 200 `DepreciationPreview` |
 
-### Authorization
-- **Scope Required**: `assets:read`
-- **Plan Requirement**: Active Paid subscription
+`*` marks a required query parameter. Path parameters are listed in the route.
 
-### Query Parameters
+## Models
 
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `kind` | string | No | Filter by asset kind: `property`, `stock`, `etf`, `crypto`, `metal`, `vehicle`, `deposit`, `other`. |
-| `as_of` | date | No | Valuation cutoff date (`YYYY-MM-DD`). Defaults to current date. |
-| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
-| `cursor` | string | No | Opaque continuation cursor from `next_cursor`. |
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
 
-### Example Request
+### `AssetResponse`
 
-```bash
-curl --fail-with-body --get \
-  "https://api.farz.app/api/developer/v1/assets" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json' \
-  --data-urlencode 'limit=20'
-```
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `name` | string | yes |
+| `kind` | enum: `property`, `vehicle`, `metal`, `deposit`, `stock`, `etf`, `crypto`, `other` | yes |
+| `currency` | enum (164 values) | yes |
+| `ownership_note` | string | yes |
+| `reference_note` | string | yes |
+| `liquidity` | enum: `liquid`, `illiquid`, `unknown` | yes |
+| `valuation` | AssetValuationResponse (nullable) | yes |
+| `lifecycle` | AssetLifecycleResponse (nullable) | no |
+| `as_of` | string (date) (nullable) | no |
+| `manual` | boolean | no |
 
----
+### `AssetWrite`
 
-## 2. Get an Asset
+| Field | Type | Required |
+| --- | --- | --- |
+| `ownership_estimate` | OwnershipEstimate (nullable) | no |
+| `descriptor` | PropertyDescriptor or VehicleDescriptor or DepositDescriptor (nullable) | no |
+| `acquisition` | AssetAcquisition (nullable) | no |
+| `id` | string (uuid) (nullable) | no |
+| `expected_revision` | integer | no |
+| `name` | string | yes |
+| `kind` | enum: `property`, `vehicle`, `metal`, `deposit`, `stock`, `etf`, `crypto`, `other` | no |
+| `currency` | enum (164 values) | yes |
+| `owned_value` | string (nullable) | no |
+| `holding_estimate` | HoldingEstimateInput (nullable) | no |
+| `metal_estimate` | MetalEstimateInput (nullable) | no |
+| `deposit_assumptions` | DepositAssumptions (nullable) | no |
+| `valued_on` | string (date) | yes |
+| `source` | string | yes |
+| `ownership_note` | string | no |
+| `reference_note` | string | no |
+| `liquidity` | enum: `liquid`, `illiquid`, `unknown` | no |
 
-`GET /assets/{asset_id}`
+### `RecordPage_AssetResponse_`
 
-Retrieves a single asset and its current holding details.
+| Field | Type | Required |
+| --- | --- | --- |
+| `as_of` | string (date) | yes |
+| `items` | array of AssetResponse | yes |
+| `next_cursor` | string (nullable) | yes |
 
-### Path Parameters
+### `DepositPayoutResponse`
 
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `asset_id` | UUID | **Yes** | The asset identifier. |
+| Field | Type | Required |
+| --- | --- | --- |
+| `algorithm` | string | no |
+| `action` | enum: `record`, `reverse` | yes |
+| `input` | DepositPayoutReview or DepositPayoutCorrection | yes |
+| `input_digest` | string | yes |
+| `postings` | array of DepositPayoutPosting | yes |
+| `net_cash_delta` | string | yes |
+| `previous_owned_value` | string | yes |
+| `remaining_owned_value` | string | yes |
+| `value_change` | string | yes |
+| `valuation_basis` | string | no |
+| `payment_initiated` | boolean | no |
+| `maturity_or_closure_inferred` | boolean | no |
+| `id` | string (uuid) | yes |
+| `asset_id` | string (uuid) | yes |
+| `account_id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `before_valuation_id` | string (uuid) | yes |
+| `after_valuation_id` | string (uuid) | yes |
+| `principal_entry_id` | string (uuid) (nullable) | yes |
+| `yield_entry_id` | string (uuid) (nullable) | yes |
+| `cost_entry_id` | string (uuid) (nullable) | yes |
+| `reversal_of` | string (uuid) (nullable) | yes |
+| `effective_on` | string (date) | yes |
+| `recorded_at` | string (date-time) | yes |
+| `asset_revision` | integer | yes |
+| `account_revision` | integer | yes |
+| `original_input` | DepositPayoutReview (nullable) | no |
 
-### Example Request
+### `DepositPayoutWrite`
 
-```bash
-curl --fail-with-body \
-  "https://api.farz.app/api/developer/v1/assets/$FARZ_ASSET_ID" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json'
-```
+| Field | Type | Required |
+| --- | --- | --- |
+| `account_id` | string (uuid) | yes |
+| `valuation_id` | string (uuid) | yes |
+| `expected_asset_revision` | integer | yes |
+| `expected_account_revision` | integer | yes |
+| `expected_revision` | integer | yes |
+| `occurred_on` | string (date) | yes |
+| `receipt_reference` | string | yes |
+| `source` | string | yes |
+| `principal_returned` | string | yes |
+| `gross_realized_yield` | string | yes |
+| `fees` | string | yes |
+| `withholding` | string | yes |
+| `remaining_owned_value` | string | yes |
+| `valuation_source` | string | yes |
+| `already_settled` | boolean | yes |
+| `remaining_value_is_observed` | boolean | yes |
+| `input_digest` | string | yes |
 
-Returns a single [Asset](/docs/api/schemas#asset) JSON object with HTTP status `200 OK`.
+### `DepositPayoutReview`
 
----
+| Field | Type | Required |
+| --- | --- | --- |
+| `account_id` | string (uuid) | yes |
+| `valuation_id` | string (uuid) | yes |
+| `expected_asset_revision` | integer | yes |
+| `expected_account_revision` | integer | yes |
+| `expected_revision` | integer | yes |
+| `occurred_on` | string (date) | yes |
+| `receipt_reference` | string | yes |
+| `source` | string | yes |
+| `principal_returned` | string | yes |
+| `gross_realized_yield` | string | yes |
+| `fees` | string | yes |
+| `withholding` | string | yes |
+| `remaining_owned_value` | string | yes |
+| `valuation_source` | string | yes |
+| `already_settled` | boolean | yes |
+| `remaining_value_is_observed` | boolean | yes |
 
-## 3. List Asset Lots
+### `DepositPayoutPreview`
 
-`GET /assets/{asset_id}/lots`
+| Field | Type | Required |
+| --- | --- | --- |
+| `algorithm` | string | no |
+| `action` | enum: `record`, `reverse` | yes |
+| `input` | DepositPayoutReview or DepositPayoutCorrection | yes |
+| `input_digest` | string | yes |
+| `postings` | array of DepositPayoutPosting | yes |
+| `net_cash_delta` | string | yes |
+| `previous_owned_value` | string | yes |
+| `remaining_owned_value` | string | yes |
+| `value_change` | string | yes |
+| `valuation_basis` | string | no |
+| `payment_initiated` | boolean | no |
+| `maturity_or_closure_inferred` | boolean | no |
 
-Inspects individual purchase lots, cost basis calculations, and remaining versus disposed quantities for stocks, ETFs, and cryptocurrencies.
+### `DepositPayoutReverse`
 
-### Path Parameters
+| Field | Type | Required |
+| --- | --- | --- |
+| `valuation_id` | string (uuid) | yes |
+| `expected_asset_revision` | integer | yes |
+| `expected_account_revision` | integer | yes |
+| `expected_revision` | integer | yes |
+| `remaining_owned_value` | string | yes |
+| `valuation_source` | string | yes |
+| `reason` | string | yes |
+| `remaining_value_is_observed` | boolean | yes |
+| `input_digest` | string | yes |
 
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `asset_id` | UUID | **Yes** | Qualified holding asset identifier. |
+### `DepositPayoutCorrection`
 
-### Query Parameters
+| Field | Type | Required |
+| --- | --- | --- |
+| `valuation_id` | string (uuid) | yes |
+| `expected_asset_revision` | integer | yes |
+| `expected_account_revision` | integer | yes |
+| `expected_revision` | integer | yes |
+| `remaining_owned_value` | string | yes |
+| `valuation_source` | string | yes |
+| `reason` | string | yes |
+| `remaining_value_is_observed` | boolean | yes |
 
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `through` | date | No | Include lots acquired through this date (`YYYY-MM-DD`). Defaults to today. |
-| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
-| `cursor` | string | No | Continuation cursor. |
+### `InvestmentEventResponse`
 
-### Example Request
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `asset_id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `asset_revision` | integer | yes |
+| `recorded_at` | string (date-time) | yes |
+| `input` | InvestmentReview | yes |
+| `confirmation_digest` | string (nullable) | no |
 
-```bash
-curl --fail-with-body --get \
-  "https://api.farz.app/api/developer/v1/assets/$FARZ_ASSET_ID/lots" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json' \
-  --data-urlencode 'limit=20'
-```
+### `InvestmentWrite`
 
-Returns a paginated [`Page<Lot>`](/docs/api/schemas#lot) collection.
+| Field | Type | Required |
+| --- | --- | --- |
+| `instrument_id` | string | yes |
+| `currency` | enum (164 values) | yes |
+| `event` | Trade or Split or Dividend or Void or TickerChange or Merger or SpinOff | yes |
+| `expected_asset_revision` | integer | yes |
+| `expected_revision` | integer | yes |
+| `method` | string | yes |
+| `input_digest` | string | yes |
+
+### `InvestmentReview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `instrument_id` | string | yes |
+| `currency` | enum (164 values) | yes |
+| `event` | Trade or Split or Dividend or Void or TickerChange or Merger or SpinOff | yes |
+| `expected_asset_revision` | integer | yes |
+| `expected_revision` | integer | yes |
+| `method` | string | yes |
+
+### `InvestmentPreview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `event_id` | string (uuid) | yes |
+| `input_digest` | string | yes |
+| `input` | InvestmentReview | yes |
+| `position` | InvestmentPosition | yes |
+
+### `SettlementResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `event_id` | string (uuid) | yes |
+| `asset_id` | string (uuid) | yes |
+| `account_id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `asset_revision` | integer | yes |
+| `account_revision` | integer | yes |
+| `primary_entry_id` | string (uuid) | yes |
+| `deduction_entry_id` | string (uuid) (nullable) | yes |
+| `reversal_of` | string (uuid) (nullable) | yes |
+| `recorded_at` | string (date-time) | yes |
+| `action` | enum: `record`, `reverse` | yes |
+| `input` | SettlementReview | yes |
+| `confirmation_digest` | string | yes |
+| `postings` | array of SettlementPosting | yes |
+| `net_cash_delta` | string | yes |
+| `reversed_on` | string (date) (nullable) | no |
+| `reversal_reason` | string (nullable) | no |
+
+### `SettlementReverse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_asset_revision` | integer | yes |
+| `expected_account_revision` | integer | yes |
+| `expected_revision` | integer | yes |
+| `reason` | string | yes |
+
+### `InvestmentPosition`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `instrument_history` | array of InstrumentAlias | no |
+| `spin_off_transfers` | array of SpinOffTransfer | no |
+| `algorithm` | string | no |
+| `asset_id` | string (uuid) | yes |
+| `instrument_id` | string (nullable) | yes |
+| `currency` | enum (164 values) | yes |
+| `revision` | integer | yes |
+| `through` | string (date) | yes |
+| `owned_quantity` | string | yes |
+| `remaining_cost` | string | yes |
+| `disposed_cost` | string | yes |
+| `sale_net_proceeds` | string | yes |
+| `estimated_realized_gain` | string | yes |
+| `dividend_net_amount` | string | yes |
+| `lots` | array of RemainingLot | yes |
+| `allocations` | array of DisposalAllocation | yes |
+| `evidence` | string | no |
+| `cash_posted` | boolean | no |
+| `valuation_updated` | boolean | no |
+| `quantity_rounding` | string | no |
+
+### `SettlementWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `event_id` | string (uuid) | yes |
+| `account_id` | string (uuid) | yes |
+| `occurred_on` | string (date) | yes |
+| `source` | string | yes |
+| `already_settled` | boolean | yes |
+| `expected_asset_revision` | integer | yes |
+| `expected_account_revision` | integer | yes |
+| `expected_revision` | integer | yes |
+| `input_digest` | string | yes |
+
+### `SettlementReview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `event_id` | string (uuid) | yes |
+| `account_id` | string (uuid) | yes |
+| `occurred_on` | string (date) | yes |
+| `source` | string | yes |
+| `already_settled` | boolean | yes |
+| `expected_asset_revision` | integer | yes |
+| `expected_account_revision` | integer | yes |
+| `expected_revision` | integer | yes |
+
+### `app__investment_schemas__SettlementPreview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `input` | SettlementReview | yes |
+| `input_digest` | string | yes |
+| `postings` | array of SettlementPosting | yes |
+| `net_cash_delta` | string | yes |
+
+### `AssetLifecycleResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `asset_revision` | integer | yes |
+| `id` | string (uuid) | yes |
+| `asset_id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `effective_on` | string (date) | yes |
+| `state` | enum: `active`, `disposed` | yes |
+| `disposition` | enum: `sold`, `gifted`, `lost`, `matured`, `other` (nullable) | yes |
+| `reason` | string | yes |
+| `recorded_by` | string (uuid) | yes |
+| `recorded_at` | string (date-time) | yes |
+
+### `AssetLifecycleWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_asset_revision` | integer | yes |
+| `expected_lifecycle_revision` | integer | yes |
+| `effective_on` | string (date) | yes |
+| `state` | enum: `active`, `disposed` | yes |
+| `reason` | string | yes |
+| `disposition` | enum: `sold`, `gifted`, `lost`, `matured`, `other` (nullable) | no |
+
+### `AssetLifecycleHistoryPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of AssetLifecycleResponse | yes |
+| `next_cursor` | string (nullable) | no |
+
+### `AssetValuationResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `ownership_estimate` | OwnershipEstimate (nullable) | no |
+| `descriptor` | PropertyDescriptor or VehicleDescriptor or DepositDescriptor (nullable) | no |
+| `acquisition` | AssetAcquisition (nullable) | no |
+| `value_minus_acquisition_cost` | string (nullable) | no |
+| `estimated_unrealized_gain` | string (nullable) | no |
+| `basis` | enum: `manual_owned_value`, `metal_spot_v1`, `holding_unit_v1`, `ownership_fraction_v1` | no |
+| `holding_estimate` | HoldingEstimateInput (nullable) | no |
+| `metal_estimate` | MetalEstimateInput (nullable) | no |
+| `deposit_assumptions` | DepositAssumptions (nullable) | no |
+| `deposit_projection` | DepositProjection (nullable) | no |
+| `fine_weight_grams` | string (nullable) | no |
+| `asset_revision` | integer | yes |
+| `id` | string (uuid) | yes |
+| `asset_id` | string (uuid) | yes |
+| `owned_value` | string | yes |
+| `valued_on` | string (date) | yes |
+| `source` | string | yes |
+| `recorded_at` | string (date-time) | yes |
+
+### `GetAssetHistoryPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of AssetValuationResponse | yes |
+| `next_cursor` | string (nullable) | no |
+
+### `VehicleScheduleView`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `asset_id` | string | yes |
+| `schedules` | array of VehicleScheduleItem | yes |
+| `totals_by_kind` | object | yes |
+| `basis` | string | no |
+
+### `DepositPreviewInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `currency` | enum (164 values) | yes |
+| `assumptions` | DepositAssumptions | yes |
+| `expected_fees` | string | yes |
+| `expected_withholding` | string | yes |
+| `cost_source` | string | yes |
+| `assumptions_source` | string | yes |
+| `forecast_only_acknowledged` | boolean | yes |
+
+### `DepositScenarioPreview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `algorithm` | string | no |
+| `input` | DepositPreviewInput | yes |
+| `gross_projection` | DepositProjection | yes |
+| `expected_deductions` | string | yes |
+| `expected_net_return` | string | yes |
+| `expected_net_maturity_total` | string | yes |
+| `rounded_net_maturity_total` | string | yes |
+| `minor_unit_digits` | integer | yes |
+| `rounding` | string | no |
+| `amount_basis` | string | no |
+| `valuation_or_payment_recorded` | boolean | no |
+| `guaranteed_return` | boolean | no |
+| `actual_day_count` | boolean | no |
+| `included_costs` | string | no |
+
+### `DepreciationInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `currency` | enum (164 values) | yes |
+| `acquisition_cost` | string | yes |
+| `acquired_on` | string (date) | yes |
+| `method` | enum: `straight_line`, `declining_balance_monthly` | yes |
+| `useful_life_months` | integer (nullable) | no |
+| `annual_rate_percent` | string (nullable) | no |
+| `salvage_value` | string | no |
+| `through` | string (date) | yes |
+| `step_months` | integer | no |
+| `assumption_source` | string | yes |
+
+### `DepreciationPreview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `algorithm` | string | no |
+| `input` | DepreciationInput | yes |
+| `points` | array of DepreciationPoint | yes |
+| `label` | string | no |
+| `valuation_saved` | boolean | no |

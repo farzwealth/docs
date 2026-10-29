@@ -1,0 +1,72 @@
+---
+title: Support tickets
+description: Open a support ticket, read its messages and reply.
+---
+
+**Status: In testing.** Deployed in the API. Acceptance testing for this area is not complete.
+
+Use a ticket for account or product problems. Do not put a password or a full card number in a ticket.
+
+## Endpoints
+
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/support/tickets` | Page | Signed-in user (Clerk bearer) | none | `before_id`, `limit` | none | 200 `TicketPage` |
+| `POST /api/v1/workspaces/{workspace_id}/support/tickets` | Create | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `TicketInput` | 201 `TicketView` |
+| `GET /api/v1/workspaces/{workspace_id}/support/tickets/{ticket_id}` | Selected | Signed-in user (Clerk bearer) | none | none | none | 200 `TicketView` |
+| `POST /api/v1/workspaces/{workspace_id}/support/tickets/{ticket_id}/actions` | Act | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `TicketAction` | 200 `TicketView` |
+| `GET /api/v1/workspaces/{workspace_id}/support/tickets/{ticket_id}/messages` | Messages | Signed-in user (Clerk bearer) | none | `after_sequence`, `limit` | none | 200 `MessagePage` |
+
+`*` marks a required query parameter. Path parameters are listed in the route.
+
+## Models
+
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
+
+### `TicketPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of TicketView | yes |
+| `next_before_id` | string (uuid) (nullable) | yes |
+
+### `TicketInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `category` | enum: `account`, `transactions`, `imports`, `billing`, `privacy`, `bug`, `other` | yes |
+| `subject` | string | yes |
+| `details` | string | yes |
+| `platform` | enum: `web`, `android`, `ios`, `api` | yes |
+| `confirmed` | boolean | yes |
+
+### `TicketView`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `state` | enum: `open`, `closed` | yes |
+| `category` | string | yes |
+| `subject` | string | yes |
+| `platform` | string | yes |
+| `created_at` | string (date-time) | yes |
+| `updated_at` | string (date-time) | yes |
+| `email_delivered` | boolean | no |
+| `staff_response_received` | boolean | no |
+
+### `TicketAction`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `action` | enum: `reply`, `close`, `reopen` | yes |
+| `expected_revision` | integer | yes |
+| `details` | string | yes |
+| `confirmed` | boolean | yes |
+
+### `MessagePage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of MessageView | yes |
+| `next_after_sequence` | integer (nullable) | yes |

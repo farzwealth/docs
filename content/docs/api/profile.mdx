@@ -1,54 +1,145 @@
 ---
-title: Profile
-description: Retrieve account preferences including language locale, reporting currency, and IANA timezone.
+title: Profile, onboarding and eligibility
+description: Read and update the signed-in user, onboarding, workspace list, preferences and eligibility.
 ---
 
-`GET /profile`
+**Status: In testing.** Deployed in the API. Acceptance testing for this area is not complete.
 
-Returns the minimum account preferences required by clients to format currencies, dates, and timezones accurately.
+Routes for the signed-in user. Start with `GET /me`. Language values are `en`, `ar`, `fr` and `ru`. The Arabic, French and Russian text is an AI-reviewed draft until a human reviewer signs it off.
 
----
+Personal sign-up is for adults aged 18 and over in AE, SA, BH, KW, QA and OM.
 
-## Authorization
+## Endpoints
 
-- **Scope Required**: `profile:read`
-- **Plan Requirement**: Active Paid subscription
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `POST /api/v1/eligibility/check` | Check Eligibility | None (public) | none | none | `EligibilityInput` | 200 `EligibilityResponse` |
+| `GET /api/v1/me` | Me | Signed-in user (Clerk bearer) | none | none | none | 200 `ProfileResponse` |
+| `PATCH /api/v1/me` | Update Personal Profile | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `Preferences` | 200 `ProfileResponse` |
+| `GET /api/v1/me/reauthentication-status` | Current | Signed-in user (Clerk bearer) | none | none | none | 200 `ReauthenticationStatus` |
+| `POST /api/v1/onboarding` | Onboarding | Signed-in user (Clerk bearer) | none | none | `OnboardingInput` | 200 `ProfileResponse` |
+| `GET /api/v1/workspaces` | List the caller's own workspaces (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `WorkspaceListPage` |
+| `PATCH /api/v1/workspaces/{workspace_id}/preferences` | Preferences | Signed-in user (Clerk bearer) | `Idempotency-Key` | none | `Preferences` | 200 `ProfileResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/settings` | Read Settings | Signed-in user (Clerk bearer) | none | none | none | 200 `SettingsResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/setup` | Setup Progress | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `SetupProgress` | 200 `SetupState` |
 
----
+`*` marks a required query parameter. Path parameters are listed in the route.
 
-## Request
+## Models
 
-This endpoint does not accept query parameters or request bodies.
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
 
-### Example Request
+### `EligibilityInput`
 
-```bash
-curl --fail-with-body \
-  "https://api.farz.app/api/developer/v1/profile" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json'
-```
+| Field | Type | Required |
+| --- | --- | --- |
+| `born_on` | string (date) (nullable) | no |
+| `age` | integer (nullable) | no |
+| `adult_confirmed` | boolean | no |
+| `residence` | string | yes |
 
----
+### `EligibilityResponse`
 
-## Response
+| Field | Type | Required |
+| --- | --- | --- |
+| `status` | enum: `blocked_under_13`, `blocked_under_18`, `guardian_required`, `eligible`, `suspended_review` | yes |
+| `policy_version` | string | yes |
 
-Returns a single [Profile](/docs/api/schemas#profile) JSON object with status `200 OK`:
+### `ProfileResponse`
 
-```json
-{
-  "locale": "en",
-  "timezone": "Asia/Dubai",
-  "base_currency": "AED",
-  "revision": 3
-}
-```
+| Field | Type | Required |
+| --- | --- | --- |
+| `display_name` | string (nullable) | no |
+| `numbering_convention` | enum: `international`, `indian` | no |
+| `account_state` | enum: `active`, `deactivated` | no |
+| `account_revision` | integer | no |
+| `terminology` | enum: `conventional`, `islamic` | no |
+| `theme` | enum: `light`, `dark` | no |
+| `text_size` | enum: `small`, `medium`, `large` | no |
+| `high_contrast` | boolean | no |
+| `reduce_motion` | boolean | no |
+| `workspace_id` | string (uuid) (nullable) | yes |
+| `onboarding_required` | boolean | yes |
+| `onboarding_stage` | enum: `eligibility`, `identity`, `privacy_terms`, `preferences`, `terminology`, `first_records`, `complete` | no |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` | no |
+| `base_currency` | enum (11 values) | no |
+| `timezone` | string | no |
+| `hide_balances` | boolean | no |
+| `synthetic` | boolean | no |
+| `change_sequence` | integer | no |
+| `preferences_revision` | integer | no |
+| `setup` | SetupState | no |
 
-### Response Fields
+### `Preferences`
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `locale` | string | Preferred language locale (`en`, `ar`, `fr`, `ru`). |
-| `timezone` | string | Canonical IANA timezone identifier (e.g. `Asia/Dubai`). |
-| `base_currency` | string | Primary native reporting currency (e.g. `AED`, `USD`). |
-| `revision` | integer | Incremental revision number for user profile settings. |
+| Field | Type | Required |
+| --- | --- | --- |
+| `numbering_convention` | enum: `international`, `indian` (nullable) | no |
+| `terminology` | enum: `conventional`, `islamic` (nullable) | no |
+| `theme` | enum: `light`, `dark` (nullable) | no |
+| `text_size` | enum: `small`, `medium`, `large` (nullable) | no |
+| `high_contrast` | boolean (nullable) | no |
+| `reduce_motion` | boolean (nullable) | no |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` (nullable) | no |
+| `hide_balances` | boolean (nullable) | no |
+| `expected_revision` | integer | yes |
+| `base_currency` | enum (11 values) (nullable) | no |
+| `timezone` | string (nullable) | no |
+
+### `ReauthenticationStatus`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `reauthentication_required` | boolean | yes |
+
+### `OnboardingInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `born_on` | string (date) (nullable) | no |
+| `age` | integer (nullable) | no |
+| `adult_confirmed` | boolean | no |
+| `residence` | string | yes |
+| `display_name` | string (nullable) | no |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` | no |
+| `base_currency` | enum (11 values) | no |
+| `timezone` | string | no |
+| `terms_accepted` | boolean | yes |
+| `privacy_accepted` | boolean | no |
+
+### `WorkspaceListPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of WorkspaceSummary | yes |
+| `next_cursor` | string (nullable) | no |
+
+### `SettingsResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `display` | DisplaySettings | yes |
+| `notifications` | PreferenceResponse | yes |
+| `consents` | array of ConsentSummary | yes |
+| `ai` | AISettings | yes |
+| `plan` | PlanSummary | yes |
+| `links` | object | yes |
+
+### `SetupProgress`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `step` | enum: `security`, `import`, `accounts`, `transactions`, `subscription`, `review`, `survey` | yes |
+| `expected_revision` | integer | yes |
+| `complete` | boolean | no |
+| `referral` | enum: `article`, `search`, `social`, `video`, `assistant`, `store`, `friend` (nullable) | no |
+
+### `SetupState`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `step` | enum: `security`, `import`, `accounts`, `transactions`, `subscription`, `review`, `survey` | no |
+| `revision` | integer | no |
+| `complete` | boolean | no |
+| `referral` | enum: `article`, `search`, `social`, `video`, `assistant`, `store`, `friend` (nullable) | no |
+| `completed_at` | string (date-time) (nullable) | no |

@@ -1,0 +1,265 @@
+---
+title: Market data and valuation
+description: Public FX feed, instruments, quotes, manual quotes and valuation previews.
+---
+
+**Status: In testing** for the FX feed and manual quotes. **Planned** for live market data providers, which are not yet configured.
+
+Until live providers are configured, a quote is manual or stale. Check the freshness fields before you use a value.
+
+## Endpoints
+
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/market/fx` | Public Fx Feed | None (public) | none | none | none | 200 `FeedResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/fx-conversions` | Fx Conversion | Signed-in user (Clerk bearer) | none | none | `FXConversionInput` | 200 `FXConversionResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/fx-observations` | Get Fx Observations | Signed-in user (Clerk bearer) | none | none | none | 200 array of `FXObservationResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/fx-observations` | Save Fx Observation | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `FXWrite` | 200 `FXObservationResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/fx-observations/page` | get_fx_observations (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `GetFxObservationsPage` |
+| `GET /api/v1/workspaces/{workspace_id}/market/assets/{asset_id}/history` | History | Signed-in user (Clerk bearer) | none | `as_of*`, `limit`, `cursor` | none | 200 `QuoteHistory` |
+| `POST /api/v1/workspaces/{workspace_id}/market/assets/{asset_id}/manual-quotes` | Manual | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `ManualQuote` | 200 `QuoteObservation` |
+| `GET /api/v1/workspaces/{workspace_id}/market/assets/{asset_id}/quote` | Quote | Signed-in user (Clerk bearer) | none | `as_of*` | none | 200 `QuoteView` |
+| `POST /api/v1/workspaces/{workspace_id}/market/assets/{asset_id}/refreshes` | Refresh | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `RefreshRequest` | 202 `RefreshView` |
+| `GET /api/v1/workspaces/{workspace_id}/market/assets/{asset_id}/valuation-preview` | Valuation Preview | Signed-in user (Clerk bearer) | none | `as_of*`, `expected_asset_revision*` | none | 200 `QuoteValuationPreview` |
+| `GET /api/v1/workspaces/{workspace_id}/market/capabilities` | Capabilities | Signed-in user (Clerk bearer) | none | none | none | 200 `MarketCapabilities` |
+| `GET /api/v1/workspaces/{workspace_id}/market/disclosure` | Disclosure | Signed-in user (Clerk bearer) | none | none | none | 200 `MarketDisclosure` |
+| `GET /api/v1/workspaces/{workspace_id}/market/instruments` | Instruments | Signed-in user (Clerk bearer) | none | `query`, `limit`, `cursor` | none | 200 `InstrumentPage` |
+| `POST /api/v1/workspaces/{workspace_id}/market/quote-coverage` | Coverage | Signed-in user (Clerk bearer) | none | none | `QuoteCoverageInput` | 200 `QuoteCoverage` |
+| `GET /api/v1/workspaces/{workspace_id}/market/quotes` | Quotes for many held assets in one request | Signed-in user (Clerk bearer) | none | `as_of*`, `asset_id*` | none | 200 `BatchQuotes` |
+| `GET /api/v1/workspaces/{workspace_id}/market/refreshes/{refresh_id}` | Status | Signed-in user (Clerk bearer) | none | none | none | 200 `RefreshView` |
+| `POST /api/v1/workspaces/{workspace_id}/market/refreshes/{refresh_id}/cancel` | Cancel | Signed-in user (Clerk bearer) | none | none | none | 200 `RefreshView` |
+| `POST /api/v1/workspaces/{workspace_id}/market/refreshes/{refresh_id}/execute` | Execute | Signed-in user (Clerk bearer) | none | none | none | 200 `RefreshView` |
+
+`*` marks a required query parameter. Path parameters are listed in the route.
+
+## Models
+
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
+
+### `FeedResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `provider` | string | no |
+| `status` | enum: `available`, `unavailable`, `disabled` | yes |
+| `checked_at` | string (date-time) (nullable) | no |
+| `currencies` | array of object | no |
+| `records` | array of FXObservationResponse | no |
+
+### `FXConversionInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `amount` | string | yes |
+| `from_currency` | string | yes |
+| `to_currency` | string | yes |
+| `as_of` | string (date) | yes |
+
+### `FXConversionResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `algorithm` | string | no |
+| `from_currency` | string | yes |
+| `to_currency` | string | yes |
+| `as_of` | string (date) | yes |
+| `native_amount` | string | yes |
+| `converted_amount` | string (nullable) | yes |
+| `effective_rate` | string (nullable) | yes |
+| `status` | enum: `native`, `manual`, `provider`, `missing`, `out_of_bounds` | yes |
+| `stale` | boolean | yes |
+| `legs` | array of FXLeg | no |
+
+### `FXObservationResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `active` | boolean | no |
+| `id` | string (uuid) | yes |
+| `base_currency` | string | yes |
+| `quote_currency` | string | yes |
+| `rate` | string | yes |
+| `observed_on` | string (date) | yes |
+| `source` | string | yes |
+| `revision` | integer | yes |
+| `recorded_at` | string (date-time) | yes |
+| `recorded_by` | string (uuid) (nullable) | yes |
+| `origin` | enum: `manual`, `frankfurter` | no |
+| `provider_keys` | array of string | no |
+| `rate_basis` | enum: `blended`, `provider_peg`, `reference_unattributed` (nullable) | no |
+
+### `FXWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `active` | boolean | no |
+| `base_currency` | enum (164 values) | yes |
+| `quote_currency` | enum (164 values) | yes |
+| `rate` | string | yes |
+| `observed_on` | string (date) | yes |
+| `source` | string | yes |
+| `expected_revision` | integer | no |
+
+### `GetFxObservationsPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of FXObservationResponse | yes |
+| `next_cursor` | string (nullable) | no |
+
+### `QuoteHistory`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `asset_id` | string (uuid) | yes |
+| `records` | array of QuoteObservation | yes |
+| `next_cursor` | string (nullable) | no |
+
+### `ManualQuote`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `as_of` | string (date) | yes |
+| `expected_asset_revision` | integer | yes |
+| `instrument_id` | string | yes |
+| `price` | string | yes |
+| `currency` | enum (164 values) | yes |
+| `unit` | enum: `share`, `coin`, `troy_ounce` | yes |
+| `source` | string | yes |
+| `expected_revision` | integer | yes |
+| `active` | boolean | no |
+
+### `QuoteObservation`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `instrument_id` | string | yes |
+| `origin` | enum: `manual`, `alpha-vantage`, `coingecko`, `goldapi`, `yahoo`, `frankfurter` | yes |
+| `price` | string | yes |
+| `reported_price` | string (nullable) | no |
+| `reported_price_unit` | enum: `major`, `gb_pence`, `kw_fils` | no |
+| `currency` | enum (164 values) | yes |
+| `unit` | enum: `share`, `coin`, `troy_ounce` | yes |
+| `observed_on` | string (date) | yes |
+| `observed_at` | string (date-time) (nullable) | yes |
+| `recorded_at` | string (date-time) | yes |
+| `time_precision` | enum: `date`, `second` | yes |
+| `source` | string | yes |
+| `exchange_or_chain` | string (nullable) | yes |
+| `delay_seconds` | integer (nullable) | yes |
+| `trading_session` | enum: `unknown`, `reference`, `delayed`, `historical`, `manual` | yes |
+| `active` | boolean | no |
+| `anomaly` | boolean | no |
+
+### `QuoteView`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `asset_id` | string (uuid) | yes |
+| `as_of` | string (date) | yes |
+| `status` | enum: `available`, `stale`, `missing`, `delisted` | yes |
+| `valuation_mode` | enum: `manual`, `provider`, `missing` | yes |
+| `observation` | QuoteObservation (nullable) | yes |
+| `warnings` | array of string | yes |
+| `stale_after_seconds` | integer (nullable) | no |
+| `history_revision` | integer | yes |
+| `refresh_id` | string (uuid) (nullable) | no |
+| `refresh_state` | string (nullable) | no |
+
+### `RefreshRequest`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `as_of` | string (date) | yes |
+| `expected_asset_revision` | integer | yes |
+| `disclosure_digest` | string | yes |
+| `disclosure_accepted` | boolean | yes |
+
+### `RefreshView`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `asset_id` | string (uuid) | yes |
+| `state` | enum: `pending`, `running`, `completed`, `failed`, `canceled` | yes |
+| `attempt` | integer | yes |
+| `run_after` | string (date-time) | yes |
+| `expires_at` | string (date-time) | yes |
+| `safe_error` | string (nullable) | no |
+
+### `QuoteValuationPreview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `price_session` | PriceSession (nullable) | no |
+| `asset_id` | string (uuid) | yes |
+| `asset_revision` | integer | yes |
+| `currency` | enum (164 values) | yes |
+| `holding_basis` | string | no |
+| `declared_valuation_date` | string (date) | yes |
+| `declared_owned_value` | string | yes |
+| `estimated_owned_value` | string (nullable) | yes |
+| `estimate_minus_declared_value` | string (nullable) | yes |
+| `calculation_basis` | enum: `holding_unit_v1`, `metal_spot_v1` | yes |
+| `calculation_inputs` | QuoteValuationInputs (nullable) | yes |
+| `quote` | QuoteView | yes |
+| `warnings` | array of string | yes |
+| `changes_saved` | boolean | no |
+
+### `MarketCapabilities`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `status` | enum: `not_configured`, `reviewed_roster` | yes |
+| `manual_quotes` | boolean | no |
+| `automatic_repricing` | boolean | no |
+| `provider_activation_required` | boolean | no |
+| `providers` | array of enum: `alpha-vantage`, `coingecko`, `goldapi`, `yahoo`, `frankfurter` | yes |
+| `fx_provider` | enum: `frankfurter`, `manual` | yes |
+| `fx_missing_rates_remain_missing` | boolean | no |
+
+### `MarketDisclosure`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `version` | string | yes |
+| `digest` | string | yes |
+| `texts` | object | yes |
+| `expires_at` | string (date-time) | yes |
+
+### `InstrumentPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `status` | enum: `available`, `not_configured` | yes |
+| `records` | array of Instrument | yes |
+| `next_cursor` | string (nullable) | yes |
+
+### `QuoteCoverageInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `asset_ids` | array of string (uuid) | yes |
+| `as_of` | string (date) | yes |
+
+### `QuoteCoverage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `as_of` | string (date) | yes |
+| `quotes` | array of QuoteView | yes |
+| `available` | integer | yes |
+| `stale` | integer | yes |
+| `missing` | integer | yes |
+| `delisted` | integer | yes |
+| `changes_saved` | boolean | no |
+| `provider_requests_initiated` | boolean | no |
+
+### `BatchQuotes`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `as_of` | string (date) | yes |
+| `items` | array of BatchQuoteItem | yes |

@@ -1,0 +1,64 @@
+---
+title: Capabilities and client compatibility
+description: Which integrations are available, and whether a client version is supported.
+---
+
+**Status: In testing.** Deployed in the API. Acceptance testing for this area is not complete. The approved client catalog is not yet published, so compatibility results are not final.
+
+`GET /capabilities` lists which integrations are available. Clients use it to show a disabled feature honestly instead of failing.
+
+`GET /client-compatibility/{platform}` reads the client support list for one platform.
+
+## Endpoints
+
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/capabilities` | Capabilities | None (public) | none | none | none | 200 `CapabilitiesResponse` |
+| `GET /api/v1/client-compatibility/{platform}` | Read reviewed client support and optionally assess a stable version | None (public) | none | `version` | none | 200 `CompatibilityView` |
+
+`*` marks a required query parameter. Path parameters are listed in the route.
+
+## Models
+
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
+
+### `CapabilitiesResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `application_catalog_version` | string | no |
+| `languages` | array of enum: `en`, `ar`, `fr`, `ru` | no |
+| `default_language` | enum: `en`, `ar`, `fr`, `ru` | no |
+| `default_base_currency` | enum (11 values) | no |
+| `lending_available` | boolean | no |
+| `public_app_url` | string | no |
+| `api_external_url` | string | no |
+| `currency_metadata_version` | string | no |
+| `currency_minor_units` | object | no |
+| `consent_grant_recent_auth_seconds` | integer | no |
+| `consent_withdrawal_recent_auth_required` | boolean | no |
+| `export_recent_auth_seconds` | integer | no |
+| `export_recent_auth_evidence` | string | no |
+| `currencies` | array of string | no |
+| `identity_configured` | boolean | yes |
+| `synthetic` | boolean | yes |
+| `integrations` | object | yes |
+
+### `CompatibilityView`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `status` | enum: `configured`, `not_configured`, `platform_not_configured` | yes |
+| `platform` | enum: `web`, `android`, `ios` | yes |
+| `policy_revision` | string (nullable) | no |
+| `valid_until` | string (date-time) (nullable) | no |
+| `recommended_version` | string (nullable) | no |
+| `security_minimum` | string (nullable) | no |
+| `support_days` | integer | no |
+| `retained_releases` | integer | no |
+| `declared_metadata_is_attestation` | boolean | no |
+| `releases` | array of SupportedRelease | no |
+| `assessment` | Assessment (nullable) | no |
+| `support_email` | string | no |
+| `privacy_email` | string | no |
+| `recovery_access` | string | no |

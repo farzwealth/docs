@@ -1,0 +1,104 @@
+---
+title: Classifications and merchant rules
+description: Save classifications and merchant rules, and run classification batches.
+---
+
+**Status: In testing.** Deployed in the API. Acceptance testing for this area is not complete.
+
+A merchant rule suggests a category for future entries. A classification batch applies a rule to several entries at once.
+
+## Endpoints
+
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/classifications` | Get Classifications | Signed-in user (Clerk bearer) | none | none | none | 200 array of `ClassificationResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/classifications` | Save Classification | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `ClassificationWrite` | 200 `ClassificationResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/classifications/page` | Classification Page | Signed-in user (Clerk bearer) | none | `limit`, `cursor`, `q`, `sort`, `kind`, `archived` | none | 200 `RecordPage_ClassificationResponse_` |
+| `GET /api/v1/workspaces/{workspace_id}/merchant-rules` | Get Merchant Rules | Signed-in user (Clerk bearer) | none | none | none | 200 array of `MerchantRuleResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/merchant-rules` | Save Merchant Rule | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `MerchantRuleWrite` | 200 `MerchantRuleResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/merchant-rules/page` | get_merchant_rules (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `GetMerchantRulesPage` |
+| `POST /api/v1/workspaces/{workspace_id}/merchant-rules/suggestions` | Rule Suggestions | Signed-in user (Clerk bearer) | none | none | `RuleLookup` | 200 array of `MerchantRuleResponse` |
+
+`*` marks a required query parameter. Path parameters are listed in the route.
+
+## Models
+
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
+
+### `ClassificationResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `key` | string | yes |
+| `revision` | integer | yes |
+| `kind` | enum: `category`, `tag` | yes |
+| `name` | string | yes |
+| `tone` | enum: `blue`, `green`, `purple`, `orange`, `teal`, `slate`, `amber` | yes |
+| `archived` | boolean | yes |
+
+### `ClassificationWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) (nullable) | no |
+| `expected_revision` | integer | no |
+| `kind` | enum: `category`, `tag` | yes |
+| `name` | string | yes |
+| `tone` | enum: `blue`, `green`, `purple`, `orange`, `teal`, `slate`, `amber` | no |
+| `archived` | boolean | no |
+
+### `RecordPage_ClassificationResponse_`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `as_of` | string (date) | yes |
+| `items` | array of ClassificationResponse | yes |
+| `next_cursor` | string (nullable) | yes |
+
+### `MerchantRuleResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `name` | string | yes |
+| `match_text` | string | yes |
+| `mode` | enum: `exact`, `contains` | no |
+| `type` | enum: `expense`, `income` | no |
+| `account_id` | string (uuid) (nullable) | no |
+| `category` | string | yes |
+| `tags` | array of string (uuid) | no |
+| `priority` | integer | no |
+| `enabled` | boolean | no |
+| `id` | string (uuid) | yes |
+| `revision` | integer | yes |
+
+### `MerchantRuleWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `name` | string | yes |
+| `match_text` | string | yes |
+| `mode` | enum: `exact`, `contains` | no |
+| `type` | enum: `expense`, `income` | no |
+| `account_id` | string (uuid) (nullable) | no |
+| `category` | string | yes |
+| `tags` | array of string (uuid) | no |
+| `priority` | integer | no |
+| `enabled` | boolean | no |
+| `id` | string (uuid) (nullable) | no |
+| `expected_revision` | integer | no |
+
+### `GetMerchantRulesPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of MerchantRuleResponse | yes |
+| `next_cursor` | string (nullable) | no |
+
+### `RuleLookup`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `description` | string | yes |
+| `type` | enum: `expense`, `income` | yes |
+| `account_id` | string (uuid) | yes |

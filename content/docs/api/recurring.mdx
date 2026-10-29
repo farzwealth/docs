@@ -1,0 +1,177 @@
+---
+title: Recurring transactions
+description: Save recurring templates, override single occurrences and record each occurrence.
+---
+
+**Status: In testing.** Deployed in the API. Acceptance testing for this area is not complete.
+
+Each occurrence is recorded with its own route.
+
+## Endpoints
+
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/recurring` | Get Recurring | Signed-in user (Clerk bearer) | none | none | none | 200 array of `RecurringResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/recurring` | Save Recurring | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `RecurringWrite` | 200 `RecurringResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/recurring/overrides` | Save Recurring Override | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `RecurringOverrideWrite` | 200 `RecurringOverrideResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/recurring/page` | Recurring Page | Signed-in user (Clerk bearer) | none | `limit`, `cursor`, `q`, `sort`, `currency`, `active`, `type`, `account_id`, `category` | none | 200 `RecordPage_RecurringResponse_` |
+| `GET /api/v1/workspaces/{workspace_id}/recurring/{template_id}/postings` | Recorded Occurrences | Signed-in user (Clerk bearer) | none | `limit`, `before_id` | none | 200 `OccurrencePage` |
+| `POST /api/v1/workspaces/{workspace_id}/recurring/{template_id}/postings` | Record Occurrence | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `OccurrenceWrite` | 201 `OccurrenceReceipt` |
+| `POST /api/v1/workspaces/{workspace_id}/recurring/{template_id}/postings/preview` | Occurrence Preview | Signed-in user (Clerk bearer) | none | none | `OccurrenceFacts` | 200 `OccurrencePreview` |
+
+`*` marks a required query parameter. Path parameters are listed in the route.
+
+## Models
+
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
+
+### `RecurringResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `vehicle_schedule` | VehicleScheduleInput (nullable) | no |
+| `seasonal_estimate` | SeasonalUtilityEstimate (nullable) | no |
+| `business_calendar` | RecurringBusinessCalendar (nullable) | no |
+| `property_charge` | PropertyChargeInput (nullable) | no |
+| `id` | string (uuid) | yes |
+| `expected_revision` | integer | no |
+| `description` | string | yes |
+| `type` | enum: `expense`, `income` | no |
+| `category` | string | no |
+| `currency` | enum (164 values) | yes |
+| `amount` | string | yes |
+| `starts_on` | string (date) | yes |
+| `ends_on` | string (date) (nullable) | no |
+| `frequency` | enum: `once`, `weekly`, `monthly`, `quarterly`, `yearly` | no |
+| `month_end` | boolean | no |
+| `account_id` | string (uuid) (nullable) | no |
+| `active` | boolean | no |
+| `revision` | integer | yes |
+
+### `RecurringWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `vehicle_schedule` | VehicleScheduleInput (nullable) | no |
+| `seasonal_estimate` | SeasonalUtilityEstimate (nullable) | no |
+| `business_calendar` | RecurringBusinessCalendar (nullable) | no |
+| `property_charge` | PropertyChargeInput (nullable) | no |
+| `id` | string (uuid) (nullable) | no |
+| `expected_revision` | integer | no |
+| `description` | string | yes |
+| `type` | enum: `expense`, `income` | no |
+| `category` | string | no |
+| `currency` | enum (164 values) | yes |
+| `amount` | string | yes |
+| `starts_on` | string (date) | yes |
+| `ends_on` | string (date) (nullable) | no |
+| `frequency` | enum: `once`, `weekly`, `monthly`, `quarterly`, `yearly` | no |
+| `month_end` | boolean | no |
+| `account_id` | string (uuid) (nullable) | no |
+| `active` | boolean | no |
+
+### `RecurringOverrideWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `template_id` | string (uuid) | yes |
+| `expected_template_revision` | integer | yes |
+| `expected_revision` | integer | no |
+| `original_date` | string (date) | yes |
+| `status` | enum: `scheduled`, `skipped`, `rescheduled` | yes |
+| `due_on` | string (date) (nullable) | no |
+| `amount` | string (nullable) | no |
+
+### `RecurringOverrideResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `template_id` | string (uuid) | yes |
+| `expected_template_revision` | integer | yes |
+| `expected_revision` | integer | no |
+| `original_date` | string (date) | yes |
+| `status` | enum: `scheduled`, `skipped`, `rescheduled` | yes |
+| `due_on` | string (date) (nullable) | no |
+| `amount` | string (nullable) | no |
+| `id` | string (uuid) | yes |
+| `revision` | integer | yes |
+
+### `RecordPage_RecurringResponse_`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `as_of` | string (date) | yes |
+| `items` | array of RecurringResponse | yes |
+| `next_cursor` | string (nullable) | yes |
+
+### `OccurrencePage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of OccurrenceReceipt | yes |
+| `next_before_id` | string (uuid) (nullable) | yes |
+
+### `OccurrenceWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `original_date` | string (date) | yes |
+| `account_id` | string (uuid) | yes |
+| `amount` | string | yes |
+| `occurred_on` | string (date) | yes |
+| `confirmed_actual` | boolean | yes |
+| `expected_template_revision` | integer | yes |
+| `expected_override_revision` | integer | yes |
+| `expected_account_revision` | integer | yes |
+| `expected_occurrence_revision` | integer | yes |
+| `expected_change_sequence` | integer | yes |
+| `input_digest` | string | yes |
+| `reason` | string | yes |
+
+### `OccurrenceReceipt`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `transaction_is_snapshot` | boolean | no |
+| `id` | string (uuid) | yes |
+| `template_id` | string (uuid) | yes |
+| `original_date` | string (date) | yes |
+| `revision` | integer | yes |
+| `recorded_at` | string (date-time) | yes |
+| `state` | enum: `posted`, `corrected` | yes |
+| `correction_entry_id` | string (uuid) (nullable) | yes |
+| `recorded_by` | string (uuid) | yes |
+| `reason` | string | yes |
+| `inputs` | OccurrenceFacts | yes |
+| `preview` | OccurrencePreview | yes |
+| `transaction` | TransactionResponse | yes |
+
+### `OccurrenceFacts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `original_date` | string (date) | yes |
+| `account_id` | string (uuid) | yes |
+| `amount` | string | yes |
+| `occurred_on` | string (date) | yes |
+| `confirmed_actual` | boolean | yes |
+
+### `OccurrencePreview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `template_id` | string (uuid) | yes |
+| `original_date` | string (date) | yes |
+| `due_on` | string (date) | yes |
+| `template_revision` | integer | yes |
+| `override_revision` | integer | yes |
+| `account_revision` | integer | yes |
+| `occurrence_revision` | integer | yes |
+| `change_sequence` | integer | yes |
+| `currency` | string | yes |
+| `type` | enum: `expense`, `income` | yes |
+| `expected_amount` | string | yes |
+| `actual_amount` | string | yes |
+| `amount_difference` | string | yes |
+| `previous_posting_id` | string (uuid) (nullable) | yes |
+| `input_digest` | string | yes |

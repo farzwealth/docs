@@ -1,0 +1,370 @@
+---
+title: Ledger, journal and money records
+description: Read the journal, money records, ledger search, pending money and pending transfers.
+---
+
+**Status: In testing.** Deployed in the API. Acceptance testing for this area is not complete.
+
+Expected money that has not arrived is kept apart from posted money. Record it as pending, then settle it when the payment is confirmed.
+
+Ledger search returns records that match your filters. Results are paged with a cursor.
+
+## Endpoints
+
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/duplicate-payment-candidates` | Review possible duplicate recorded payments | Signed-in user (Clerk bearer) | none | `start*`, `end*`, `account_id`, `category`, `tag_id`, `native_currency`, `base_currency`, `ownership`, `role`, `limit`, `cursor` | none | 200 `DuplicateReview` |
+| `POST /api/v1/workspaces/{workspace_id}/journal/commands` | Journal Command | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | JournalCommand or BuyAsset | 201 `TransactionResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/journal/reversals` | Journal Reversal | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `ReversalCommand` | 201 `TransactionResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/ledger-query` | Query Ledger | Signed-in user (Clerk bearer) | none | `start*`, `end*`, `account_id`, `category`, `tag_id`, `native_currency`, `base_currency`, `ownership`, `role`, `limit`, `cursor` | none | 200 `LedgerSearchPage` |
+| `POST /api/v1/workspaces/{workspace_id}/ledger-query/search` | Search | Signed-in user (Clerk bearer) | none | none | `LedgerTextFilters` | 200 `LedgerSearchPage` |
+| `GET /api/v1/workspaces/{workspace_id}/money/history` | History | Signed-in user (Clerk bearer) | none | `after`, `limit` | none | 200 array of `WorkflowReceipt` |
+| `GET /api/v1/workspaces/{workspace_id}/money/{record_id}` | Record | Signed-in user (Clerk bearer) | none | none | none | 200 `WorkflowReceipt` |
+| `POST /api/v1/workspaces/{workspace_id}/money/{record_id}/reverse` | Reverse | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `WorkflowReverse` | 200 `WorkflowReceipt` |
+| `GET /api/v1/workspaces/{workspace_id}/pending-money` | List owner-recorded expected money | Signed-in user (Clerk bearer) | none | `before_id`, `state`, `account_id`, `limit` | none | 200 `PendingPage` |
+| `POST /api/v1/workspaces/{workspace_id}/pending-money` | Record an expectation without posting money | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `PendingWrite` | 201 `PendingView` |
+| `GET /api/v1/workspaces/{workspace_id}/pending-money/{pending_id}` | Selected | Signed-in user (Clerk bearer) | none | none | none | 200 `PendingView` |
+| `PUT /api/v1/workspaces/{workspace_id}/pending-money/{pending_id}` | Edit | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `PendingWrite` | 200 `PendingView` |
+| `POST /api/v1/workspaces/{workspace_id}/pending-money/{pending_id}/cancel` | Cancel | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `PendingAction` | 200 `PendingView` |
+| `POST /api/v1/workspaces/{workspace_id}/pending-money/{pending_id}/correct-settlement` | Compensate a mistaken recorded settlement | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `PendingCorrection` | 200 `PendingView` |
+| `GET /api/v1/workspaces/{workspace_id}/pending-money/{pending_id}/history` | History | Signed-in user (Clerk bearer) | none | `before_revision`, `limit` | none | 200 `PendingHistory` |
+| `POST /api/v1/workspaces/{workspace_id}/pending-money/{pending_id}/reopen` | Reopen | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `PendingAction` | 200 `PendingView` |
+| `POST /api/v1/workspaces/{workspace_id}/pending-money/{pending_id}/settle` | Record a confirmed actual settlement | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `PendingSettlement` | 200 `PendingView` |
+| `GET /api/v1/workspaces/{workspace_id}/pending-transfers` | Pending History | Signed-in user (Clerk bearer) | none | `limit`, `before_id` | none | 200 `PendingTransferPage` |
+| `POST /api/v1/workspaces/{workspace_id}/pending-transfers` | Record Departure | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `TransferDeparture` | 201 `PendingTransferReceipt` |
+| `GET /api/v1/workspaces/{workspace_id}/pending-transfers/{transfer_id}` | Pending Detail | Signed-in user (Clerk bearer) | none | none | none | 200 `PendingTransferReceipt` |
+| `POST /api/v1/workspaces/{workspace_id}/pending-transfers/{transfer_id}/arrivals` | Record Arrival | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `TransferArrival` | 200 `PendingTransferReceipt` |
+| `POST /api/v1/workspaces/{workspace_id}/pending-transfers/{transfer_id}/corrections` | Correct Transfer | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `TransferCorrection` | 200 `PendingTransferReceipt` |
+| `POST /api/v1/workspaces/{workspace_id}/pending-transfers/{transfer_id}/returns` | Record Return | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `TransferReturn` | 200 `PendingTransferReceipt` |
+| `GET /api/v1/workspaces/{workspace_id}/portfolio-query` | Selected Portfolio | Signed-in user (Clerk bearer) | none | `as_of*`, `base_currency`, `account_id`, `kind`, `asset_class`, `ownership`, `liquidity`, `native_currency`, `limit`, `cursor` | none | 200 `PortfolioPage` |
+| `GET /api/v1/workspaces/{workspace_id}/portfolio-query/history` | Selected History | Signed-in user (Clerk bearer) | none | `as_of*`, `base_currency`, `account_id`, `kind`, `asset_class`, `ownership`, `liquidity`, `native_currency`, `limit`, `cursor`, `start*` | none | 200 `PortfolioHistory` |
+| `GET /api/v1/workspaces/{workspace_id}/portfolio-query/{kind}/{entity_id}` | Selected Contribution | Signed-in user (Clerk bearer) | none | `as_of*`, `base_currency`, `account_id`, `kind`, `asset_class`, `ownership`, `liquidity`, `native_currency`, `limit`, `cursor` | none | 200 `PortfolioItem` |
+| `GET /api/v1/workspaces/{workspace_id}/reconciliation-overview` | Review account reconciliation coverage | Signed-in user (Clerk bearer) | none | none | none | 200 `ReconciliationOverview` |
+| `GET /api/v1/workspaces/{workspace_id}/records/search` | Record Search | Signed-in user (Clerk bearer) | none | `limit`, `cursor`, `q*`, `sort`, `currency`, `collection`, `period` | none | 200 `RecordPage_SearchHit_` |
+
+`*` marks a required query parameter. Path parameters are listed in the route.
+
+## Models
+
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
+
+### `DuplicateReview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `version` | string | no |
+| `start` | string (date) | yes |
+| `end` | string (date) | yes |
+| `change_sequence` | integer | yes |
+| `selected_records` | integer | yes |
+| `groups` | array of DuplicateGroup | yes |
+| `automatic_action` | boolean | no |
+| `proves_duplicate` | boolean | no |
+| `candidate_scope` | string | no |
+
+### `TransactionResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `pending_transfer_id` | string (uuid) (nullable) | no |
+| `recurring_posting_id` | string (uuid) (nullable) | no |
+| `recurring_template_id` | string (uuid) (nullable) | no |
+| `internal_transfer_match_id` | string (uuid) (nullable) | no |
+| `transfer_partner_id` | string (uuid) (nullable) | no |
+| `money_workflow_id` | string (uuid) (nullable) | no |
+| `loan_id` | string (uuid) (nullable) | no |
+| `lending_repayment_id` | string (uuid) (nullable) | no |
+| `fx_transfer` | FXTransferMetadata (nullable) | no |
+| `fx_rounding` | FXRoundingMetadata (nullable) | no |
+| `cash_delta` | string (nullable) | no |
+| `investment_settlement_id` | string (uuid) (nullable) | no |
+| `deposit_payout_id` | string (uuid) (nullable) | no |
+| `refund_id` | string (uuid) (nullable) | no |
+| `original_expense_id` | string (uuid) (nullable) | no |
+| `investment_event_id` | string (uuid) (nullable) | no |
+| `asset_id` | string (uuid) (nullable) | no |
+| `debt_repayment_id` | string (uuid) (nullable) | no |
+| `debt_id` | string (uuid) (nullable) | no |
+| `rule_snapshot` | MerchantRuleResponse (nullable) | no |
+| `classification_revision` | integer | no |
+| `tags` | array of string (uuid) | no |
+| `allocations` | array of TransactionAllocation | no |
+| `id` | string (uuid) | yes |
+| `account_id` | string (uuid) (nullable) | yes |
+| `description` | string | yes |
+| `amount` | string | yes |
+| `currency` | enum (164 values) | yes |
+| `category` | string | yes |
+| `type` | enum (14 values) | yes |
+| `occurred_on` | string (date) | yes |
+| `reviewed` | boolean | no |
+| `reversal_of` | string (uuid) (nullable) | no |
+| `reversed` | boolean | no |
+
+### `ReversalCommand`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `entry_id` | string (uuid) | yes |
+| `reason` | string | yes |
+
+### `LedgerSearchPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of LedgerSearchRow | yes |
+| `summary` | LedgerSearchSummary | yes |
+| `next_cursor` | string (nullable) | yes |
+
+### `LedgerTextFilters`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `start` | string (date) | yes |
+| `end` | string (date) | yes |
+| `account_id` | string (uuid) (nullable) | no |
+| `category` | string (nullable) | no |
+| `tag_id` | string (uuid) (nullable) | no |
+| `native_currency` | enum (164 values) (nullable) | no |
+| `base_currency` | enum (164 values) (nullable) | no |
+| `ownership` | enum: `any`, `full`, `partial` | no |
+| `role` | enum: `income`, `expense`, `transfer`, `opening`, `refund`, `reversal`, `other` (nullable) | no |
+| `limit` | integer | no |
+| `cursor` | string (nullable) | no |
+| `query` | string | yes |
+
+### `WorkflowReceipt`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `asset_type` | enum: `gold`, `silver`, `platinum`, `palladium` (nullable) | no |
+| `id` | string (uuid) | yes |
+| `kind` | enum: `metal_purchase`, `bnpl_purchase`, `creditor_refund`, `reverse` | yes |
+| `account_id` | string (uuid) (nullable) | yes |
+| `asset_id` | string (uuid) (nullable) | yes |
+| `debt_id` | string (uuid) (nullable) | yes |
+| `entry_id` | string (uuid) (nullable) | yes |
+| `fee_entry_id` | string (uuid) (nullable) | yes |
+| `source_repayment_id` | string (uuid) (nullable) | yes |
+| `reversal_of` | string (uuid) (nullable) | yes |
+| `occurred_on` | string (date) | yes |
+| `recorded_at` | string (date-time) | yes |
+| `currency` | enum (164 values) | yes |
+| `principal_amount` | string | yes |
+| `cost_amount` | string | yes |
+| `account_revision` | integer (nullable) | no |
+| `asset_revision` | integer (nullable) | no |
+| `debt_revision` | integer (nullable) | no |
+| `quantity` | string (nullable) | no |
+| `quantity_unit` | string (nullable) | no |
+| `fineness` | string (nullable) | no |
+| `fine_weight_grams` | string (nullable) | no |
+| `exact_fine_grams_numerator` | string (nullable) | no |
+| `exact_fine_grams_denominator` | string (nullable) | no |
+| `source` | string | yes |
+| `category` | string | yes |
+| `allocations` | array of RefundAllocation | no |
+| `market_value_known` | boolean | no |
+| `money_moved_by_farz` | boolean | no |
+
+### `WorkflowReverse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_account_revision` | integer (nullable) | no |
+| `expected_asset_revision` | integer (nullable) | no |
+| `expected_debt_revision` | integer (nullable) | no |
+| `reason` | string | yes |
+| `confirmed` | boolean | yes |
+
+### `PendingPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of PendingView | yes |
+| `next_before_id` | string (uuid) (nullable) | yes |
+
+### `PendingWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_revision` | integer | yes |
+| `terms` | PendingTerms | yes |
+| `reason` | string | yes |
+
+### `PendingView`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `state` | enum: `pending`, `settled`, `canceled` | yes |
+| `terms` | PendingTerms | yes |
+| `currency` | enum (164 values) | yes |
+| `lifecycle_current` | boolean | yes |
+| `overdue` | boolean | yes |
+| `created_at` | string (date-time) | yes |
+| `updated_at` | string (date-time) | yes |
+| `latest_event` | PendingEvent | yes |
+| `basis` | string | no |
+
+### `PendingAction`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_revision` | integer | yes |
+| `reason` | string | yes |
+
+### `PendingCorrection`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_revision` | integer | yes |
+| `reason` | string | yes |
+| `expected_account_revision` | integer | yes |
+| `settlement_event_id` | string (uuid) | yes |
+| `confirmed` | boolean | yes |
+
+### `PendingHistory`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of PendingEvent | yes |
+| `next_before_revision` | integer (nullable) | yes |
+
+### `PendingSettlement`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_revision` | integer | yes |
+| `reason` | string | yes |
+| `expected_account_revision` | integer | yes |
+| `actual_amount` | string | yes |
+| `occurred_on` | string (date) | yes |
+| `confirmed_actual` | boolean | yes |
+
+### `PendingTransferPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of PendingTransferReceipt | yes |
+| `next_before_id` | string (uuid) (nullable) | yes |
+
+### `TransferDeparture`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `confirmed_actual` | boolean | yes |
+| `reason` | string | yes |
+| `source_account_id` | string (uuid) | yes |
+| `destination_account_id` | string (uuid) | yes |
+| `expected_source_revision` | integer | yes |
+| `expected_destination_revision` | integer | yes |
+| `amount` | string | yes |
+| `source_fee` | string | no |
+| `departed_on` | string (date) | yes |
+
+### `PendingTransferReceipt`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `asset_id` | string (uuid) | yes |
+| `source_account_id` | string (uuid) | yes |
+| `destination_account_id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `state` | enum: `pending`, `arrived`, `returned`, `corrected` | yes |
+| `principal` | string | yes |
+| `currency` | string | yes |
+| `destination_currency` | string | yes |
+| `departed_on` | string (date) | yes |
+| `source_fee` | string | yes |
+| `source_ownership_basis` | string | yes |
+| `movements` | array of TransferMovement | yes |
+| `balance` | TransferBalance | yes |
+
+### `TransferArrival`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `confirmed_actual` | boolean | yes |
+| `reason` | string | yes |
+| `source_principal` | string (nullable) | no |
+| `expected_transfer_revision` | integer | yes |
+| `expected_destination_revision` | integer | yes |
+| `received_amount` | string | yes |
+| `destination_fee` | string | no |
+| `received_on` | string (date) | yes |
+
+### `TransferCorrection`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_transfer_revision` | integer | yes |
+| `expected_account_revision` | integer | yes |
+| `reason` | string | yes |
+
+### `TransferReturn`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `confirmed_actual` | boolean | yes |
+| `reason` | string | yes |
+| `source_principal` | string (nullable) | no |
+| `return_fee` | string (nullable) | no |
+| `expected_transfer_revision` | integer | yes |
+| `expected_source_revision` | integer | yes |
+| `returned_on` | string (date) | yes |
+
+### `PortfolioPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of PortfolioItem | yes |
+| `summary` | PortfolioSummary | yes |
+| `next_cursor` | string (nullable) | yes |
+
+### `PortfolioHistory`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of PortfolioHistoryPoint | yes |
+| `base_currency` | enum (164 values) | yes |
+| `scope` | string | no |
+| `is_locked_snapshot` | boolean | no |
+
+### `PortfolioItem`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `kind` | enum: `account`, `asset`, `debt` | yes |
+| `name` | string | yes |
+| `asset_class` | string | yes |
+| `liquidity` | enum: `liquid`, `illiquid`, `unknown` | yes |
+| `currency` | enum (164 values) | yes |
+| `native_amount` | string (nullable) | yes |
+| `base_amount` | string (nullable) | yes |
+| `owner_fraction` | string (nullable) | yes |
+| `gross_native_amount` | string (nullable) | yes |
+| `conversion` | FXConversionResponse (nullable) | yes |
+| `provenance` | enum: `recorded_account`, `owned_valuation`, `recorded_debt`, `unpriced_position` | yes |
+
+### `ReconciliationOverview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `version` | string | no |
+| `today` | string (date) | yes |
+| `timezone` | string | yes |
+| `change_sequence` | integer | yes |
+| `accounts` | array of ReconciliationAccount | yes |
+| `provider_verified` | boolean | no |
+
+### `RecordPage_SearchHit_`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `as_of` | string (date) | yes |
+| `items` | array of SearchHit | yes |
+| `next_cursor` | string (nullable) | yes |
