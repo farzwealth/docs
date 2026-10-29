@@ -3,8 +3,6 @@ title: Transactions, drafts and corrections
 description: Read and save transactions, drafts, classifications, refunds, transfer matches and corrections.
 ---
 
-**Status: In testing.** Deployed in the API. Acceptance testing for this area is not complete.
-
 A draft is saved first and committed later. A correction is prepared as a plan, then committed or cancelled.
 
 Send an `Idempotency-Key` header with every create request. Send the same key again only when you retry that same request.

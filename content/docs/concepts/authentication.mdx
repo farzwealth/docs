@@ -5,11 +5,11 @@ description: How the Farz app, the personal developer API and MCP each authentic
 
 Farz uses three kinds of credential. Each one works only with its own surface.
 
-| Credential | Used for | Status |
-| --- | --- | --- |
-| Signed-in user token (Clerk bearer) | Every route under `/api/v1`, used by the Farz apps | In testing |
-| Personal API key | The personal developer REST API under `/api/developer/v1` | Planned. Not enabled. |
-| OAuth access token from the Farz authorization server | The MCP server at `https://mcp.farz.app/mcp` | In testing |
+| Credential | Used for |
+| --- | --- |
+| Signed-in user token (Clerk bearer) | Every route under `/api/v1`, used by the Farz apps |
+| Personal API key | The personal developer REST API under `/api/developer/v1` |
+| OAuth access token from the Farz authorization server | The MCP server at `https://mcp.farz.app/mcp` |
 
 ## Signed-in user token
 
@@ -31,8 +31,6 @@ A personal API key lets one private script or backend read your own data through
 - The key secret is shown once, when it is created. Store it in a secret store.
 - A key works only while its grant is active, your plan allows it, and its scopes cover the route.
 - Revoke a key in the app when you no longer need it. Revocation takes effect on the next request.
-
-The developer REST API is Planned. Keys can be issued in beta only, by staff.
 
 Send the key in the same header:
 

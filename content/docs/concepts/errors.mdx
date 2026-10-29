@@ -7,8 +7,6 @@ Every error has a stable `code`, a human-readable `message` and a `request_id`. 
 
 ## Farz app API
 
-**Status: In testing.** Errors from `/api/v1` use this body:
-
 ```json
 {
   "code": "NOT_FOUND",
@@ -35,8 +33,6 @@ Every error has a stable `code`, a human-readable `message` and a `request_id`. 
 An unexpected server failure returns `503` with code `UNAVAILABLE`, a generic message, a `request_id` and `"retry": true`. It does not show internal details.
 
 ## Personal developer API
-
-**Status: Planned.** Errors from `/api/developer/v1` use a smaller body. It has no `field_errors` and no `retry` field.
 
 ```json
 {
