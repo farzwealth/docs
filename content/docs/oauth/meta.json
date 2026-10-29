@@ -1,6 +1,4 @@
 {
-  "title": "OAuth 2.0",
-  "pages": [
-    "index"
-  ]
+  "title": "OAuth",
+  "pages": ["index"]
 }

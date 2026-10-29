@@ -1,88 +1,36 @@
 ---
 title: Overview
-description: Introduction to the Farz Public Developer API, base URLs, contract status, and core capabilities.
+description: What the Farz API offers today, which parts are in testing, and what is planned before full launch.
 ---
 
-Use the **Farz API** to read your personal accounts, transactions, assets, and financial reports from a private application. Get started with a user API key from your Clerk account settings, or connect an AI assistant with Model Context Protocol (MCP) and OAuth.
+The Farz API is the service behind the Farz app. These docs describe its routes and the parts you can reach from outside the app.
 
-<Callout type="warn" title="Contract Status: Pre-release">
-  This guide describes the intended public API contract for the finished product. The developer REST and MCP surfaces are currently in active development. Endpoint paths, response models, and examples below represent proposed contracts; please confirm them against the published OpenAPI specification and release notes when the API becomes generally available.
-</Callout>
+**The Farz app is not public yet.** Most features are deployed but still in testing. Some parts are planned and not built or not enabled. Read the status label on each page before you rely on it.
 
-## Service Coordinates
+## Status labels
 
-| Property | Value |
-| :--- | :--- |
-| **REST Base URL** | `https://api.farz.app/api/developer/v1` |
-| **MCP URL** | `https://api.farz.app/mcp` |
-| **API Version** | `v1` |
-| **Access Model** | Read-only, single-user personal workspace |
-| **Last Updated** | 9 October 2026 |
+| Label | Meaning |
+| --- | --- |
+| **Live** | Working in production and available to the people it is meant for. |
+| **In testing** | Deployed. Acceptance testing is not finished, or access is limited to a few testers. |
+| **Planned** | Not built, not deployed, or not enabled. Do not call it. |
 
----
+## What you can reach
 
-## Core Capabilities
+| Surface | What it is | Status |
+| --- | --- | --- |
+| [Farz app API](/docs/api/overview) at `/api/v1` | The routes the Farz app uses with a signed-in user's token. The API reference covers every route in the current contract. | In testing |
+| [Personal developer REST API](/docs/developer/reference) at `/api/developer/v1` | Three read-only routes for your own profile, accounts and transactions. | Planned. Built, not enabled. |
+| [Remote MCP server](/docs/mcp) at `https://mcp.farz.app/mcp` | Read-only tools for an AI assistant that you approve. | In testing. Calls need a Paid plan or a staff-granted beta grant. |
+| [Personal API keys](/docs/api/integrations) | Keys for the personal developer REST API. | In testing, by staff-granted beta access only. |
+| Payments | Paid plans from Stripe, Ziina, Google Play or RevenueCat. | Planned, after the beta. |
 
-The Farz Public Developer API provides deterministic, read-only visibility into your financial life:
+Read the [roadmap](/docs/roadmap) for the full list of features planned before launch.
 
-<Cards>
-  <Card
-    title="Accounts & Balances"
-    href="/docs/api/accounts"
-    description="Query bank accounts, cash, credit, and investment accounts with exact native balances."
-  />
-  <Card
-    title="Transactions"
-    href="/docs/api/transactions"
-    description="Filter posted expenses, income, transfers, and split allocations across dates."
-  />
-  <Card
-    title="Assets & Holdings"
-    href="/docs/api/assets"
-    description="Track property estimates, stock and crypto holdings, unit pricing, and tax lots."
-  />
-  <Card
-    title="Liabilities & Schedules"
-    href="/docs/api/liabilities"
-    description="Monitor loans, mortgages, financing schedules, and payment obligations."
-  />
-  <Card
-    title="Budgets & Goals"
-    href="/docs/api/budgets"
-    description="Track period spending limits, net remaining budget, and savings goal projections."
-  />
-  <Card
-    title="Valuations & Reports"
-    href="/docs/api/reports"
-    description="Inspect dated historical net worth snapshots, cashflow breakdowns, and performance."
-  />
-</Cards>
+## Who can use the developer surfaces
 
----
+The personal developer REST API and the MCP server need a **Paid** plan or a **staff-granted beta access grant**. Free and Trial accounts do not qualify on their own. Payments are not live, so Paid plans are not yet available to buy. Staff can grant beta access for up to 90 days.
 
-## Getting Started
+## Reading the API reference
 
-Follow the guides below to authenticate and build your first integration:
-
-<Cards>
-  <Card
-    title="Quickstart Guide"
-    href="/docs/quickstart"
-    description="Generate a Clerk user API key and fetch your accounts in under 5 minutes."
-  />
-  <Card
-    title="Working with Your Data"
-    href="/docs/working-with-data"
-    description="Step-by-step tutorial for filtering transactions, handling pagination, and running Python readers."
-  />
-  <Card
-    title="Connect an MCP Client"
-    href="/docs/mcp"
-    description="Connect Claude, Cursor, or remote MCP agents to query your finances with natural language."
-  />
-  <Card
-    title="API Reference"
-    href="/docs/api/overview"
-    description="Detailed endpoint parameters, error codes, and complete JSON response schemas."
-  />
-</Cards>
+Each API reference page lists routes in a table. The table shows the method and path, the operation name, the authentication, any required headers, the query parameters, the request body model and the success response. Models are listed below each table. Money values are decimal strings. The [conventions](/docs/concepts/conventions) page explains the common rules.

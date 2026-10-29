@@ -1,69 +1,47 @@
 ---
-title: Pagination & Filtering
-description: Master cursor-based pagination, snapshot boundaries, and date range constraints across collection endpoints.
+title: Pagination
+description: How list routes page through results, for the Farz app API and the personal developer API.
 ---
 
-All collection endpoints in the Farz Public Developer API utilize **deterministic cursor-based pagination**.
+Long lists come in pages. Each page returns a cursor when more records exist. Pass that cursor to the next request to get the next page.
 
----
+## Personal developer API
 
-## Query Parameters
+**Status: Planned.**
 
-Every collection endpoint accepts the following pagination query parameters:
+| Parameter | Type | Default | Limit |
+| --- | --- | --- | --- |
+| `limit` | integer | 50 | 1 to 100 |
+| `cursor` | string | none | up to 4096 characters |
 
-| Parameter | Type | Default | Limits | Description |
-| :--- | :--- | :--- | :--- | :--- |
-| `limit` | integer | `50` | Min `1`, Max `100` | The maximum number of items to return in the current page. |
-| `cursor` | string | `null` | Max 2,048 chars | An opaque pagination token received from a prior page's `next_cursor`. |
+Each page has `items`, `next_cursor` and `revision`. Keep requesting pages until `next_cursor` is `null`.
 
----
+- A page can be empty and still have a `next_cursor`. Keep going until the cursor is `null`.
+- A cursor expires after 15 minutes.
+- A cursor is tied to your query, your credential and your workspace. Keep the same `start`, `end` and other filters for every page. Changing the `limit` is allowed.
+- If the cursor expires or your filters change, start again without a cursor.
+- Do not decode or change a cursor.
 
-## The `Page<T>` Response Structure
-
-Collection responses wrap items in a standard generic `Page` container:
-
-```json
-{
-  "items": [ ... ],
-  "next_cursor": "eyJvZmZzZXQiOjUwLCJzbmFwc2hvdF9pZCI6IjEyMyJ9",
-  "has_more": true,
-  "meta": {
-    "as_of": "2026-10-10",
-    "timezone": "Asia/Dubai",
-    "base_currency": "AED",
-    "warnings": []
-  }
-}
+```sh
+curl --fail-with-body --get \
+  "https://api.farz.app/api/developer/v1/transactions" \
+  -H "Authorization: Bearer $FARZ_API_KEY" \
+  --data-urlencode "start=2026-10-01" \
+  --data-urlencode "end=2026-10-10" \
+  --data-urlencode "limit=50" \
+  --data-urlencode "cursor=$FARZ_NEXT_CURSOR"
 ```
 
-- **`items`**: Array of typed records for the endpoint.
-- **`next_cursor`**: Opaque cursor string for the next slice. When `null`, you have reached the end.
-- **`has_more`**: Boolean flag indicating if additional records exist.
+## Farz app API
 
----
+**Status: In testing.** Routes under `/api/v1` use one of three paging styles. The guide for each route shows which one applies in its Query column.
 
-## Snapshot Boundary Rules
+| Style | Parameters | Response |
+| --- | --- | --- |
+| Limit only | `limit` | An array, or a page with `items` |
+| Cursor | `limit`, `cursor` | A page with `items` and `next_cursor` |
+| Revision | `limit`, `before_revision` | A page with `items` and `next_before_revision` |
 
-<Callout type="warn" title="Immutable Cursor Guarantees">
-  Cursors represent an immutable query state tied strictly to:
-  1. The authenticated user subject.
-  2. The exact filter parameters applied on the first page.
-  3. A consistent backend snapshot timestamp.
-</Callout>
+Some record lists have a `/page` route, such as `/accounts/page`, that returns a page. The same resource may also have a plain list route. Check the route in the API reference.
 
-### Rules for Cursor Traversal:
-
-1. **Do Not Modify Cursors**: Treat cursors as completely opaque binary blobs. Never parse, decode, or edit their contents.
-2. **Preserve Filter Parameters**: When requesting the next page, pass identical query parameters (`start`, `end`, `type`, etc.) alongside the `cursor` argument.
-3. **Cursor Mismatch & Expiry**: If you alter filter parameters mid-traversal or if a cursor expires, the API will return `409 CURSOR_MISMATCH` or `409 CURSOR_EXPIRED`. In either case, discard the cursor and restart your query from the beginning.
-
----
-
-## Date Range Constraints
-
-Wherever date range filtering is supported (such as transactions, valuation history, or reports):
-
-- **Both Parameters Required**: You must supply both `start` and `end` in `YYYY-MM-DD` format.
-- **Inclusive Range**: `start` and `end` dates are both inclusive.
-- **366 Calendar Days Maximum**: The difference between `start` and `end` cannot exceed **366 days**. For queries spanning multiple years, break your requests into annual segments.
-- **Future Dates Prohibited**: The `as_of` parameter cannot reference future dates.
+Pass each cursor back exactly as received. A cursor that no longer matches returns an error. Restart from the first page.

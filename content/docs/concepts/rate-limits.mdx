@@ -1,54 +1,28 @@
 ---
-title: Rate Limits & Quotas
-description: Understand request thresholds, concurrent report constraints, and automated 429 backoff handling.
+title: Rate limits
+description: The request limits for the personal developer API and MCP, and how to respond to a 429 error.
 ---
 
-To protect availability and prevent abusive workloads, Farz applies sliding-window rate limits across all public developer interfaces.
+## Personal developer API and MCP
 
----
+**Status: Planned for the developer API. In testing for MCP.** Both use the same defaults. Operators can change these values.
 
-## Quota Allocations
+| Limit | Default |
+| --- | --- |
+| Requests per minute for one person, across all their keys or connectors | 60 |
+| Requests per minute for one key or connector | 20 |
+| Expensive report reads running at once for one account | 2 |
 
-| Dimension | Threshold | Behavior when Exceeded |
-| :--- | :--- | :--- |
-| **User Aggregate** | **60 requests / minute** | Shared across all user API keys and OAuth connections. |
-| **Per Credential** | **20 requests / minute** | Individual key or OAuth token limit. |
-| **Concurrent Reports** | **2 active queries** | Heavy queries (`/summary`, `/reports`) run in parallel. |
-| **Max Page Size** | **100 records** | Requests exceeding `limit=100` are clamped or rejected with `422`. |
-| **Max Date Range** | **366 calendar days** | Ranges beyond 1 calendar year return `422 INVALID_INPUT`. |
+When a limit is reached, the API returns `429` with a `Retry-After` header in whole seconds.
 
-<Callout type="info">
-  Creating additional API keys in Clerk does **not** increase your total per-user allocation. All credentials converge on the 60 requests/minute user ceiling.
-</Callout>
+## Farz app API
 
----
+The Farz app API returns `429` when a request limit is reached. It sends `Retry-After` with the wait time. Limits differ by route. They are not published per route in this reference.
 
-## Handling `429 RATE_LIMITED`
+## How to respond to a 429
 
-When your application exceeds a rate limit, the API responds with HTTP status `429 Too Many Requests` alongside a standard JSON error envelope:
+1. Read `Retry-After` and wait at least that many seconds.
+2. Retry the same request with a bounded backoff and random jitter.
+3. Stop after a few attempts and report the error with its `request_id`.
 
-```http
-HTTP/2 429 Too Many Requests
-Content-Type: application/json
-Retry-After: 12
-X-Request-ID: 7e26d15b-216e-4c74-9548-73599a03b824
-```
-
-```json
-{
-  "code": "RATE_LIMITED",
-  "message": "Too many requests. Please wait before retrying.",
-  "request_id": "7e26d15b-216e-4c74-9548-73599a03b824",
-  "field_errors": [],
-  "retry": true
-}
-```
-
----
-
-## Recommended Retry Strategy
-
-1. **Read `Retry-After`**: Inspect the `Retry-After` header to find the minimum number of seconds to pause.
-2. **Exponential Backoff**: For subsequent retries, increase wait time exponentially (`2^n * base_delay`).
-3. **Add Jitter**: Introduce randomized jitter (e.g., ±20%) to prevent thundering herd spikes against the gateway.
-4. **Queue & Throttle**: Implement an in-memory token bucket or rate limiter in your background jobs to stay comfortably below 20 requests/minute per worker.
+Do not run more requests in parallel to get around a limit. Lower your polling frequency, or narrow your date range.

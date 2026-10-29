@@ -1,11 +1,4 @@
 {
-  "title": "Architecture & Concepts",
-  "pages": [
-    "authentication",
-    "scopes",
-    "conventions",
-    "pagination",
-    "rate-limits",
-    "errors"
-  ]
+  "title": "Concepts",
+  "pages": ["authentication", "scopes", "conventions", "pagination", "rate-limits", "errors"]
 }

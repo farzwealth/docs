@@ -1,54 +1,53 @@
 ---
 title: Authentication
-description: Learn how user API keys, Bearer tokens, and Clerk credentials authenticate your Farz integrations.
+description: How the Farz app, the personal developer API and MCP each authenticate, and which credential to use.
 ---
 
-The Farz Public Developer API uses **Bearer token authentication**. Every request must include an authorized credential in the standard HTTP header:
+Farz uses three kinds of credential. Each one works only with its own surface.
+
+| Credential | Used for | Status |
+| --- | --- | --- |
+| Signed-in user token (Clerk bearer) | Every route under `/api/v1`, used by the Farz apps | In testing |
+| Personal API key | The personal developer REST API under `/api/developer/v1` | Planned. Not enabled. |
+| OAuth access token from the Farz authorization server | The MCP server at `https://mcp.farz.app/mcp` | In testing |
+
+## Signed-in user token
+
+The Farz apps send the signed-in user's token on each request:
 
 ```http
-Authorization: Bearer <your_api_key_or_access_token>
+Authorization: Bearer <token>
 ```
 
----
+This token belongs to the Farz apps. Do not build your own client on it. Use a personal API key, or an approved MCP connector, instead.
 
-## User API Keys from Clerk
+## Personal API key
 
-Your primary authentication credentials are user API keys issued directly from your **Clerk account settings** within the Farz application.
+A personal API key lets one private script or backend read your own data through the developer REST API. The key is a Clerk-issued credential. Farz also keeps a grant record for it, and checks that record on each request.
 
-### Key Lifecycle & Policies
+- You create the key in the Farz app's personal integration settings. The exact screen name is to be confirmed.
+- You must accept the personal-use terms when you create the key.
+- The key expires in 1 to 90 days. The default is 30 days.
+- The key secret is shown once, when it is created. Store it in a secret store.
+- A key works only while its grant is active, your plan allows it, and its scopes cover the route.
+- Revoke a key in the app when you no longer need it. Revocation takes effect on the next request.
 
-- **Maximum Lifetime**: Farz enforces a maximum key lifetime of **90 days**. Keys expire automatically after this window.
-- **Paid Tier Requirement**: Access requires an active **Paid** Farz subscription. Upgrading or downgrading immediately impacts key validity; trials do not grant developer access.
-- **Single-Workspace Binding**: A user API key is cryptographically bound to your single personal workspace. It cannot access records belonging to other users or multi-user family/household vaults.
-- **Scope Restriction**: You define explicit read scopes at creation time. An API key can never perform operations beyond its issued permissions.
+The developer REST API is Planned. Keys can be issued in beta only, by staff.
 
-<Callout type="warn" title="Credential Hygiene">
-  Never include your API key in client-side code bundles, mobile apps, Git repositories, or URL query parameters. Always supply it via runtime environment variables on a secure backend or private CLI environment.
-</Callout>
+Send the key in the same header:
 
----
+```http
+Authorization: Bearer <personal-api-key>
+```
 
-## Token Revocation & Rotation
+Never put a key in a URL, a browser bundle, a shared file, a log or a screenshot.
 
-When rotating credentials:
+## OAuth for MCP
 
-1. Generate a new User API Key in Clerk with the identical (or refined) scopes.
-2. Update your local environment variables or configuration secret.
-3. Test connectivity against `GET /profile`.
-4. Delete the previous key in your Clerk settings.
+The MCP server uses OAuth 2.0 authorization code with PKCE (method `S256`). See [OAuth](/docs/oauth) for the flow.
 
-<Callout type="info">
-  Revoking an API key takes effect immediately across all global edge points.
-</Callout>
+## Access rules for every credential
 
----
-
-## REST vs. MCP / OAuth Authentication
-
-| Integration Mode | Recommended Authentication | Typical Use Case |
-| :--- | :--- | :--- |
-| **Private Scripts & Backends** | User API Key (Clerk) | Custom dashboards, Python automations, data export pipelines |
-| **Model Context Protocol (MCP)** | OAuth 2.0 with PKCE S256 | Connecting Claude Desktop, Cursor, or remote agent assistants |
-| **Third-Party Connectors** | OAuth 2.0 with PKCE S256 | Delegated access without sharing static long-lived keys |
-
-For details on setting up OAuth connections, see the [OAuth Guide](/docs/oauth).
+- Access is limited to your own personal workspace. A request cannot name another user or workspace to read.
+- Each request checks your current plan, your lifecycle state and your scopes. A downgrade, suspension or deletion stops access.
+- A missing or invalid credential returns `401`. A valid credential without the needed plan or scope returns `403`.
