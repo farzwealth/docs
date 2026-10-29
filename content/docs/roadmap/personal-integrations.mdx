@@ -1,0 +1,24 @@
+---
+title: Personal integrations
+description: The personal developer REST API, personal API keys and the MCP server, with their status.
+---
+
+These three surfaces let you read your own data from outside the Farz app. All three are read-only.
+
+| Surface | Status | What it does |
+| --- | --- | --- |
+| Personal developer REST API | **Planned.** Built, not enabled. | Three read routes: profile, accounts and posted transactions. |
+| Personal API keys | **In testing,** by staff-granted beta access only. | Keys for the developer REST API. |
+| Remote MCP server | **In testing.** Switched on. | Ten read-only tools for an approved AI assistant. |
+
+## Who can use them
+
+Each surface needs a Paid plan or a staff-granted beta access grant. Free and Trial accounts do not qualify on their own.
+
+## What is still open
+
+- **Developer REST API:** Farz must finish acceptance testing with a Paid account before the API is enabled. Until then, its routes do not answer.
+- **Personal API keys:** key issuance is limited to beta testers. Full key rotation is still being built.
+- **MCP:** tests with ChatGPT and Claude are open. Gemini support is Planned. Some clients may need dynamic client registration, which is off today.
+
+See [developer REST reference](/docs/developer/reference), [MCP](/docs/mcp) and [OAuth](/docs/oauth).
