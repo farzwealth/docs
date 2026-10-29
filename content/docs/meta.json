@@ -1,17 +1,18 @@
 {
-  "title": "Farz Developer Docs",
+  "title": "Farz Docs",
   "pages": [
     "index",
     "quickstart",
-    "working-with-data",
-    "---Architecture & Concepts---",
+    "---Concepts---",
     "concepts",
-    "---REST API---",
+    "---API reference---",
     "api",
-    "---Integrations---",
+    "---Personal developer API---",
+    "developer",
+    "---MCP and OAuth---",
     "mcp",
     "oauth",
-    "---SDKs & Guides---",
-    "developer"
+    "---Roadmap---",
+    "roadmap"
   ]
 }
