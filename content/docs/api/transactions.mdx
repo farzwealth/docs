@@ -1,100 +1,394 @@
 ---
-title: Transactions
-description: Query posted financial transactions, filter by date ranges and types, and retrieve individual entries.
+title: Transactions, drafts and corrections
+description: Read and save transactions, drafts, classifications, refunds, transfer matches and corrections.
 ---
 
-Query posted transactions, inspect categorized spending and income, and track transfers between accounts.
+**Status: In testing.** Deployed in the API. Acceptance testing for this area is not complete.
 
----
+A draft is saved first and committed later. A correction is prepared as a plan, then committed or cancelled.
 
-## 1. List Transactions
+Send an `Idempotency-Key` header with every create request. Send the same key again only when you retry that same request.
 
-`GET /transactions`
+## Endpoints
 
-Returns a paginated list of posted transactions within a date range.
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/transaction-drafts` | Draft Page | Signed-in user (Clerk bearer) | none | `after`, `limit` | none | 200 array of `DraftView` |
+| `POST /api/v1/workspaces/{workspace_id}/transaction-drafts` | Create Draft | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `DraftWrite` | 201 `DraftReceipt` |
+| `GET /api/v1/workspaces/{workspace_id}/transaction-drafts/{draft_id}` | Draft | Signed-in user (Clerk bearer) | none | none | none | 200 `DraftView` |
+| `PUT /api/v1/workspaces/{workspace_id}/transaction-drafts/{draft_id}` | Update Draft | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `DraftWrite` | 200 `DraftReceipt` |
+| `POST /api/v1/workspaces/{workspace_id}/transaction-drafts/{draft_id}/commit` | Commit Draft | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `DraftCommit` | 201 `TransactionResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/transaction-drafts/{draft_id}/discard` | Discard Draft | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `DiscardDraft` | 200 `DraftReceipt` |
+| `GET /api/v1/workspaces/{workspace_id}/transactions` | Get Transactions | Signed-in user (Clerk bearer) | none | `offset`, `limit`, `account_id`, `start`, `end`, `cursor` | none | 200 `TransactionPage` |
+| `POST /api/v1/workspaces/{workspace_id}/transactions/classification-batches` | Classify | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `ClassificationBatchInput` | 201 `ClassificationBatchResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/transactions/manual-corrections` | Page | Signed-in user (Clerk bearer) | none | `before_id`, `original_entry_id`, `limit` | none | 200 `CorrectionPage` |
+| `POST /api/v1/workspaces/{workspace_id}/transactions/manual-corrections` | Prepare | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `CorrectionInput` | 201 `CorrectionView` |
+| `GET /api/v1/workspaces/{workspace_id}/transactions/manual-corrections/{plan_id}` | Selected | Signed-in user (Clerk bearer) | none | none | none | 200 `CorrectionView` |
+| `POST /api/v1/workspaces/{workspace_id}/transactions/manual-corrections/{plan_id}/cancel` | Cancel | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `CorrectionConfirmation` | 200 `CorrectionView` |
+| `POST /api/v1/workspaces/{workspace_id}/transactions/manual-corrections/{plan_id}/commit` | Commit | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `CorrectionConfirmation` | 200 `CorrectionView` |
+| `POST /api/v1/workspaces/{workspace_id}/transactions/manual-corrections/{plan_id}/purge` | Purge | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `CorrectionConfirmation` | 200 `CorrectionView` |
+| `POST /api/v1/workspaces/{workspace_id}/transactions/manual-corrections/{plan_id}/restore-preview` | Restore | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `RestorationInput` | 201 `CorrectionView` |
+| `POST /api/v1/workspaces/{workspace_id}/transactions/review` | Review Transactions | Signed-in user (Clerk bearer) | none | none | `ReviewInput` | 200 `ReviewResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/classification` | Classify Transaction | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `AnnotationWrite` | 201 `AnnotationResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/classification-history` | Classification History | Signed-in user (Clerk bearer) | none | none | none | 200 array of `AnnotationResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/classification-history/page` | classification_history (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `ClassificationHistoryPage` |
+| `GET /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/refunds` | Expense Refund History | Signed-in user (Clerk bearer) | none | `before`, `limit` | none | 200 array of `RefundResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/refunds` | Record Expense Refund | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `RefundWrite` | 200 `RefundResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/refunds/preview` | Preview Expense Refund | Signed-in user (Clerk bearer) | none | none | `RefundReview` | 200 `RefundPreview` |
+| `POST /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/refunds/{receipt_id}/reversal` | Reverse Expense Refund | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `RefundReverse` | 200 `RefundResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/refunds/{receipt_id}/reversal/preview` | Preview Refund Reversal | Signed-in user (Clerk bearer) | none | none | `RefundCorrection` | 200 `RefundPreview` |
+| `GET /api/v1/workspaces/{workspace_id}/transfer-matches` | List Manual Transfer Matches | Signed-in user (Clerk bearer) | none | `limit`, `before_id` | none | 200 `TransferMatchPage` |
+| `POST /api/v1/workspaces/{workspace_id}/transfer-matches` | Match Manual Transfer | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `TransferMatchWrite` | 201 `TransferMatchResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/transfer-matches/{match_id}` | Get Manual Transfer Match | Signed-in user (Clerk bearer) | none | none | none | 200 `TransferMatchResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/transfer-matches/{match_id}/unmatch` | Unmatch Manual Transfer | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `TransferUnmatchWrite` | 200 `TransferMatchResponse` |
 
-### Authorization
-- **Scope Required**: `transactions:read`
-- **Plan Requirement**: Active Paid subscription
+`*` marks a required query parameter. Path parameters are listed in the route.
 
-### Query Parameters
+## Models
 
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `start` | date | **Yes** | Inclusive start date (`YYYY-MM-DD`). |
-| `end` | date | **Yes** | Inclusive end date (`YYYY-MM-DD`). Max range: **366 calendar days**. |
-| `account_id` | UUID | No | Filter by an account you own. Transfers match either participating account. |
-| `type` | string | No | Filter by type: `opening`, `income`, `expense`, `transfer`, `adjustment`, `refund`, `debt_principal`, `investment`, `reversal`. |
-| `category` | string | No | Exact category key (e.g. `groceries`, `housing`). |
-| `reviewed` | boolean | No | Filter by user-reviewed status. |
-| `reversed` | boolean | No | Filter by reversal status. |
-| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
-| `cursor` | string | No | Opaque continuation cursor from `next_cursor`. |
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
 
-### Example Request
+### `DraftView`
 
-```bash
-curl --fail-with-body --get \
-  "https://api.farz.app/api/developer/v1/transactions" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json' \
-  --data-urlencode 'start=2026-10-01' \
-  --data-urlencode 'end=2026-10-10' \
-  --data-urlencode 'type=expense' \
-  --data-urlencode 'limit=50'
-```
+| Field | Type | Required |
+| --- | --- | --- |
+| `committed_entry_id` | string (uuid) (nullable) | no |
+| `id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `state` | enum: `active`, `committed`, `deleted`, `expired` | yes |
+| `expires_at` | string (date-time) | yes |
+| `command` | JournalCommand (nullable) | yes |
+| `review_digest` | string (nullable) | yes |
+| `created_at` | string (date-time) | yes |
+| `updated_at` | string (date-time) | yes |
+| `account_epoch_current` | boolean | yes |
 
-### Example Response
+### `DraftWrite`
 
-```json
-{
-  "items": [
-    {
-      "id": "33333333-3333-4333-8333-333333333333",
-      "revision": 1,
-      "account_id": "22222222-2222-4222-8222-222222222222",
-      "destination_account_id": null,
-      "type": "expense",
-      "description": "Weekly Groceries",
-      "occurred_on": "2026-10-09",
-      "amount": {
-        "amount": "142.50",
-        "currency": "AED"
-      },
-      "category": "groceries",
-      "allocations": [],
-      "tags": [],
-      "reviewed": true,
-      "reversed": false,
-      "reversal_of": null
-    }
-  ],
-  "next_cursor": null,
-  "has_more": false
-}
-```
+| Field | Type | Required |
+| --- | --- | --- |
+| `command` | JournalCommand | yes |
+| `expected_revision` | integer | yes |
 
----
+### `DraftReceipt`
 
-## 2. Get a Transaction
+| Field | Type | Required |
+| --- | --- | --- |
+| `committed_entry_id` | string (uuid) (nullable) | no |
+| `id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `state` | enum: `active`, `committed`, `deleted`, `expired` | yes |
+| `expires_at` | string (date-time) | yes |
 
-`GET /transactions/{entry_id}`
+### `DraftCommit`
 
-Retrieves a single posted transaction entry and its detailed category allocations and tags.
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_revision` | integer | yes |
+| `review_digest` | string | yes |
+| `confirmed` | boolean | yes |
 
-### Path Parameters
+### `TransactionResponse`
 
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `entry_id` | UUID | **Yes** | The transaction entry identifier. |
+| Field | Type | Required |
+| --- | --- | --- |
+| `pending_transfer_id` | string (uuid) (nullable) | no |
+| `recurring_posting_id` | string (uuid) (nullable) | no |
+| `recurring_template_id` | string (uuid) (nullable) | no |
+| `internal_transfer_match_id` | string (uuid) (nullable) | no |
+| `transfer_partner_id` | string (uuid) (nullable) | no |
+| `money_workflow_id` | string (uuid) (nullable) | no |
+| `loan_id` | string (uuid) (nullable) | no |
+| `lending_repayment_id` | string (uuid) (nullable) | no |
+| `fx_transfer` | FXTransferMetadata (nullable) | no |
+| `fx_rounding` | FXRoundingMetadata (nullable) | no |
+| `cash_delta` | string (nullable) | no |
+| `investment_settlement_id` | string (uuid) (nullable) | no |
+| `deposit_payout_id` | string (uuid) (nullable) | no |
+| `refund_id` | string (uuid) (nullable) | no |
+| `original_expense_id` | string (uuid) (nullable) | no |
+| `investment_event_id` | string (uuid) (nullable) | no |
+| `asset_id` | string (uuid) (nullable) | no |
+| `debt_repayment_id` | string (uuid) (nullable) | no |
+| `debt_id` | string (uuid) (nullable) | no |
+| `rule_snapshot` | MerchantRuleResponse (nullable) | no |
+| `classification_revision` | integer | no |
+| `tags` | array of string (uuid) | no |
+| `allocations` | array of TransactionAllocation | no |
+| `id` | string (uuid) | yes |
+| `account_id` | string (uuid) (nullable) | yes |
+| `description` | string | yes |
+| `amount` | string | yes |
+| `currency` | enum (164 values) | yes |
+| `category` | string | yes |
+| `type` | enum (14 values) | yes |
+| `occurred_on` | string (date) | yes |
+| `reviewed` | boolean | no |
+| `reversal_of` | string (uuid) (nullable) | no |
+| `reversed` | boolean | no |
 
-### Example Request
+### `DiscardDraft`
 
-```bash
-curl --fail-with-body \
-  "https://api.farz.app/api/developer/v1/transactions/33333333-3333-4333-8333-333333333333" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json'
-```
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_revision` | integer | yes |
 
-Returns a single [Transaction](/docs/api/schemas#transaction) JSON object with HTTP status `200 OK`.
+### `TransactionPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `next_cursor` | string (nullable) | no |
+| `items` | array of TransactionResponse | yes |
+| `next_offset` | integer (nullable) | yes |
+
+### `ClassificationBatchInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of ClassificationBatchItem | yes |
+| `confirmed` | boolean | yes |
+
+### `ClassificationBatchResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `command_id` | string (uuid) | yes |
+| `items` | array of AnnotationResponse | yes |
+| `state` | string | no |
+| `financial_effect_changed` | boolean | no |
+
+### `CorrectionPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of CorrectionView | yes |
+| `next_before_id` | string (uuid) (nullable) | yes |
+
+### `CorrectionInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `original_entry_id` | string (uuid) | yes |
+| `expected_classification_revision` | integer | yes |
+| `replacement` | JournalCommand | yes |
+| `reason` | string | yes |
+
+### `CorrectionView`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `original_entry_id` | string (uuid) | yes |
+| `restores_correction_id` | string (uuid) (nullable) | yes |
+| `state` | enum: `prepared`, `expired`, `committed`, `canceled`, `purged` | yes |
+| `created_at` | string (date-time) | yes |
+| `expires_at` | string (date-time) | yes |
+| `completed_at` | string (date-time) (nullable) | yes |
+| `review_digest` | string (nullable) | yes |
+| `request` | CorrectionInput (nullable) | yes |
+| `original` | TransactionResponse (nullable) | yes |
+| `effects` | array of CorrectionEffect | yes |
+| `result` | CorrectionResult (nullable) | yes |
+| `original_rewritten` | boolean | no |
+| `original_receipts_moved` | boolean | no |
+| `historical_basis` | string | no |
+
+### `CorrectionConfirmation`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `review_digest` | string | yes |
+| `confirmed` | boolean | yes |
+
+### `RestorationInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_classification_revision` | integer | yes |
+| `reason` | string | yes |
+
+### `ReviewInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `entry_ids` | array of string (uuid) | yes |
+
+### `ReviewResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `reviewed` | integer | yes |
+
+### `AnnotationWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_revision` | integer | yes |
+| `category` | string | yes |
+| `tags` | array of string (uuid) | no |
+| `reason` | string | yes |
+
+### `AnnotationResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `entry_id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `category` | string | yes |
+| `tags` | array of string (uuid) | yes |
+| `reason` | string | yes |
+| `recorded_at` | string (date-time) | yes |
+
+### `ClassificationHistoryPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of AnnotationResponse | yes |
+| `next_cursor` | string (nullable) | no |
+
+### `RefundResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `allocations` | array of TransactionAllocation (nullable) | no |
+| `category_balances` | array of RefundCategoryBalance (nullable) | no |
+| `algorithm` | enum: `linked_expense_refund_v1`, `linked_expense_refund_v2` | no |
+| `action` | enum: `record`, `reverse` | yes |
+| `input` | RefundReview or RefundCorrection | yes |
+| `input_digest` | string | yes |
+| `account_id` | string (uuid) | yes |
+| `currency` | string | yes |
+| `category` | string | yes |
+| `tags` | array of string (uuid) | yes |
+| `amount` | string | yes |
+| `cash_delta` | string | yes |
+| `expense_delta` | string | yes |
+| `original_expense_amount` | string | yes |
+| `active_refunded_before` | string | yes |
+| `active_refunded_after` | string | yes |
+| `remaining_refundable` | string | yes |
+| `effective_on` | string (date) | yes |
+| `payment_initiated` | boolean | no |
+| `original_expense_rewritten` | boolean | no |
+| `id` | string (uuid) | yes |
+| `original_entry_id` | string (uuid) | yes |
+| `journal_entry_id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `reversal_of` | string (uuid) (nullable) | yes |
+| `account_revision` | integer | yes |
+| `recorded_at` | string (date-time) | yes |
+
+### `RefundWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `allocations` | array of TransactionAllocation (nullable) | no |
+| `expected_account_revision` | integer | yes |
+| `expected_classification_revision` | integer | yes |
+| `expected_revision` | integer | yes |
+| `amount` | string | yes |
+| `occurred_on` | string (date) | yes |
+| `receipt_reference` | string | yes |
+| `source` | string | yes |
+| `already_settled` | boolean | yes |
+| `input_digest` | string | yes |
+
+### `RefundReview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `allocations` | array of TransactionAllocation (nullable) | no |
+| `expected_account_revision` | integer | yes |
+| `expected_classification_revision` | integer | yes |
+| `expected_revision` | integer | yes |
+| `amount` | string | yes |
+| `occurred_on` | string (date) | yes |
+| `receipt_reference` | string | yes |
+| `source` | string | yes |
+| `already_settled` | boolean | yes |
+
+### `RefundPreview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `allocations` | array of TransactionAllocation (nullable) | no |
+| `category_balances` | array of RefundCategoryBalance (nullable) | no |
+| `algorithm` | enum: `linked_expense_refund_v1`, `linked_expense_refund_v2` | no |
+| `action` | enum: `record`, `reverse` | yes |
+| `input` | RefundReview or RefundCorrection | yes |
+| `input_digest` | string | yes |
+| `account_id` | string (uuid) | yes |
+| `currency` | string | yes |
+| `category` | string | yes |
+| `tags` | array of string (uuid) | yes |
+| `amount` | string | yes |
+| `cash_delta` | string | yes |
+| `expense_delta` | string | yes |
+| `original_expense_amount` | string | yes |
+| `active_refunded_before` | string | yes |
+| `active_refunded_after` | string | yes |
+| `remaining_refundable` | string | yes |
+| `effective_on` | string (date) | yes |
+| `payment_initiated` | boolean | no |
+| `original_expense_rewritten` | boolean | no |
+
+### `RefundReverse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_account_revision` | integer | yes |
+| `expected_revision` | integer | yes |
+| `reason` | string | yes |
+| `input_digest` | string | yes |
+
+### `RefundCorrection`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_account_revision` | integer | yes |
+| `expected_revision` | integer | yes |
+| `reason` | string | yes |
+
+### `TransferMatchPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of TransferMatchResponse | yes |
+| `next_before_id` | string (uuid) (nullable) | yes |
+
+### `TransferMatchWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expense_entry_id` | string (uuid) | yes |
+| `income_entry_id` | string (uuid) | yes |
+| `expected_expense_account_revision` | integer | yes |
+| `expected_income_account_revision` | integer | yes |
+| `expected_expense_classification_revision` | integer | yes |
+| `expected_income_classification_revision` | integer | yes |
+| `expected_change_sequence` | integer | yes |
+| `confirmed_internal_transfer` | boolean | yes |
+| `reason` | string | yes |
+
+### `TransferMatchResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `inputs_captured_at` | string (date-time) | yes |
+| `inputs_are_snapshot` | boolean | no |
+| `id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `state` | enum: `matched`, `unmatched` | yes |
+| `recorded_at` | string (date-time) | yes |
+| `recorded_by` | string (uuid) | yes |
+| `reason` | string | yes |
+| `expense` | TransactionResponse | yes |
+| `income` | TransactionResponse | yes |
+
+### `TransferUnmatchWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_revision` | integer | yes |
+| `reason` | string | yes |

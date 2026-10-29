@@ -1,0 +1,75 @@
+---
+title: Developer REST reference
+description: The three routes of the personal developer API, with their models.
+---
+
+**Status: Planned.** Built, but not enabled in production. When enabled, it needs a Paid plan or a staff-granted beta access grant. Every route is read-only.
+
+The routes below come from the contract. A route that is listed here is not proof that the API is enabled for your account. Use the [quickstart](/docs/quickstart) to start once it is enabled.
+
+## Endpoints
+
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/developer/v1/accounts` | Accounts | Personal API key | none | `limit`, `cursor` | none | 200 `PersonalAccountPage` |
+| `GET /api/developer/v1/profile` | Profile | Personal API key | none | none | none | 200 `PersonalPreferences` |
+| `GET /api/developer/v1/transactions` | Transactions | Personal API key | none | `limit`, `cursor`, `start*`, `end*` | none | 200 `PersonalTransactionPage` |
+
+`*` marks a required query parameter.
+
+## Models
+
+### `PersonalAccountPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of MaskedAccount | yes |
+| `next_cursor` | string (nullable) | yes |
+| `revision` | integer | yes |
+
+### `PersonalPreferences`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` | yes |
+| `base_currency` | enum (164 values) | yes |
+| `timezone` | string | yes |
+
+### `PersonalTransactionPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of PostedTransaction | yes |
+| `next_cursor` | string (nullable) | yes |
+| `revision` | integer | yes |
+
+### `MaskedAccount`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `currency` | enum (164 values) | yes |
+| `kind` | enum: `bank`, `cash`, `credit`, `investment` | yes |
+| `masked_reference` | string | yes |
+| `revision` | integer | yes |
+| `archived` | boolean | yes |
+
+### `PostedTransaction`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `type` | enum: `income`, `expense`, `transfer`, `opening`, `refund`, `reversal` | yes |
+| `amount` | string | yes |
+| `currency` | enum (164 values) | yes |
+| `occurred_on` | string (date) | yes |
+| `account_id` | string (uuid) | yes |
+| `to_account_id` | string (uuid) (nullable) | no |
+
+### `PersonalAPIError`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `code` | string | yes |
+| `message` | string | yes |
+| `request_id` | string | yes |

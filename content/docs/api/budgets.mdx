@@ -1,75 +1,99 @@
 ---
 title: Budgets
-description: Inspect category spending limits, posted expenses, and remaining budgets for any monthly period.
+description: Read and save monthly budgets by category, and repeat them to later months.
 ---
 
-`GET /budgets`
+**Status: In testing.** Deployed in the API. Acceptance testing for this area is not complete.
 
-Read category budgets alongside exact posted spending and remaining amounts for a specified monthly period.
+Preview a repeat before you apply it.
 
----
+## Endpoints
 
-## Authorization
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/budgets` | Get Budgets | Signed-in user (Clerk bearer) | none | `period*` | none | 200 array of `BudgetResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/budgets` | Update Budget | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `BudgetWrite` | 200 `BudgetResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/budgets/page` | Budget Page | Signed-in user (Clerk bearer) | none | `limit`, `cursor`, `q`, `sort`, `currency`, `period*`, `category`, `over_budget` | none | 200 `RecordPage_BudgetResponse_` |
+| `POST /api/v1/workspaces/{workspace_id}/budgets/repeat` | Repeat | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `BudgetRepeatWrite` | 200 `BudgetRepeatReceipt` |
+| `POST /api/v1/workspaces/{workspace_id}/budgets/repeat/preview` | Preview | Signed-in user (Clerk bearer) | none | none | `BudgetRepeatSelection` | 200 `BudgetRepeatPreview` |
 
-- **Scope Required**: `budgets:read`
-- **Plan Requirement**: Active Paid subscription
+`*` marks a required query parameter. Path parameters are listed in the route.
 
----
+## Models
 
-## Query Parameters
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
 
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `period` | date | **Yes** | The first day of the target month in `YYYY-MM-DD` format (e.g. `2026-10-01`). |
-| `category` | string | No | Exact category key filter (e.g. `dining`, `utilities`). |
-| `currency` | string | No | Filter by a specific supported launch currency code (e.g. `AED`). |
-| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
-| `cursor` | string | No | Continuation cursor from `next_cursor`. |
+### `BudgetResponse`
 
----
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `period` | string (date) | yes |
+| `category` | string | yes |
+| `currency` | enum (164 values) | yes |
+| `amount` | string | yes |
+| `spent` | string | yes |
+| `remaining` | string | yes |
+| `revision` | integer | yes |
 
-## Example Request
+### `BudgetWrite`
 
-```bash
-curl --fail-with-body --get \
-  "https://api.farz.app/api/developer/v1/budgets" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json' \
-  --data-urlencode 'period=2026-10-01' \
-  --data-urlencode 'limit=50'
-```
+| Field | Type | Required |
+| --- | --- | --- |
+| `period` | string (date) | yes |
+| `category` | string | yes |
+| `currency` | enum (164 values) | yes |
+| `amount` | string | yes |
+| `expected_revision` | integer | no |
 
----
+### `RecordPage_BudgetResponse_`
 
-## Example Response
+| Field | Type | Required |
+| --- | --- | --- |
+| `as_of` | string (date) | yes |
+| `items` | array of BudgetResponse | yes |
+| `next_cursor` | string (nullable) | yes |
 
-```json
-{
-  "items": [
-    {
-      "id": "55555555-5555-4555-8555-555555555555",
-      "revision": 2,
-      "period": "2026-10-01",
-      "category": "dining",
-      "amount": {
-        "amount": "2000.00",
-        "currency": "AED"
-      },
-      "spent": {
-        "amount": "850.25",
-        "currency": "AED"
-      },
-      "remaining": {
-        "amount": "1149.75",
-        "currency": "AED"
-      }
-    }
-  ],
-  "next_cursor": null,
-  "has_more": false
-}
-```
+### `BudgetRepeatWrite`
 
-<Callout type="info">
-  The `remaining` amount can be negative if period expenditures exceed the allocated category budget.
-</Callout>
+| Field | Type | Required |
+| --- | --- | --- |
+| `source_period` | string (date) | yes |
+| `source_budget_ids` | array of string (uuid) | yes |
+| `starts_on` | string (date) | yes |
+| `months` | integer | yes |
+| `expected_change_sequence` | integer | yes |
+| `input_digest` | string | yes |
+| `confirmed` | boolean | yes |
+
+### `BudgetRepeatReceipt`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `is_snapshot` | boolean | no |
+| `preview` | BudgetRepeatPreview | yes |
+| `items` | array of RepeatedBudget | yes |
+| `change_sequence` | integer | yes |
+| `created_count` | integer | yes |
+| `replaced_count` | integer | yes |
+| `unchanged_count` | integer | yes |
+
+### `BudgetRepeatSelection`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `source_period` | string (date) | yes |
+| `source_budget_ids` | array of string (uuid) | yes |
+| `starts_on` | string (date) | yes |
+| `months` | integer | yes |
+
+### `BudgetRepeatPreview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `policy` | string | no |
+| `selection` | BudgetRepeatSelection | yes |
+| `sources` | array of BudgetRepeatSource | yes |
+| `targets` | array of BudgetRepeatTarget | yes |
+| `change_sequence` | integer | yes |
+| `input_digest` | string | yes |

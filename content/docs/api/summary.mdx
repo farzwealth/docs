@@ -1,97 +1,55 @@
 ---
-title: Financial Summary
-description: Calculate portfolio net worth, aggregated asset and liability totals, and coverage metrics.
+title: Dashboard and summary
+description: Dashboard data and the activity summary for one workspace.
 ---
 
-`GET /summary`
+**Status: In testing.** Deployed in the API. Acceptance testing for this area is not complete.
 
-Calculates a dated financial summary across explicitly requested own-data domains, returning total assets, liabilities, net worth, contributing resources, and exclusion reasons.
+A value that cannot be calculated is `null`. It is not `0`. Read the coverage fields before you use a total.
 
----
+## Endpoints
 
-## Authorization
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/dashboard` | Get Dashboard | Signed-in user (Clerk bearer) | none | none | none | 200 `DashboardResponse` |
 
-- **Scopes Required**: `reports:read` **plus** the scope for each domain listed in `domains`:
-  - `accounts:read` (if `accounts` is included)
-  - `assets:read` (if `assets` is included)
-  - `liabilities:read` (if `liabilities` is included)
-- **Plan Requirement**: Active Paid subscription
+`*` marks a required query parameter. Path parameters are listed in the route.
 
----
+## Models
 
-## Query Parameters
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
 
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `domains` | string | **Yes** | Comma-separated list containing `accounts`, `assets`, and/or `liabilities`. |
-| `as_of` | date | No | Valuation cutoff date (`YYYY-MM-DD`). Defaults to current date in user timezone. |
+### `DashboardResponse`
 
-<Callout type="warn" title="Net Worth Availability">
-  The `net_worth` field will be `null` unless all three domains (`accounts,assets,liabilities`) are requested, authorized, and provide sufficient valuation coverage.
-</Callout>
-
----
-
-## Example Request
-
-```bash
-curl --fail-with-body --get \
-  "https://api.farz.app/api/developer/v1/summary" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json' \
-  --data-urlencode 'domains=accounts,assets,liabilities' \
-  --data-urlencode 'as_of=2026-10-10'
-```
-
----
-
-## Example Response
-
-```json
-{
-  "domains": ["accounts", "assets", "liabilities"],
-  "as_of": "2026-10-10",
-  "timezone": "Asia/Dubai",
-  "base_currency": "AED",
-  "total_assets": {
-    "amount": "452500.00",
-    "currency": "AED"
-  },
-  "total_liabilities": {
-    "amount": "120000.00",
-    "currency": "AED"
-  },
-  "net_worth": {
-    "amount": "332500.00",
-    "currency": "AED"
-  },
-  "coverage_percent": "100.0",
-  "contributions": [
-    {
-      "id": "22222222-2222-4222-8222-222222222222",
-      "kind": "account",
-      "native_value": {"amount": "1250.00", "currency": "AED"},
-      "base_value": {"amount": "1250.00", "currency": "AED"},
-      "valuation": {
-        "as_of": "2026-10-10",
-        "timezone": "Asia/Dubai",
-        "freshness": "current",
-        "source": "recorded_balance",
-        "fx_legs": [],
-        "warnings": []
-      }
-    }
-  ],
-  "excluded": [],
-  "valuation": {
-    "as_of": "2026-10-10",
-    "timezone": "Asia/Dubai",
-    "freshness": "current",
-    "source": null,
-    "fx_legs": [],
-    "warnings": []
-  }
-}
-```
-
-For complete field descriptions, see the [FinancialSummary schema](/docs/api/schemas#financialsummary).
+| Field | Type | Required |
+| --- | --- | --- |
+| `totals_provenance` | TotalsProvenance (nullable) | no |
+| `drilldown` | array of TotalDrilldown | no |
+| `spending_comparison` | SpendingComparison (nullable) | no |
+| `allocation` | array of AllocationGroup | no |
+| `worth_contributions` | array of WorthContribution | no |
+| `stale_worth_items` | integer | no |
+| `manual_debt_count` | integer | no |
+| `excluded_debts` | integer | no |
+| `base_currency` | enum (164 values) | yes |
+| `total_assets` | string | yes |
+| `total_debts` | string | yes |
+| `net_worth` | string | yes |
+| `monthly_income` | string | no |
+| `monthly_budget` | string (nullable) | no |
+| `budget_categories` | integer | no |
+| `upcoming` | array of ForecastOccurrence | no |
+| `upcoming_truncated` | boolean | no |
+| `monthly_spending` | string | yes |
+| `last_month_spending` | string | yes |
+| `manual_asset_count` | integer | no |
+| `excluded_assets` | integer | no |
+| `excluded_accounts` | integer | yes |
+| `coverage_percent` | integer | yes |
+| `as_of` | string (date-time) | yes |
+| `history` | array of HistoryPoint | yes |
+| `spending` | array of SpendingPoint | yes |
+| `categories` | array of CategoryTotal | yes |
+| `to_review` | array of TransactionResponse | yes |
+| `account_count` | integer | yes |
+| `synthetic` | boolean | yes |

@@ -1,0 +1,174 @@
+---
+title: Personal API keys and assistant connectors
+description: Issue and revoke personal API keys, and approve or revoke assistant connectors for MCP.
+---
+
+**Status: In testing, by staff-granted beta access only.** These routes need a Paid plan or a staff-granted beta access grant.
+
+A personal API key secret is shown once, when it is created. Keys expire in 1 to 90 days. The default is 30 days.
+
+A connector approval lets one assistant client read your data. You can revoke it at any time.
+
+## Endpoints
+
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/integrations/keys` | Inventory | Signed-in user (Clerk bearer) | none | none | none | 200 array of `KeyView` |
+| `POST /api/v1/workspaces/{workspace_id}/integrations/keys` | Issue | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `KeyRequest` | 200 `KeyIssued` |
+| `GET /api/v1/workspaces/{workspace_id}/integrations/keys/page` | inventory (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `InventoryPage` |
+| `GET /api/v1/workspaces/{workspace_id}/integrations/keys/terms` | Terms Notice | Signed-in user (Clerk bearer) | none | `locale` | none | 200 `TermsNotice` |
+| `POST /api/v1/workspaces/{workspace_id}/integrations/keys/{key_id}/revoke` | Revoke | Signed-in user (Clerk bearer) | none | none | none | 200 (no body) |
+| `GET /api/v1/workspaces/{workspace_id}/integrations/mcp/connectors` | Connector Inventory | Signed-in user (Clerk bearer) | none | none | none | 200 array of `ConnectorView` |
+| `POST /api/v1/workspaces/{workspace_id}/integrations/mcp/connectors` | Connector Approve | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `ConnectorApproval` | 200 `ConnectorView` |
+| `GET /api/v1/workspaces/{workspace_id}/integrations/mcp/connectors/page` | connector_inventory (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `ConnectorInventoryPage` |
+| `POST /api/v1/workspaces/{workspace_id}/integrations/mcp/connectors/{connector_id}/revoke` | Connector Revoke | Signed-in user (Clerk bearer) | none | none | none | 200 `ConnectorView` |
+| `GET /api/v1/workspaces/{workspace_id}/integrations/mcp/terms` | Connector Terms | Signed-in user (Clerk bearer) | none | `locale` | none | 200 `TermsNotice` |
+| `GET /api/v1/workspaces/{workspace_id}/integrations/review/appeals` | Appeals | Signed-in user (Clerk bearer) | none | `before_id`, `limit` | none | 200 `AppealPage` |
+| `POST /api/v1/workspaces/{workspace_id}/integrations/review/appeals` | Appeal | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `IntegrationAppeal` | 200 `IntegrationAppealReceipt` |
+| `GET /api/v1/workspaces/{workspace_id}/integrations/review/notice` | Notice | Signed-in user (Clerk bearer) | none | `locale` | none | 200 `ObservationNotice` |
+| `GET /api/v1/workspaces/{workspace_id}/integrations/review/observations` | Observations | Signed-in user (Clerk bearer) | none | none | none | 200 `ObservationSummary` |
+
+`*` marks a required query parameter. Path parameters are listed in the route.
+
+## Models
+
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
+
+### `KeyView`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `name` | string | yes |
+| `scopes` | array of enum: `profile:read`, `accounts:read`, `transactions:read` | yes |
+| `state` | enum: `pending`, `active`, `unknown`, `failed`, `revoked`, `expired` | yes |
+| `expires_at` | string (date-time) | yes |
+| `created_at` | string (date-time) | yes |
+| `terms_version` | string | yes |
+
+### `KeyRequest`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `name` | string | yes |
+| `scopes` | array of enum: `profile:read`, `accounts:read`, `transactions:read` | yes |
+| `expires_in_days` | integer | no |
+| `terms_version` | string | yes |
+| `personal_use_accepted` | boolean | yes |
+| `terms_digest` | string (nullable) | no |
+| `audit_notice_accepted` | boolean (nullable) | no |
+| `audit_notice_digest` | string (nullable) | no |
+| `audit_notice_version` | string (nullable) | no |
+
+### `KeyIssued`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `key` | KeyView | yes |
+| `secret` | string (nullable) | no |
+
+### `InventoryPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of KeyView | yes |
+| `next_cursor` | string (nullable) | no |
+
+### `TermsNotice`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `revision` | string | yes |
+| `terms_version` | string (nullable) | yes |
+| `terms_digest` | string (nullable) | yes |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` | yes |
+| `rules` | array of string | yes |
+| `configuration_available` | boolean | yes |
+| `key_creation_requires_independent_authorization` | boolean | no |
+| `legal_and_linguistic_acceptance_required` | boolean | no |
+| `support_email` | string | no |
+| `privacy_email` | string | no |
+
+### `ConnectorView`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `name` | string | yes |
+| `client_id` | string | yes |
+| `scopes` | array of enum (9 values) | yes |
+| `state` | enum: `active`, `revoked`, `expired` | yes |
+| `expires_at` | string (date-time) | yes |
+| `created_at` | string (date-time) | yes |
+| `terms_version` | string | yes |
+
+### `ConnectorApproval`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `client_id` | string | yes |
+| `name` | string | yes |
+| `scopes` | array of enum (9 values) | yes |
+| `expires_in_days` | integer | no |
+| `terms_version` | string | yes |
+| `terms_digest` | string | yes |
+| `personal_use_accepted` | boolean | yes |
+| `audit_notice_accepted` | boolean (nullable) | no |
+| `audit_notice_digest` | string (nullable) | no |
+| `audit_notice_version` | string (nullable) | no |
+
+### `ConnectorInventoryPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of ConnectorView | yes |
+| `next_cursor` | string (nullable) | no |
+
+### `AppealPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of IntegrationAppealReceipt | yes |
+| `next_before_id` | string (uuid) (nullable) | yes |
+
+### `IntegrationAppeal`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `grant_id` | string (uuid) | yes |
+| `details` | string | yes |
+| `confirmed` | boolean | yes |
+
+### `IntegrationAppealReceipt`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `grant_id` | string (uuid) | yes |
+| `privacy_request_id` | string (uuid) | yes |
+| `state` | enum: `received`, `human_review_requested`, `withdrawn` | yes |
+| `reinstated` | boolean | no |
+| `email_delivered` | boolean | no |
+
+### `ObservationNotice`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `audit_enabled` | boolean | yes |
+| `notice_version` | string | yes |
+| `notice_digest` | string | yes |
+| `locale` | string | yes |
+| `text` | string | yes |
+| `retention_target_days` | integer | yes |
+| `review_target_days` | integer | yes |
+| `deployment_and_linguistic_review_required` | boolean | yes |
+
+### `ObservationSummary`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `lookback_hours` | integer | yes |
+| `counts` | ObservationCounts | yes |
+| `review_alerts` | integer | yes |
+| `truncated` | boolean | yes |
+| `automatic_suspension` | boolean | yes |

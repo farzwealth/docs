@@ -1,0 +1,154 @@
+---
+title: Assistant
+description: Ask the assistant for help, and confirm, review or undo the actions it prepares.
+---
+
+**Status: In testing.** The assistant runs in alpha for one named tester. Usage is capped each month.
+
+The assistant can ask a clarifying question and prepare an action. Nothing runs until you confirm the action.
+
+After an action runs, you can review it or undo it.
+
+## Endpoints
+
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/me/ai-availability` | Availability | Signed-in user (Clerk bearer) | none | none | none | 200 `AIAvailability` |
+| `POST /api/v1/me/ai-help` | Help Response | Signed-in user (Clerk bearer) | none | none | `AIHelpInput` | 200 `AIHelpResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/assistant/clarification` | Clarify | Signed-in user (Clerk bearer) | none | none | `ClarificationInput` | 200 `ClarificationResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/assistant/requests` | Enqueue | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `AssistantInput` | 202 `AssistantResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/assistant/requests/{request_id}` | Get Request | Signed-in user (Clerk bearer) | none | none | none | 200 `AssistantResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/assistant/requests/{request_id}/action` | Action | Signed-in user (Clerk bearer) | none | none | none | 200 `ActionReview` |
+| `POST /api/v1/workspaces/{workspace_id}/assistant/requests/{request_id}/action/confirm` | Confirm Action | Signed-in user (Clerk bearer) | none | none | `ActionConfirmation` | 200 `ActionReview` |
+| `POST /api/v1/workspaces/{workspace_id}/assistant/requests/{request_id}/action/review` | Review Action | Signed-in user (Clerk bearer) | none | none | none | 200 `ActionReview` |
+| `POST /api/v1/workspaces/{workspace_id}/assistant/requests/{request_id}/action/undo` | Undo Action | Signed-in user (Clerk bearer) | none | none | `ActionConfirmation` | 200 `ActionReview` |
+| `POST /api/v1/workspaces/{workspace_id}/assistant/requests/{request_id}/action/undo-review` | Review Undo | Signed-in user (Clerk bearer) | none | none | none | 200 `ActionReview` |
+| `POST /api/v1/workspaces/{workspace_id}/assistant/requests/{request_id}/cancel` | Cancel | Signed-in user (Clerk bearer) | none | none | none | 200 `AssistantResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/assistant/requests/{request_id}/execute` | Execute | Signed-in user (Clerk bearer) | none | none | none | 200 `AssistantResponse` |
+
+`*` marks a required query parameter. Path parameters are listed in the route.
+
+## Models
+
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
+
+### `AIAvailability`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `available` | boolean | yes |
+| `reason` | enum: `AVAILABLE`, `FREE_PLAN`, `TRIAL_EXPIRED`, `CONSENT_REQUIRED`, `POLICY_RESTRICTED`, `AI_UNAVAILABLE`, `AI_BUSY`, `AI_MONTHLY_LIMIT_REACHED` | yes |
+| `resets_at` | string (date-time) (nullable) | no |
+
+### `AIHelpInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `topic` | enum: `usage`, `data_access`, `question` | yes |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` (nullable) | no |
+| `question` | string (nullable) | no |
+
+### `AIHelpResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `topic` | enum: `usage`, `data_access`, `question` | yes |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` | yes |
+| `input_disposition` | enum: `standalone_question_required`, `choose_supported_task` (nullable) | no |
+| `available` | boolean | yes |
+| `reason` | enum: `AVAILABLE`, `FREE_PLAN`, `TRIAL_EXPIRED`, `CONSENT_REQUIRED`, `POLICY_RESTRICTED`, `AI_UNAVAILABLE`, `AI_BUSY`, `AI_MONTHLY_LIMIT_REACHED` | yes |
+| `message` | string | yes |
+| `resets_at` | string (date-time) (nullable) | yes |
+| `reset_timezone` | string | no |
+| `support_contact` | string | no |
+| `privacy_contact` | string | no |
+| `privacy_request_path` | string | yes |
+| `privacy_request_kind` | string | no |
+| `privacy_request_requires_confirmation` | boolean | no |
+| `privacy_request_requires_recent_auth` | boolean | no |
+| `privacy_review_message` | string | yes |
+| `automated_rights_decision` | boolean | no |
+
+### `ClarificationInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `intent` | enum: `record_transaction`, `record_contract` | yes |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` | no |
+| `account_id` | string (uuid) (nullable) | no |
+| `currency` | enum (164 values) (nullable) | no |
+| `amount` | string (nullable) | no |
+| `occurred_on` | string (date) (nullable) | no |
+| `transaction_type` | enum: `income`, `expense`, `transfer` (nullable) | no |
+| `destination_account_id` | string (uuid) (nullable) | no |
+| `contract_type` | enum: `loan`, `mortgage`, `financing`, `bnpl`, `other` (nullable) | no |
+
+### `ClarificationResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `intent` | enum: `record_transaction`, `record_contract` | yes |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` | yes |
+| `state` | enum: `needs_input`, `continue_to_form` | yes |
+| `questions` | array of ClarificationQuestion | yes |
+| `next_step` | enum: `supply_missing_fields`, `review_transaction_form`, `review_contract_form` | yes |
+| `requires_domain_validation` | boolean | no |
+| `requires_explicit_confirmation` | boolean | no |
+| `executes_changes` | boolean | no |
+| `calls_model` | boolean | no |
+
+### `AssistantInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `intent` | enum: `accounts_overview`, `manual_import_help`, `settings_help`, `cashflow_education`, `budget_education`, `net_worth_education`, `record_transaction` | yes |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` | no |
+| `transaction` | JournalCommand (nullable) | no |
+| `redo_of` | string (uuid) (nullable) | no |
+
+### `AssistantResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `state` | enum (9 values) | yes |
+| `intent` | enum: `accounts_overview`, `manual_import_help`, `settings_help`, `cashflow_education`, `budget_education`, `net_worth_education`, `record_transaction` | yes |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` | yes |
+| `created_at` | string (date-time) | yes |
+| `expires_at` | string (date-time) | yes |
+| `reason` | enum: `AVAILABLE`, `FREE_PLAN`, `TRIAL_EXPIRED`, `CONSENT_REQUIRED`, `POLICY_RESTRICTED`, `AI_UNAVAILABLE`, `AI_BUSY`, `AI_MONTHLY_LIMIT_REACHED` (nullable) | no |
+| `message` | string (nullable) | no |
+| `resets_at` | string (date-time) (nullable) | no |
+| `cards` | array of ExplanationCard | no |
+
+### `ActionReview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `proposal_id` | string (uuid) | yes |
+| `request_id` | string (uuid) | yes |
+| `redo_of` | string (uuid) (nullable) | no |
+| `state` | enum: `prepared`, `expired`, `canceled`, `committed`, `undone` | yes |
+| `created_at` | string (date-time) | yes |
+| `expires_at` | string (date-time) | yes |
+| `review_digest` | string | yes |
+| `command` | JournalCommand | yes |
+| `effects` | array of CorrectionEffect | yes |
+| `transaction` | TransactionResponse (nullable) | no |
+| `reversal` | TransactionResponse (nullable) | no |
+| `undo_digest` | string (nullable) | no |
+| `undo_expires_at` | string (date-time) (nullable) | no |
+| `undo_occurs_on` | string (date) (nullable) | no |
+| `undo_effects` | array of CorrectionEffect | no |
+| `undo_kind` | enum: `undo`, `reconciliation` (nullable) | no |
+| `reconciliation` | ReconciliationProposal (nullable) | no |
+| `initiates_payment` | boolean | no |
+| `atomic_card_count` | integer | no |
+
+### `ActionConfirmation`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `review_digest` | string | yes |
+| `confirmed` | boolean | yes |

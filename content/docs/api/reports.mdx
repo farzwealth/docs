@@ -1,79 +1,247 @@
 ---
-title: Reports
-description: Generate deterministic, structured financial report rows across transactions, net worth, cashflow, and performance.
+title: Reports and exports
+description: Create export jobs for statements, transactions, valuations and owned records, then download them.
 ---
 
-`GET /reports`
+**Status: In testing.** Deployed in the API. Acceptance testing for this area is not complete.
 
-Query bounded deterministic financial report rows for data analysis and reporting. This endpoint delivers structured JSON rows (not raw PDF or binary exports).
+An export runs as a job. Poll the job status, then download the file with the link the status call returns.
 
----
+Reports are generated files. JSON and CSV exports are machine-readable. HTML routes are printable pages.
 
-## Authorization
+## Endpoints
 
-Access requires `reports:read` **plus** the additional scopes corresponding to the selected report `kind`:
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/activity-analysis` | Analyze recorded activity with ten read-only planning tools | Signed-in user (Clerk bearer) | none | `start*`, `end*`, `account_id`, `category`, `tag_id`, `native_currency`, `base_currency`, `ownership`, `role`, `limit`, `cursor` | none | 200 `ActivityAnalysis` |
+| `GET /api/v1/workspaces/{workspace_id}/activity-insights` | Activity | Signed-in user (Clerk bearer) | none | `start*`, `end*`, `account_id`, `category`, `tag_id`, `native_currency`, `base_currency`, `ownership`, `role`, `limit`, `cursor` | none | 200 `ActivityInsights` |
+| `POST /api/v1/workspaces/{workspace_id}/exports` | Enqueue Export | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `ExportSpec` | 202 `ExportStatus` |
+| `GET /api/v1/workspaces/{workspace_id}/exports/{task_id}` | Export Status | Signed-in user (Clerk bearer) | none | none | none | 200 `ExportStatus` |
+| `POST /api/v1/workspaces/{workspace_id}/exports/{task_id}/cancel` | Cancel Export | Signed-in user (Clerk bearer) | none | none | none | 200 `ExportStatus` |
+| `GET /api/v1/workspaces/{workspace_id}/exports/{task_id}/download.csv` | Download Export | Signed-in user (Clerk bearer) | none | none | none | 200 (no body) |
+| `GET /api/v1/workspaces/{workspace_id}/exports/{task_id}/download.json` | Download Json Export | Signed-in user (Clerk bearer) | none | none | none | 200 object |
+| `POST /api/v1/workspaces/{workspace_id}/exports/{task_id}/execute` | Execute Export | Signed-in user (Clerk bearer) | none | none | none | 200 `ExportStatus` |
+| `POST /api/v1/workspaces/{workspace_id}/report-exports` | Enqueue Export | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `ReportExportSpec` | 202 `ExportStatus` |
+| `GET /api/v1/workspaces/{workspace_id}/report-exports/{task_id}` | Export Status | Signed-in user (Clerk bearer) | none | none | none | 200 `ExportStatus` |
+| `POST /api/v1/workspaces/{workspace_id}/report-exports/{task_id}/cancel` | Cancel Report | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `ExportCancel` | 200 `ExportStatus` |
+| `GET /api/v1/workspaces/{workspace_id}/report-exports/{task_id}/download` | Download Report | Signed-in user (Clerk bearer) | none | `format` | none | 200 string |
+| `GET /api/v1/workspaces/{workspace_id}/reports/accounts/{account_id}/statement/{format}` | Statement Report | Signed-in user (Clerk bearer) | none | `start*`, `end*`, `limit`, `cursor` | none | 200 (no body) |
+| `GET /api/v1/workspaces/{workspace_id}/reports/activity-insights/{format}` | Activity Report | Signed-in user (Clerk bearer) | none | `start*`, `end*`, `account_id`, `category`, `tag_id`, `native_currency`, `base_currency`, `ownership`, `role`, `limit`, `cursor` | none | 200 (no body) |
+| `POST /api/v1/workspaces/{workspace_id}/reports/ledger-query/search.csv` | Csv | Signed-in user (Clerk bearer) | none | none | `LedgerTextFilters` | 200 (no body) |
+| `POST /api/v1/workspaces/{workspace_id}/reports/ledger-query/search.html` | Html | Signed-in user (Clerk bearer) | none | none | `LedgerTextFilters` | 200 (no body) |
+| `GET /api/v1/workspaces/{workspace_id}/reports/ledger-query.csv` | Export Ledger Query | Signed-in user (Clerk bearer) | none | `start*`, `end*`, `account_id`, `category`, `tag_id`, `native_currency`, `base_currency`, `ownership`, `role`, `limit`, `cursor` | none | 200 (no body) |
+| `GET /api/v1/workspaces/{workspace_id}/reports/ledger-query.html` | Print Ledger Query | Signed-in user (Clerk bearer) | none | `start*`, `end*`, `account_id`, `category`, `tag_id`, `native_currency`, `base_currency`, `ownership`, `role`, `limit`, `cursor` | none | 200 (no body) |
+| `GET /api/v1/workspaces/{workspace_id}/reports/net-worth.csv` | Export Worth | Signed-in user (Clerk bearer) | none | none | none | 200 (no body) |
+| `GET /api/v1/workspaces/{workspace_id}/reports/net-worth.html` | Print Worth | Signed-in user (Clerk bearer) | none | none | none | 200 (no body) |
+| `GET /api/v1/workspaces/{workspace_id}/reports/owned-bundles` | List Exports | Signed-in user (Clerk bearer) | none | `limit`, `before_id` | none | 200 `BundlePage` |
+| `POST /api/v1/workspaces/{workspace_id}/reports/owned-bundles` | Create | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `BundleInput` | 202 `BundleStatus` |
+| `POST /api/v1/workspaces/{workspace_id}/reports/owned-bundles/cleanup` | Cleanup | Signed-in user (Clerk bearer) | none | none | `CleanupInput` | 200 `CleanupResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/reports/owned-bundles/{bundle_id}` | Get Export | Signed-in user (Clerk bearer) | none | none | none | 200 `BundleStatus` |
+| `POST /api/v1/workspaces/{workspace_id}/reports/owned-bundles/{bundle_id}/cancel` | Cancel | Signed-in user (Clerk bearer) | none | none | `BundleAction` | 200 `BundleStatus` |
+| `POST /api/v1/workspaces/{workspace_id}/reports/owned-bundles/{bundle_id}/download` | Download | Signed-in user (Clerk bearer) | none | none | `DownloadInput` | 200 (no body) |
+| `POST /api/v1/workspaces/{workspace_id}/reports/owned-bundles/{bundle_id}/download-ticket` | Ticket | Signed-in user (Clerk bearer) | none | none | none | 200 `TicketResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/reports/owned-bundles/{bundle_id}/execute` | Execute | Signed-in user (Clerk bearer) | none | none | none | 200 `BundleStatus` |
+| `POST /api/v1/workspaces/{workspace_id}/reports/owned-bundles/{bundle_id}/purge` | Purge | Signed-in user (Clerk bearer) | none | none | `BundleAction` | 200 `BundleStatus` |
+| `GET /api/v1/workspaces/{workspace_id}/reports/owned-records/manifest/json` | Manifest | Signed-in user (Clerk bearer) | none | `sections` | none | 200 `ManifestResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/reports/owned-records/{section}/csv` | Section Csv | Signed-in user (Clerk bearer) | none | `manifest_token*`, `cursor`, `limit` | none | 200 (no body) |
+| `GET /api/v1/workspaces/{workspace_id}/reports/owned-records/{section}/json` | Section Json | Signed-in user (Clerk bearer) | none | `manifest_token*`, `cursor`, `limit` | none | 200 `ExportPage` |
+| `GET /api/v1/workspaces/{workspace_id}/reports/transactions.csv` | Export Transactions | Signed-in user (Clerk bearer) | none | `start*`, `end*`, `account_id` | none | 200 (no body) |
+| `GET /api/v1/workspaces/{workspace_id}/reports/transactions.html` | Print Transactions | Signed-in user (Clerk bearer) | none | `start*`, `end*`, `account_id` | none | 200 (no body) |
+| `GET /api/v1/workspaces/{workspace_id}/reports/upcoming-obligations/{format}` | Upcoming Report | Signed-in user (Clerk bearer) | none | `start*`, `end*`, `account_id`, `category`, `native_currency`, `origin`, `direction`, `due_state`, `include_skipped`, `limit`, `cursor` | none | 200 (no body) |
 
-| Report Kind | Additional Scopes Required |
-| :--- | :--- |
-| `transactions` | `transactions:read` |
-| `net_worth` | `accounts:read`, `assets:read`, `liabilities:read` |
-| `cashflow` | `accounts:read`, `budgets:read`, `liabilities:read` |
-| `performance` | `assets:read`, `valuations:read` |
+`*` marks a required query parameter. Path parameters are listed in the route.
 
----
+## Models
 
-## Query Parameters
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
 
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `kind` | string | **Yes** | Report kind: `transactions`, `net_worth`, `cashflow`, or `performance`. |
-| `start` | date | **Yes** | Inclusive start date (`YYYY-MM-DD`). |
-| `end` | date | **Yes** | Inclusive end date (`YYYY-MM-DD`). Max range: **366 calendar days**. |
-| `account_id` | UUID | No | Account filter. Valid only when `kind=transactions`. |
-| `currency` | string | No | Desired reporting currency conversion. |
-| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
-| `cursor` | string | No | Continuation cursor from `next_cursor`. |
+### `ActivityAnalysis`
 
----
+| Field | Type | Required |
+| --- | --- | --- |
+| `version` | string | no |
+| `requested_end` | string (date) | yes |
+| `observed_through` | string (date) | yes |
+| `source` | ActivityInsights | yes |
+| `comparison` | PeriodComparison | yes |
+| `savings_rate_percent` | AnalysisMetric | yes |
+| `category_changes` | array of CategoryChange | yes |
+| `budget_pacing` | array of BudgetPace | yes |
+| `weekdays` | array of WeekdaySpending | yes |
+| `spending_calendar` | SpendingCalendar | yes |
+| `concentration` | array of CategoryShare | yes |
+| `income_months` | array of IncomeMonth | yes |
+| `cumulative_cashflow` | array of CumulativeActivity | yes |
+| `daily_distribution` | DailyDistribution | yes |
+| `balance_projection` | boolean | no |
+| `proves_complete_records` | boolean | no |
+| `classification_and_ownership_are_current` | boolean | no |
+| `amount_basis` | string | no |
 
-## Example Request
+### `ActivityInsights`
 
-```bash
-curl --fail-with-body --get \
-  "https://api.farz.app/api/developer/v1/reports" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json' \
-  --data-urlencode 'kind=cashflow' \
-  --data-urlencode 'start=2026-01-01' \
-  --data-urlencode 'end=2026-10-10' \
-  --data-urlencode 'limit=50'
-```
+| Field | Type | Required |
+| --- | --- | --- |
+| `conversion_basis` | string | no |
+| `version` | string | no |
+| `start` | string (date) | yes |
+| `end` | string (date) | yes |
+| `base_currency` | enum (164 values) | yes |
+| `timezone` | string | yes |
+| `change_sequence` | integer | yes |
+| `summary` | LedgerSearchSummary | yes |
+| `categories` | array of ActivityBucket | yes |
+| `days` | array of ActivityDay | yes |
+| `budgets` | array of BudgetVariance | yes |
+| `classification_is_current` | boolean | no |
+| `ownership_is_current` | boolean | no |
+| `native_amounts_are_gross_activity` | boolean | no |
+| `forecast_included` | boolean | no |
 
----
+### `ExportSpec`
 
-## Report Kinds & Schema Variations
+| Field | Type | Required |
+| --- | --- | --- |
+| `format` | enum: `csv`, `json` | no |
+| `start` | string (date) | yes |
+| `end` | string (date) | yes |
+| `account_id` | string (uuid) (nullable) | no |
 
-Every row returned conforms to [ReportRow](/docs/api/schemas#reportrow). The `values` object matches the requested kind:
+### `ExportStatus`
 
-### 1. `transactions` Report Values
-- `type`: Transaction type enum.
-- `amount`: Money object.
-- `category`: Category string or `null`.
-- `reversed`: Boolean reversal flag.
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `state` | enum: `pending`, `running`, `succeeded`, `failed`, `canceled`, `expired` | yes |
+| `attempt` | integer | yes |
+| `created_at` | string (date-time) | yes |
+| `expires_at` | string (date-time) | yes |
 
-### 2. `net_worth` Report Values
-- `asset_value`: Money object or `null`.
-- `liability_value`: Money object or `null`.
-- `net_worth`: Money object or `null`.
-- `coverage_percent`: Decimal string (`0` to `100`).
+### `ReportExportSpec`
 
-### 3. `cashflow` Report Values
-- `income`: Net incoming money.
-- `expenses`: Net outgoing money.
-- `net`: Income minus expenses.
-- `basis`: String describing posted vs forecast assumptions.
+| Field | Type | Required |
+| --- | --- | --- |
+| `format` | enum: `csv`, `json`, `pdf` | no |
+| `start` | string (date) | yes |
+| `end` | string (date) | yes |
+| `account_id` | string (uuid) (nullable) | no |
 
-### 4. `performance` Report Values
-- `return_percent`: Decimal string or `null` if data points are insufficient.
-- `method`: Calculation methodology (e.g. `time_weighted_return`, `money_weighted`).
-- `status`: Status enum (`available`, `missing_observations`, `nonconvergent`, `unsupported`).
+### `ExportCancel`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_attempt` | integer | yes |
+
+### `LedgerTextFilters`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `start` | string (date) | yes |
+| `end` | string (date) | yes |
+| `account_id` | string (uuid) (nullable) | no |
+| `category` | string (nullable) | no |
+| `tag_id` | string (uuid) (nullable) | no |
+| `native_currency` | enum (164 values) (nullable) | no |
+| `base_currency` | enum (164 values) (nullable) | no |
+| `ownership` | enum: `any`, `full`, `partial` | no |
+| `role` | enum: `income`, `expense`, `transfer`, `opening`, `refund`, `reversal`, `other` (nullable) | no |
+| `limit` | integer | no |
+| `cursor` | string (nullable) | no |
+| `query` | string | yes |
+
+### `BundlePage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of BundleStatus | yes |
+| `next_before_id` | string (uuid) (nullable) | yes |
+
+### `BundleInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` | no |
+| `sections` | array of enum (35 values) | no |
+| `confirmed` | boolean | yes |
+
+### `BundleStatus`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `state` | enum: `pending`, `running`, `ready`, `failed`, `canceled`, `purged`, `expired`, `invalidated` | yes |
+| `revision` | integer | yes |
+| `sections` | array of enum (35 values) | yes |
+| `created_at` | string (date-time) | yes |
+| `expires_at` | string (date-time) | yes |
+| `snapshot_at` | string (date-time) (nullable) | no |
+| `archive_bytes` | integer (nullable) | no |
+| `archive_sha256` | string (nullable) | no |
+| `failure_code` | enum: `input_limit`, `snapshot_changed`, `generation_unavailable`, `attempt_limit` (nullable) | no |
+| `complete_account_portability` | boolean | no |
+| `scope` | string | no |
+
+### `CleanupInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `confirmed` | boolean | yes |
+
+### `CleanupResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `purged` | integer | yes |
+| `scope` | string | no |
+
+### `BundleAction`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_revision` | integer | yes |
+| `confirmed` | boolean | yes |
+
+### `DownloadInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `ticket` | string | yes |
+
+### `TicketResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `ticket` | string | yes |
+| `expires_at` | string (date-time) | yes |
+| `archive_sha256` | string | yes |
+
+### `ManifestResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `format` | string | no |
+| `export_id` | string (uuid) | yes |
+| `workspace_id` | string (uuid) | yes |
+| `as_of` | string (date) | yes |
+| `created_at` | string (date-time) | yes |
+| `expires_at` | string (date-time) | yes |
+| `sections` | array of SectionInfo | yes |
+| `complete_account_portability` | boolean | no |
+| `scope` | string | no |
+| `omitted` | array of string | no |
+| `manifest_token` | string | yes |
+
+### `ExportPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `format` | string | no |
+| `export_id` | string (uuid) | yes |
+| `section` | enum (35 values) | yes |
+| `as_of` | string (date) | yes |
+| `total_records` | integer | yes |
+| `section_sha256` | string | yes |
+| `page_sha256` | string | yes |
+| `items` | array of ExportRecord | yes |
+| `next_cursor` | string (nullable) | yes |
+| `complete_account_portability` | boolean | no |

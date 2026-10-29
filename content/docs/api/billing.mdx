@@ -1,0 +1,129 @@
+---
+title: Billing and payments
+description: Billing routes for the planned payment launch. Payments are not live.
+---
+
+**Status: Planned.** Stripe on the web, Ziina, and Google Play or RevenueCat on Android are planned for after the beta. Do not use these routes to pay until payments are announced as live.
+
+Prices are not set. Do not rely on any price shown in a route until payments go live.
+
+## Endpoints
+
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/billing/availability` | Availability | Signed-in user (Clerk bearer) | none | none | none | 200 `BillingAvailability` |
+| `POST /api/v1/workspaces/{workspace_id}/billing/identity` | Register | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | none | 200 `BillingIdentityResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/billing/offerings` | Offerings | Signed-in user (Clerk bearer) | none | none | none | 200 array of `BillingOffering` |
+| `GET /api/v1/workspaces/{workspace_id}/billing/offerings/page` | offerings (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `OfferingsPage` |
+| `POST /api/v1/workspaces/{workspace_id}/billing/operations` | Enqueue | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `BillingCommand` | 202 `BillingOperationResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/billing/operations/{operation_id}` | Get Operation | Signed-in user (Clerk bearer) | none | none | none | 200 `BillingOperationResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/billing/operations/{operation_id}/cancel` | Cancel | Signed-in user (Clerk bearer) | none | none | none | 200 `BillingOperationResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/billing/operations/{operation_id}/execute` | Execute | Signed-in user (Clerk bearer) | none | none | none | 200 `BillingOperationResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/billing/operations/{operation_id}/history` | History | Signed-in user (Clerk bearer) | none | none | none | 200 array of `BillingEventResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/billing/operations/{operation_id}/history/page` | history (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `HistoryPage` |
+| `GET /api/v1/workspaces/{workspace_id}/billing/status` | Status | Signed-in user (Clerk bearer) | none | none | none | 200 `BillingState` |
+
+`*` marks a required query parameter. Path parameters are listed in the route.
+
+## Models
+
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
+
+### `BillingAvailability`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `configured` | boolean | yes |
+| `policy_version` | string (nullable) | no |
+| `web_checkout_available` | boolean | no |
+| `native_purchase_available` | boolean | no |
+| `automatic_reconciliation_active` | boolean | no |
+| `clerk_billing_used` | boolean | no |
+
+### `BillingIdentityResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `billing_user_id` | string (uuid) | yes |
+| `anonymous_purchases_allowed` | boolean | no |
+| `grants_access` | boolean | no |
+
+### `BillingOffering`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `cadence` | enum: `month`, `year` | yes |
+| `currency` | string | no |
+| `amount` | string | yes |
+| `provider` | string | yes |
+| `quoted_at` | string (date-time) | yes |
+| `tax_behavior` | enum: `inclusive`, `exclusive` | yes |
+| `is_estimate` | boolean | no |
+
+### `OfferingsPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of BillingOffering | yes |
+| `next_cursor` | string (nullable) | no |
+
+### `BillingCommand`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `operation` | enum: `checkout`, `portal`, `reconcile` | yes |
+| `policy_version` | string | yes |
+| `confirmed` | boolean | yes |
+| `cadence` | enum: `month`, `year` (nullable) | no |
+
+### `BillingOperationResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `operation` | enum: `checkout`, `portal`, `reconcile` | yes |
+| `state` | enum: `pending`, `running`, `unknown`, `succeeded`, `failed`, `canceled`, `expired` | yes |
+| `attempt` | integer | yes |
+| `created_at` | string (date-time) | yes |
+| `expires_at` | string (date-time) | yes |
+| `hosted_url` | string (nullable) | no |
+| `attention_required` | boolean | no |
+| `grants_access` | boolean | no |
+
+### `BillingEventResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `sequence` | integer | yes |
+| `stage` | string | yes |
+| `recorded_at` | string (date-time) | yes |
+
+### `HistoryPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of BillingEventResponse | yes |
+| `next_cursor` | string (nullable) | no |
+
+### `BillingState`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `plan` | enum: `Free`, `Trial`, `Paid` | yes |
+| `verification` | enum: `unconfigured`, `fresh`, `grace`, `stale`, `unavailable`, `not_reconciled` | yes |
+| `provider` | string (nullable) | no |
+| `cadence` | enum: `month`, `year` (nullable) | no |
+| `paid_through` | string (date-time) (nullable) | no |
+| `verified_at` | string (date-time) (nullable) | no |
+| `fresh_until` | string (date-time) (nullable) | no |
+| `card_required` | boolean | no |
+| `auto_renewal` | boolean | no |
+| `cancellation_pending` | boolean | no |
+| `renewal_currency` | string (nullable) | no |
+| `renewal_amount` | string (nullable) | no |
+| `needs_review` | boolean | no |
+| `core_records_available` | boolean | no |
+| `privacy_security_available` | boolean | no |
+| `ai_available` | boolean | no |
+| `developer_api_available` | boolean | no |
+| `mcp_available` | boolean | no |

@@ -1,0 +1,181 @@
+---
+title: Sessions and devices
+description: List registered sessions and devices, preview and revoke a session, and read the revocation history.
+---
+
+**Status: In testing.** Deployed in the API. Acceptance testing for this area is not complete.
+
+Preview a revocation before you run it, to see what it affects.
+
+## Endpoints
+
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/me/devices` | Personal Registered Sessions | Signed-in user (Clerk bearer) | none | none | none | 200 array of `SessionDeviceResponse` |
+| `POST /api/v1/me/devices` | Personal Register Session | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `SessionRegistrationWrite` | 200 `SessionRegistrationResponse` |
+| `GET /api/v1/me/devices/page` | personal_registered_sessions (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `PersonalRegisteredSessionsPage` |
+| `GET /api/v1/me/devices/{session_id}/revoke` | Personal Revoke Status | Signed-in user (Clerk bearer) | none | none | none | 200 `SessionRevokeStatus` |
+| `POST /api/v1/me/devices/{session_id}/revoke` | Personal Revoke Request | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `SessionRevokeWrite` | 202 `SessionRevokeStatus` |
+| `POST /api/v1/me/devices/{session_id}/revoke/execute` | Personal Execute Revoke | Signed-in user (Clerk bearer) | none | none | none | 200 `SessionRevokeStatus` |
+| `GET /api/v1/me/devices/{session_id}/revoke/history` | Personal Revoke History | Signed-in user (Clerk bearer) | none | none | none | 200 array of `SessionRevokeStatus` |
+| `GET /api/v1/me/devices/{session_id}/revoke/history/page` | personal_revoke_history (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `PersonalRevokeHistoryPage` |
+| `POST /api/v1/me/devices/{session_id}/revoke/preview` | Personal Revoke Preview | Signed-in user (Clerk bearer) | none | none | `SessionRevokeReview` | 200 `SessionRevokePreview` |
+| `GET /api/v1/workspaces/{workspace_id}/security/sessions` | Registered Security Sessions | Signed-in user (Clerk bearer) | none | none | none | 200 array of `SessionRegistrationResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/security/sessions` | Register Security Session | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `SessionRegistrationWrite` | 200 `SessionRegistrationResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/security/sessions/page` | registered_security_sessions (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `RegisteredSecuritySessionsPage` |
+| `POST /api/v1/workspaces/{workspace_id}/security/sessions/{session_id}/block` | Block Security Session | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `SessionBlockWrite` | 200 `SessionBlockResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/security/sessions/{session_id}/block/preview` | Preview Security Session Block | Signed-in user (Clerk bearer) | none | none | `SessionBlockReview` | 200 `SessionBlockPreview` |
+
+`*` marks a required query parameter. Path parameters are listed in the route.
+
+## Models
+
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
+
+### `SessionDeviceResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `display_name` | string | yes |
+| `platform` | enum: `web`, `android`, `ios`, `unknown` | yes |
+| `registered_at` | string (date-time) | yes |
+| `current` | boolean | yes |
+| `blocked` | boolean | yes |
+| `provider_session_verified` | boolean | no |
+| `device_hardware_verified` | boolean | no |
+| `provider_inventory_complete` | boolean | no |
+| `provider_revoke_supported` | boolean | yes |
+| `provider_revoke_unavailable_reason` | enum: `disabled`, `registration_refresh_required`, `current_session`, `already_requested` (nullable) | no |
+| `provider_revocation` | SessionRevokeStatus (nullable) | no |
+
+### `SessionRegistrationWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `display_name` | string | yes |
+| `platform` | enum: `web`, `android`, `ios` | yes |
+
+### `SessionRegistrationResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `display_name` | string | yes |
+| `platform` | enum: `web`, `android`, `ios`, `unknown` | yes |
+| `registered_at` | string (date-time) | yes |
+| `current` | boolean | yes |
+| `blocked` | boolean | yes |
+| `provider_session_verified` | boolean | no |
+| `device_hardware_verified` | boolean | no |
+| `provider_inventory_complete` | boolean | no |
+
+### `PersonalRegisteredSessionsPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of SessionDeviceResponse | yes |
+| `next_cursor` | string (nullable) | no |
+
+### `SessionRevokeStatus`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `session_id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `state` | enum (9 values) | yes |
+| `recorded_at` | string (date-time) | yes |
+| `attempts` | integer | yes |
+| `provider_session_revoked` | boolean | yes |
+| `provider_session_inactive` | boolean | yes |
+| `farz_api_access_blocked` | boolean | no |
+| `effect_scope` | string | no |
+| `retry_allowed` | boolean | yes |
+
+### `SessionRevokeWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_revision` | integer | yes |
+| `reason` | string | yes |
+| `provider_logout_acknowledged` | boolean | yes |
+| `input_digest` | string | yes |
+
+### `PersonalRevokeHistoryPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of SessionRevokeStatus | yes |
+| `next_cursor` | string (nullable) | no |
+
+### `SessionRevokeReview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_revision` | integer | yes |
+| `reason` | string | yes |
+| `provider_logout_acknowledged` | boolean | yes |
+
+### `SessionRevokePreview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `target_before` | SessionRegistrationResponse | yes |
+| `input` | SessionRevokeReview | yes |
+| `input_digest` | string | yes |
+| `applied` | boolean | no |
+| `effect` | string | no |
+| `provider_session_revoked` | boolean | no |
+
+### `RegisteredSecuritySessionsPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of SessionRegistrationResponse | yes |
+| `next_cursor` | string (nullable) | no |
+
+### `SessionBlockWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_revision` | integer | yes |
+| `reason` | string | yes |
+| `farz_api_only_acknowledged` | boolean | yes |
+| `input_digest` | string | yes |
+
+### `SessionBlockResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `target_before` | SessionRegistrationResponse | yes |
+| `input` | SessionBlockReview | yes |
+| `input_digest` | string | yes |
+| `effect` | string | no |
+| `applied` | boolean | no |
+| `provider_session_revoked` | boolean | no |
+| `scope` | string | no |
+| `farz_api_access_blocked` | boolean | no |
+| `id` | string (uuid) | yes |
+| `recorded_at` | string (date-time) | yes |
+| `revision` | integer | no |
+
+### `SessionBlockReview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_revision` | integer | yes |
+| `reason` | string | yes |
+| `farz_api_only_acknowledged` | boolean | yes |
+
+### `SessionBlockPreview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `target_before` | SessionRegistrationResponse | yes |
+| `input` | SessionBlockReview | yes |
+| `input_digest` | string | yes |
+| `effect` | string | no |
+| `applied` | boolean | no |
+| `provider_session_revoked` | boolean | no |
+| `scope` | string | no |

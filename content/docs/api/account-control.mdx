@@ -1,0 +1,76 @@
+---
+title: Account actions and history
+description: Change the state of one account, read its history and check job health.
+---
+
+**Status: In testing.** Deployed in the API. Acceptance testing for this area is not complete.
+
+The account actions route changes an account's state. The account history route lists past actions.
+
+## Endpoints
+
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/account` | Account Status | Signed-in user (Clerk bearer) | none | none | none | 200 `AccountState` |
+| `POST /api/v1/workspaces/{workspace_id}/account/actions` | Account Action | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `AccountAction` | 200 `AccountState` |
+| `GET /api/v1/workspaces/{workspace_id}/account/history` | Account History | Signed-in user (Clerk bearer) | none | `offset`, `limit` | none | 200 array of `AccountEvent` |
+| `GET /api/v1/workspaces/{workspace_id}/jobs/health` | Health | Signed-in user (Clerk bearer) | none | none | none | 200 `QueueHealth` |
+
+`*` marks a required query parameter. Path parameters are listed in the route.
+
+## Models
+
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
+
+### `AccountState`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `workspace_id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `state` | enum: `active`, `deactivated` | yes |
+| `residence` | string | yes |
+| `age_band` | string | yes |
+| `policy_version` | string | yes |
+| `current_personal_policy` | string | no |
+| `deletion_complete` | boolean | no |
+| `privacy_available` | boolean | no |
+| `export_available` | boolean | no |
+| `trial_restarted` | boolean | no |
+| `eligibility` | Status (nullable) | no |
+
+### `AccountAction`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `action` | enum (9 values) | yes |
+| `expected_revision` | integer | yes |
+| `confirmed` | boolean | yes |
+| `residence` | enum: `AE`, `SA`, `BH`, `KW`, `QA`, `OM` (nullable) | no |
+| `age` | integer (nullable) | no |
+| `policy_version` | string (nullable) | no |
+| `terms_accepted` | boolean (nullable) | no |
+| `review_reason` | enum: `age_uncertain`, `suspected_false_age` (nullable) | no |
+
+### `AccountEvent`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `action` | string | yes |
+| `created_at` | string (date-time) | yes |
+| `before` | object | yes |
+| `after` | object | yes |
+
+### `QueueHealth`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `checked_at` | string (date-time) | yes |
+| `categories` | array of QueueCategory | yes |
+| `sampled_jobs` | integer | yes |
+| `truncated` | boolean | yes |
+| `attention_required` | boolean | yes |
+| `worker_liveness_verified` | boolean | no |
+| `changes_saved` | boolean | no |

@@ -1,59 +1,38 @@
 ---
-title: Access & Scopes
-description: Overview of the Farz security model, read-only guarantees, and permissions scope matrix.
+title: Scopes
+description: The read scopes for the personal developer API and the MCP tools, and the rule for combining them.
 ---
 
-Farz follows the **principle of least privilege**. Every user API key and OAuth access token is bound to a specific set of granular read scopes.
+A scope is a read permission that you grant to a credential. A scope lets a credential read one kind of data. It never allows a write.
 
----
+**Status:** Scopes apply to the personal developer API (Planned) and to the MCP server (In testing). The app routes under `/api/v1` do not use scopes.
 
-## Scope Matrix
+## Developer API scopes
 
-| Scope | Permitted Resources |
-| :--- | :--- |
-| `profile:read` | Preferred locale, base reporting currency, and IANA timezone. |
-| `accounts:read` | Masked account metadata, status, liquidity, and native balances. |
-| `transactions:read` | Posted transactions, categories, split allocations, and reversal linkages. |
-| `assets:read` | Asset estimates, qualified security/crypto holdings, and purchase lots. |
-| `liabilities:read` | Liabilities, outstanding balances, terms, and installment schedules. |
-| `budgets:read` | Category budget limits, net posted spending, and remaining amounts. |
-| `goals:read` | Savings goal targets, progress indicators, and projection assumptions. |
-| `valuations:read` | Immutable dated valuation snapshots, historic net worth, and revision history. |
-| `reports:read` | Deterministic aggregated report rows (`transactions`, `net_worth`, `cashflow`, `performance`). |
+| Scope | Lets the credential read |
+| --- | --- |
+| `profile:read` | Locale, base currency and timezone |
+| `accounts:read` | Your accounts, as masked summaries |
+| `transactions:read` | Your posted transactions in a date range |
 
----
+The developer API does not return account balances. Its account summaries have an ID, a currency, a kind, up to four masked digits, a revision and an archived flag.
 
-## Composite Scopes for Summaries & Reports
+## MCP tool scopes
 
-When requesting composite portfolio evaluations (`/summary` or `/reports`), you must hold both the parent `reports:read` scope and the scopes for each constituent domain:
+Each MCP tool needs one scope. The tool list is in [MCP tools](/docs/mcp/tools).
 
-### Summary Endpoint (`GET /summary`)
+| Scope | Tools |
+| --- | --- |
+| `profile:read` | `get_preferences` |
+| `accounts:read` | `list_accounts` |
+| `transactions:read` | `list_transactions` |
+| `assets:read` | `list_assets` |
+| `liabilities:read` | `list_liabilities` |
+| `budgets:read` | `get_budget` |
+| `goals:read` | `list_goals` |
+| `valuations:read` | `get_valuation_history` |
+| `reports:read` | `get_financial_summary`, `get_report_data` |
 
-```text
-Required: reports:read
-Plus:
-- accounts:read     (if domains contains "accounts")
-- assets:read       (if domains contains "assets")
-- liabilities:read  (if domains contains "liabilities")
-```
+## Choosing scopes
 
-<Callout type="warn" title="No Silent Omissions">
-  If an API key requests `/summary?domains=accounts,assets,liabilities` without holding `assets:read`, the gateway will respond with `403 INSUFFICIENT_SCOPE`. The server will never silently omit assets to present an inaccurate, artificially lowered net worth total.
-</Callout>
-
-### Report Endpoint (`GET /reports`)
-
-| Report Kind | Required Scopes |
-| :--- | :--- |
-| `transactions` | `reports:read`, `transactions:read` |
-| `net_worth` | `reports:read`, `accounts:read`, `assets:read`, `liabilities:read` |
-| `cashflow` | `reports:read`, `accounts:read`, `budgets:read`, `liabilities:read` |
-| `performance` | `reports:read`, `assets:read`, `valuations:read` |
-
----
-
-## Security Boundaries & Guarantees
-
-- **Personal Workspace Only**: The developer API strictly accesses records owned by the authenticated user in their personal workspace. Joint accounts, family vaults, and guardian settings are excluded.
-- **Strictly Read-Only**: The API contains zero write, modification, or execution endpoints. It is impossible to initiate bank transfers, record transactions, alter budgets, or trade securities via this API.
-- **Data Minimization**: Full bank account numbers, unmasked credit cards, raw statement PDFs, and OCR raw texts are completely absent from API responses.
+Grant only the scopes you need. A connector or key with a narrow scope set cannot read the other domains, even when they exist in your account.

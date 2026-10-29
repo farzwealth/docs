@@ -1,7 +1,4 @@
 {
-  "title": "Model Context Protocol",
-  "pages": [
-    "index",
-    "tools"
-  ]
+  "title": "MCP server",
+  "pages": ["index", "tools"]
 }

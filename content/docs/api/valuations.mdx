@@ -1,90 +1,171 @@
 ---
-title: Valuation History
-description: Inspect immutable historical net worth snapshots, correction revisions, and asset/liability valuations.
+title: Valuation snapshots
+description: Save and read dated valuation snapshots, and run catch-up jobs for missing closed months.
 ---
 
-`GET /valuations`
+**Status: In testing.** Deployed in the API. Acceptance testing for this area is not complete.
 
-Reads original, immutable monthly portfolio valuation snapshots and correction lineage without recomputing against present-day market prices.
+A saved snapshot keeps the inputs it was made from. Later price changes do not rewrite it.
 
----
+## Endpoints
 
-## Authorization
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshot-coverage` | Discover missing closed-month snapshots | Signed-in user (Clerk bearer) | none | `from_period*`, `through_period*` | none | 200 `SnapshotCoverage` |
+| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshot-jobs` | List Snapshot Jobs | Signed-in user (Clerk bearer) | none | `limit`, `state`, `cursor` | none | 200 `SnapshotJobPage` |
+| `POST /api/v1/workspaces/{workspace_id}/valuation-snapshot-jobs` | Enqueue Snapshot Jobs | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `SnapshotJobsWrite` | 202 `SnapshotJobsResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/valuation-snapshot-jobs/catch-up` | Catch Up Snapshot Jobs | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `SnapshotCatchupWrite` | 202 `SnapshotCatchupResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshot-jobs/{task_id}` | Get Snapshot Job | Signed-in user (Clerk bearer) | none | none | none | 200 `SnapshotJobStatus` |
+| `POST /api/v1/workspaces/{workspace_id}/valuation-snapshot-jobs/{task_id}/cancel` | Cancel Snapshot Job | Signed-in user (Clerk bearer) | none | none | none | 200 `SnapshotJobStatus` |
+| `POST /api/v1/workspaces/{workspace_id}/valuation-snapshot-jobs/{task_id}/run` | Run Snapshot Job | Signed-in user (Clerk bearer) | none | none | `SnapshotJobRun` | 200 `SnapshotJobStatus` |
+| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshots` | List Valuation Snapshots | Signed-in user (Clerk bearer) | none | `period*` | none | 200 array of `ValuationSnapshotSummary` |
+| `POST /api/v1/workspaces/{workspace_id}/valuation-snapshots` | Save Valuation Snapshot | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `ValuationSnapshotWrite` | 200 `ValuationSnapshotResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshots/page` | list_valuation_snapshots (paged) | Signed-in user (Clerk bearer) | none | `period*`, `limit`, `cursor` | none | 200 `ListValuationSnapshotsPage` |
+| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshots/preview` | Preview Valuation Snapshot | Signed-in user (Clerk bearer) | none | `period*` | none | 200 `ValuationPreview` |
+| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshots/{snapshot_id}` | Get Valuation Snapshot | Signed-in user (Clerk bearer) | none | none | none | 200 `ValuationSnapshotResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshots/{snapshot_id}/report.csv` | Export Saved Valuation | Signed-in user (Clerk bearer) | none | none | none | 200 (no body) |
+| `GET /api/v1/workspaces/{workspace_id}/valuation-snapshots/{snapshot_id}/report.html` | Print Saved Valuation | Signed-in user (Clerk bearer) | none | none | none | 200 (no body) |
 
-- **Scope Required**: `valuations:read`
-- **Plan Requirement**: Active Paid subscription
+`*` marks a required query parameter. Path parameters are listed in the route.
 
----
+## Models
 
-## Query Parameters
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
 
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `start` | date | **Yes** | Inclusive beginning of saved cutoff date range (`YYYY-MM-DD`). |
-| `end` | date | **Yes** | Inclusive end of saved cutoff date range (`YYYY-MM-DD`). Max range: **366 calendar days**. |
-| `period` | date | No | First-of-month date matching the selected range (`YYYY-MM-DD`). |
-| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
-| `cursor` | string | No | Continuation cursor from `next_cursor`. |
+### `SnapshotCoverage`
 
----
+| Field | Type | Required |
+| --- | --- | --- |
+| `version` | string | no |
+| `timezone` | string | yes |
+| `change_sequence` | integer | yes |
+| `months` | array of SnapshotCoverageMonth | yes |
+| `enqueues_work` | boolean | no |
+| `proves_dispatcher_active` | boolean | no |
 
-## Example Request
+### `SnapshotJobPage`
 
-```bash
-curl --fail-with-body --get \
-  "https://api.farz.app/api/developer/v1/valuations" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json' \
-  --data-urlencode 'start=2026-01-01' \
-  --data-urlencode 'end=2026-10-10' \
-  --data-urlencode 'limit=50'
-```
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of SnapshotJobStatus | yes |
+| `next_cursor` | string (nullable) | yes |
 
----
+### `SnapshotJobsWrite`
 
-## Example Response
+| Field | Type | Required |
+| --- | --- | --- |
+| `from_period` | string (date) | yes |
+| `through_period` | string (date) | yes |
 
-```json
-{
-  "items": [
-    {
-      "id": "77777777-7777-4777-8777-777777777777",
-      "revision": 1,
-      "period": "2026-09-01",
-      "through": "2026-09-30",
-      "recorded_at": "2026-10-01T00:05:00Z",
-      "previous_snapshot_id": null,
-      "reason": "monthly_close",
-      "total_assets": {
-        "amount": "430000.00",
-        "currency": "AED"
-      },
-      "total_liabilities": {
-        "amount": "125000.00",
-        "currency": "AED"
-      },
-      "net_worth": {
-        "amount": "305000.00",
-        "currency": "AED"
-      },
-      "coverage_percent": "100.0",
-      "contributions": [],
-      "excluded": [],
-      "valuation": {
-        "as_of": "2026-09-30",
-        "timezone": "Asia/Dubai",
-        "freshness": "current",
-        "source": "recorded_snapshot",
-        "fx_legs": [],
-        "warnings": []
-      }
-    }
-  ],
-  "next_cursor": null,
-  "has_more": false
-}
-```
+### `SnapshotJobsResponse`
 
-<Callout type="info">
-  Valuation snapshots preserve the exact market prices and exchange rates that were active on the historical cutoff date. They are never updated retroactively with modern market data.
-</Callout>
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of SnapshotJobItem | yes |
+
+### `SnapshotCatchupWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `from_period` | string (date) | yes |
+| `limit` | integer | no |
+
+### `SnapshotCatchupResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `evaluated_on` | string (date) | yes |
+| `through_period` | string (date) (nullable) | yes |
+| `next_period` | string (date) (nullable) | yes |
+| `items` | array of SnapshotJobItem | yes |
+| `capture_policy` | string | no |
+| `scheduler_activated` | boolean | no |
+
+### `SnapshotJobStatus`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `task_id` | string (uuid) | yes |
+| `period` | string (date) | yes |
+| `state` | enum: `pending`, `running`, `succeeded`, `failed`, `canceled`, `expired` | yes |
+| `attempt` | integer | yes |
+| `expires_at` | string (date-time) | yes |
+| `snapshot_id` | string (uuid) (nullable) | no |
+| `outcome` | enum: `captured`, `already_saved` (nullable) | no |
+| `failure_code` | string (nullable) | no |
+
+### `SnapshotJobRun`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_attempt` | integer | yes |
+
+### `ValuationSnapshotSummary`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `capture_source` | enum: `owner_reviewed`, `owner_requested_job` | no |
+| `id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `recorded_at` | string (date-time) | yes |
+| `recorded_by` | string (uuid) | yes |
+| `reason` | string | yes |
+| `previous_snapshot_id` | string (uuid) (nullable) | yes |
+| `period` | string (date) | yes |
+| `through` | string (date) | yes |
+| `base_currency` | enum (164 values) | yes |
+| `net_worth` | string | yes |
+| `input_digest` | string | yes |
+
+### `ValuationSnapshotWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `period` | string (date) | yes |
+| `expected_revision` | integer | yes |
+| `expected_change_sequence` | integer | yes |
+| `input_digest` | string | yes |
+| `reason` | string | yes |
+
+### `ValuationSnapshotResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `capture_source` | enum: `owner_reviewed`, `owner_requested_job` | no |
+| `id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `recorded_at` | string (date-time) | yes |
+| `recorded_by` | string (uuid) | yes |
+| `reason` | string | yes |
+| `previous_snapshot_id` | string (uuid) (nullable) | yes |
+| `valuation` | ValuationPreview | yes |
+
+### `ListValuationSnapshotsPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of ValuationSnapshotSummary | yes |
+| `next_cursor` | string (nullable) | no |
+
+### `ValuationPreview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `period` | string (date) | yes |
+| `through` | string (date) | yes |
+| `base_currency` | enum (164 values) | yes |
+| `timezone` | string | yes |
+| `change_sequence` | integer | yes |
+| `input_digest` | string | yes |
+| `total_assets` | string | yes |
+| `total_debts` | string | yes |
+| `net_worth` | string | yes |
+| `coverage_percent` | integer | yes |
+| `excluded_items` | integer | yes |
+| `stale_items` | integer | yes |
+| `unobserved_asset_ids` | array of string (uuid) | yes |
+| `unobserved_debt_ids` | array of string (uuid) | yes |
+| `contributions` | array of WorthContribution | yes |
+| `allocation` | array of AllocationGroup | yes |
+| `inputs` | ValuationInputs | yes |
+| `algorithm` | enum: `month_end_reference_v1`, `month_end_reference_v2`, `month_end_reference_v3` | no |

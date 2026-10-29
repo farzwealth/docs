@@ -1,0 +1,53 @@
+---
+title: Sync and changes
+description: Read the sync anchor and the changes since it, so a client can refresh local data.
+---
+
+**Status: In testing.** Cross-device sync is not yet verified.
+
+Store the sync anchor from your last read. Send it back to get only the changes since then.
+
+## Endpoints
+
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/changes` | Get Changes | Signed-in user (Clerk bearer) | none | `after*`, `limit` | none | 200 `ChangePage` |
+| `GET /api/v1/workspaces/{workspace_id}/sync/changes` | Scoped Changes | Signed-in user (Clerk bearer) | none | `limit`, `after`, `cursor` | none | 200 `ScopedChangePage` |
+| `GET /api/v1/workspaces/{workspace_id}/sync/state` | Sync Anchor | Signed-in user (Clerk bearer) | none | none | none | 200 `SyncAnchor` |
+
+`*` marks a required query parameter. Path parameters are listed in the route.
+
+## Models
+
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
+
+### `ChangePage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of ChangeItem | yes |
+| `cursor` | integer | yes |
+| `has_more` | boolean | yes |
+
+### `ScopedChangePage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of ScopedChange | yes |
+| `next_cursor` | string | yes |
+| `has_more` | boolean | yes |
+| `snapshot_sequence` | integer | yes |
+| `current_sequence` | integer | yes |
+| `workspace_id` | string (uuid) | yes |
+| `lifecycle_revision` | integer | yes |
+
+### `SyncAnchor`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `workspace_id` | string (uuid) | yes |
+| `lifecycle_revision` | integer | yes |
+| `sequence` | integer | yes |
+| `cursor` | string | yes |
+| `contains_financial_records` | boolean | no |
+| `entity_reads_remain_authorized_separately` | boolean | no |

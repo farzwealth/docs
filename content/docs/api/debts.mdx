@@ -1,0 +1,428 @@
+---
+title: Debts and repayments
+description: Save debts, repayments and reversals, installment overrides and payoff previews.
+---
+
+**Status: In testing.** Deployed in the API. Acceptance testing for this area is not complete.
+
+A payoff preview is an estimate from the figures you enter. It is not a payoff quote from a lender.
+
+## Endpoints
+
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/debts` | Get Debts | Signed-in user (Clerk bearer) | none | none | none | 200 array of `DebtResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/debts` | Save Debt | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `DebtWrite` | 200 `DebtResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/debts/amortization/preview` | Preview Amortization | Signed-in user (Clerk bearer) | none | none | `AmortizationPreviewInput` | 200 `AmortizationProjection` |
+| `POST /api/v1/workspaces/{workspace_id}/debts/bnpl-purchases` | Bnpl | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `BnplPurchase` | 201 `WorkflowReceipt` |
+| `GET /api/v1/workspaces/{workspace_id}/debts/page` | Debt Page | Signed-in user (Clerk bearer) | none | `limit`, `cursor`, `q`, `sort`, `currency`, `kind`, `active`, `overdue` | none | 200 `RecordPage_DebtResponse_` |
+| `POST /api/v1/workspaces/{workspace_id}/debts/representation-preview` | Preview Debt Representation | Signed-in user (Clerk bearer) | none | none | `DebtRepresentationPreview` | 200 array of `DebtRepresentationWarning` |
+| `POST /api/v1/workspaces/{workspace_id}/debts/{debt_id}/creditor-refunds` | Refund | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `CreditorRefund` | 201 `WorkflowReceipt` |
+| `GET /api/v1/workspaces/{workspace_id}/debts/{debt_id}/installment-overrides` | Get Debt Overrides | Signed-in user (Clerk bearer) | none | none | none | 200 array of `DebtInstallmentOverrideResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/debts/{debt_id}/installment-overrides` | Save Debt Override | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `DebtInstallmentOverrideWrite` | 200 `DebtInstallmentOverrideResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/debts/{debt_id}/installment-overrides/page` | get_debt_overrides (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `GetDebtOverridesPage` |
+| `GET /api/v1/workspaces/{workspace_id}/debts/{debt_id}/lifecycle` | Debt Lifecycle History | Signed-in user (Clerk bearer) | none | `before`, `limit` | none | 200 array of `DebtLifecycleResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/debts/{debt_id}/lifecycle` | Record Debt Lifecycle | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `DebtLifecycleWrite` | 200 `DebtLifecycleResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/debts/{debt_id}/observations` | Get Debt History | Signed-in user (Clerk bearer) | none | none | none | 200 array of `DebtObservationResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/debts/{debt_id}/observations/page` | get_debt_history (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `GetDebtHistoryPage` |
+| `GET /api/v1/workspaces/{workspace_id}/debts/{debt_id}/repayments` | Get Debt Repayments | Signed-in user (Clerk bearer) | none | none | none | 200 array of `DebtRepaymentResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/debts/{debt_id}/repayments` | Record Debt Repayment | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `DebtRepaymentWrite` | 200 `DebtRepaymentResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/debts/{debt_id}/repayments/page` | get_debt_repayments (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `GetDebtRepaymentsPage` |
+| `POST /api/v1/workspaces/{workspace_id}/debts/{debt_id}/repayments/{repayment_id}/reversal` | Reverse Debt Repayment | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `DebtRepaymentReverse` | 200 `DebtRepaymentResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/debts/{debt_id}/settlement-preview` | Review owner-entered early payoff quote components | Signed-in user (Clerk bearer) | none | none | `SettlementInput` | 200 `app__debt_settlement__SettlementPreview` |
+
+`*` marks a required query parameter. Path parameters are listed in the route.
+
+## Models
+
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
+
+### `DebtResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `representation_warnings` | array of DebtRepresentationWarning | no |
+| `lifecycle` | DebtLifecycleResponse (nullable) | no |
+| `forecast_active` | boolean (nullable) | no |
+| `workspace_date` | string (date) (nullable) | no |
+| `overdue_installments` | integer | no |
+| `schedule_digest` | string | no |
+| `settlements` | array of DebtInstallmentStatus | no |
+| `cost_model` | LoanCostInput (nullable) | no |
+| `amortization` | AmortizationProjection (nullable) | no |
+| `id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `name` | string | yes |
+| `kind` | enum: `loan`, `mortgage`, `financing`, `bnpl`, `other` | yes |
+| `currency` | enum (164 values) | yes |
+| `principal` | string | yes |
+| `contract_note` | string | yes |
+| `schedule_total` | string | yes |
+| `first_due_on` | string (date) | yes |
+| `installment_count` | integer | yes |
+| `interval_months` | integer | yes |
+| `payments` | array of DebtSchedulePayment | yes |
+| `custom_schedule` | boolean | yes |
+| `payment_account_id` | string (uuid) (nullable) | yes |
+| `linked_asset_id` | string (uuid) (nullable) | yes |
+| `active` | boolean | yes |
+| `observation` | DebtObservationResponse (nullable) | yes |
+| `due_this_month` | string | yes |
+| `installments_this_month` | integer | yes |
+| `overdue` | string | yes |
+| `as_of` | string (date) | yes |
+| `basis` | string | no |
+
+### `DebtWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `ownership_estimate` | OwnershipEstimate (nullable) | no |
+| `cost_model_replacement_confirmed` | boolean (nullable) | no |
+| `cost_model` | LoanCostInput (nullable) | no |
+| `id` | string (uuid) (nullable) | no |
+| `expected_revision` | integer | no |
+| `name` | string | yes |
+| `kind` | enum: `loan`, `mortgage`, `financing`, `bnpl`, `other` | no |
+| `currency` | enum (164 values) | yes |
+| `principal` | string | yes |
+| `outstanding` | string (nullable) | no |
+| `observed_on` | string (date) | yes |
+| `source` | string | yes |
+| `contract_note` | string | no |
+| `schedule_total` | string | yes |
+| `first_due_on` | string (date) | yes |
+| `installment_count` | integer | no |
+| `interval_months` | integer | no |
+| `payments` | array of DebtPayment | no |
+| `payment_account_id` | string (uuid) (nullable) | no |
+| `linked_asset_id` | string (uuid) (nullable) | no |
+| `active` | boolean | no |
+| `independent_liability` | boolean | yes |
+
+### `AmortizationPreviewInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `cost_model` | LoanCostInput | yes |
+| `currency` | enum (164 values) | yes |
+| `installment_count` | integer | yes |
+| `first_due_on` | string (date) | yes |
+
+### `AmortizationProjection`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `algorithm` | enum: `monthly_cost_v1`, `monthly_recast_balloon_v2`, `monthly_capitalized_grace_v3` | no |
+| `capitalized_grace_installments` | integer (nullable) | no |
+| `total_capitalized_cost` | string (nullable) | no |
+| `capitalized_cost_basis` | string (nullable) | no |
+| `fees_during_grace` | string (nullable) | no |
+| `monthly_rate_basis` | string (nullable) | no |
+| `payment_recast` | enum: `on_explicit_rate_change_or_interest_only_end`, `on_rate_change_or_grace_interest_only_end` (nullable) | no |
+| `balloon_principal` | string (nullable) | no |
+| `interest_only_installments` | integer (nullable) | no |
+| `total_payments` | string | yes |
+| `total_cost` | string | yes |
+| `total_fees` | string | yes |
+| `installments` | array of AmortizationPayment | yes |
+
+### `BnplPurchase`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `debt` | DebtWrite | yes |
+| `category` | string | yes |
+| `description` | string | yes |
+| `confirmed` | boolean | yes |
+
+### `WorkflowReceipt`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `asset_type` | enum: `gold`, `silver`, `platinum`, `palladium` (nullable) | no |
+| `id` | string (uuid) | yes |
+| `kind` | enum: `metal_purchase`, `bnpl_purchase`, `creditor_refund`, `reverse` | yes |
+| `account_id` | string (uuid) (nullable) | yes |
+| `asset_id` | string (uuid) (nullable) | yes |
+| `debt_id` | string (uuid) (nullable) | yes |
+| `entry_id` | string (uuid) (nullable) | yes |
+| `fee_entry_id` | string (uuid) (nullable) | yes |
+| `source_repayment_id` | string (uuid) (nullable) | yes |
+| `reversal_of` | string (uuid) (nullable) | yes |
+| `occurred_on` | string (date) | yes |
+| `recorded_at` | string (date-time) | yes |
+| `currency` | enum (164 values) | yes |
+| `principal_amount` | string | yes |
+| `cost_amount` | string | yes |
+| `account_revision` | integer (nullable) | no |
+| `asset_revision` | integer (nullable) | no |
+| `debt_revision` | integer (nullable) | no |
+| `quantity` | string (nullable) | no |
+| `quantity_unit` | string (nullable) | no |
+| `fineness` | string (nullable) | no |
+| `fine_weight_grams` | string (nullable) | no |
+| `exact_fine_grams_numerator` | string (nullable) | no |
+| `exact_fine_grams_denominator` | string (nullable) | no |
+| `source` | string | yes |
+| `category` | string | yes |
+| `allocations` | array of RefundAllocation | no |
+| `market_value_known` | boolean | no |
+| `money_moved_by_farz` | boolean | no |
+
+### `RecordPage_DebtResponse_`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `as_of` | string (date) | yes |
+| `items` | array of DebtResponse | yes |
+| `next_cursor` | string (nullable) | yes |
+
+### `DebtRepresentationPreview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `currency` | enum (164 values) | yes |
+| `outstanding` | string | yes |
+| `observed_on` | string (date) | yes |
+
+### `DebtRepresentationWarning`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `owner_fraction` | string | no |
+| `owned_card_outstanding` | string (nullable) | no |
+| `equal_owned_amount` | boolean | no |
+| `code` | string | no |
+| `account_id` | string (uuid) | yes |
+| `account_name` | string | yes |
+| `account_revision` | integer | yes |
+| `currency` | enum (164 values) | yes |
+| `card_outstanding` | string | yes |
+| `observed_on` | string (date) | yes |
+| `equal_amount` | boolean | yes |
+| `explanation` | string | no |
+
+### `CreditorRefund`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_cost_classification_revision` | integer | no |
+| `repayment_id` | string (uuid) | yes |
+| `account_id` | string (uuid) | yes |
+| `expected_account_revision` | integer | yes |
+| `expected_debt_revision` | integer | yes |
+| `principal_amount` | string | yes |
+| `cost_amount` | string | no |
+| `occurred_on` | string (date) | yes |
+| `source` | string | yes |
+| `allocations` | array of RefundAllocation | no |
+| `confirmed_received` | boolean | yes |
+
+### `DebtInstallmentOverrideResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `debt_id` | string (uuid) | yes |
+| `schedule_digest` | string | yes |
+| `installment_index` | integer | yes |
+| `revision` | integer | yes |
+| `action` | enum: `skip`, `adjust`, `restore` | yes |
+| `due_on` | string (date) (nullable) | yes |
+| `amount` | string (nullable) | yes |
+| `reason` | string | yes |
+| `original_due_on` | string (date) | yes |
+| `original_amount` | string | yes |
+| `paid_at_review` | string | yes |
+| `recorded_by` | string (uuid) | yes |
+| `recorded_at` | string (date-time) | yes |
+
+### `DebtInstallmentOverrideWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_debt_revision` | integer | yes |
+| `expected_schedule_digest` | string | yes |
+| `installment_index` | integer | yes |
+| `expected_revision` | integer | yes |
+| `action` | enum: `skip`, `adjust`, `restore` | yes |
+| `due_on` | string (date) (nullable) | no |
+| `amount` | string (nullable) | no |
+| `reason` | string | yes |
+
+### `GetDebtOverridesPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of DebtInstallmentOverrideResponse | yes |
+| `next_cursor` | string (nullable) | no |
+
+### `DebtLifecycleResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `debt_id` | string (uuid) | yes |
+| `observation_id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `debt_revision` | integer | yes |
+| `effective_on` | string (date) | yes |
+| `state` | enum: `open`, `closed` | yes |
+| `closure_kind` | enum: `paid_off`, `early_settlement`, `forgiven`, `other` (nullable) | yes |
+| `reason` | string | yes |
+| `outstanding_at_review` | string | yes |
+| `recorded_by` | string (uuid) | yes |
+| `recorded_at` | string (date-time) | yes |
+
+### `DebtLifecycleWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_debt_revision` | integer | yes |
+| `expected_revision` | integer | yes |
+| `observation_id` | string (uuid) | yes |
+| `effective_on` | string (date) | yes |
+| `state` | enum: `open`, `closed` | yes |
+| `closure_kind` | enum: `paid_off`, `early_settlement`, `forgiven`, `other` (nullable) | no |
+| `reason` | string | yes |
+
+### `DebtObservationResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `money_workflow_id` | string (uuid) (nullable) | no |
+| `ownership_estimate` | OwnershipEstimate (nullable) | no |
+| `basis` | enum: `manual_owned_outstanding`, `ownership_fraction_v1`, `settled_owned_outstanding` | no |
+| `debt_repayment_id` | string (uuid) (nullable) | no |
+| `cost_model` | LoanCostInput (nullable) | no |
+| `amortization` | AmortizationProjection (nullable) | no |
+| `id` | string (uuid) | yes |
+| `debt_id` | string (uuid) | yes |
+| `debt_revision` | integer | yes |
+| `outstanding` | string | yes |
+| `observed_on` | string (date) | yes |
+| `source` | string | yes |
+| `recorded_at` | string (date-time) | yes |
+
+### `GetDebtHistoryPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of DebtObservationResponse | yes |
+| `next_cursor` | string (nullable) | no |
+
+### `DebtRepaymentResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `allocated_total` | string (nullable) | no |
+| `unmatched_amount` | string (nullable) | no |
+| `allocations` | array of DebtRepaymentAllocationResponse | no |
+| `installment_override_id` | string (uuid) (nullable) | no |
+| `installment_override_revision` | integer (nullable) | no |
+| `matched_due_on` | string (date) (nullable) | no |
+| `matched_amount` | string (nullable) | no |
+| `installment_index` | integer (nullable) | no |
+| `schedule_digest` | string (nullable) | no |
+| `scheduled_due_on` | string (date) (nullable) | no |
+| `scheduled_amount` | string (nullable) | no |
+| `id` | string (uuid) | yes |
+| `debt_id` | string (uuid) | yes |
+| `account_id` | string (uuid) | yes |
+| `observation_id` | string (uuid) | yes |
+| `principal_entry_id` | string (uuid) (nullable) | yes |
+| `cost_entry_id` | string (uuid) (nullable) | yes |
+| `reversal_of` | string (uuid) (nullable) | yes |
+| `recorded_at` | string (date-time) | yes |
+| `recorded_by` | string (uuid) | yes |
+| `action` | enum: `record`, `reverse` | yes |
+| `principal_amount` | string | yes |
+| `cost_amount` | string | yes |
+| `total_amount` | string | yes |
+| `currency` | enum (164 values) | yes |
+| `outstanding_before` | string | yes |
+| `outstanding_after` | string | yes |
+| `debt_revision` | integer | yes |
+| `account_revision` | integer | yes |
+| `occurred_on` | string (date) | yes |
+| `source` | string | yes |
+| `category` | string | yes |
+
+### `DebtRepaymentWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `allocations` | array of DebtRepaymentAllocation | no |
+| `expected_installment_revision` | integer (nullable) | no |
+| `installment_index` | integer (nullable) | no |
+| `expected_schedule_digest` | string (nullable) | no |
+| `account_id` | string (uuid) | yes |
+| `expected_account_revision` | integer | yes |
+| `expected_debt_revision` | integer | yes |
+| `principal_amount` | string | yes |
+| `cost_amount` | string | no |
+| `occurred_on` | string (date) | yes |
+| `category` | string | no |
+| `source` | string | yes |
+
+### `GetDebtRepaymentsPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of DebtRepaymentResponse | yes |
+| `next_cursor` | string (nullable) | no |
+
+### `DebtRepaymentReverse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_account_revision` | integer | yes |
+| `expected_debt_revision` | integer | yes |
+| `reason` | string | yes |
+
+### `SettlementInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_debt_revision` | integer | yes |
+| `observation_id` | string (uuid) | yes |
+| `quoted_on` | string (date) | yes |
+| `settlement_on` | string (date) | yes |
+| `valid_until` | string (date) (nullable) | no |
+| `quoted_outstanding` | string | yes |
+| `additional_accrued_cost` | string | yes |
+| `settlement_fee` | string | yes |
+| `rebate` | string | yes |
+| `source` | string | yes |
+| `amounts_are_owned_share` | boolean | yes |
+| `additional_costs_not_in_quoted_outstanding` | boolean | yes |
+
+### `app__debt_settlement__SettlementPreview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `debt_id` | string (uuid) | yes |
+| `debt_revision` | integer | yes |
+| `observation_id` | string (uuid) | yes |
+| `observation_date` | string (date) | yes |
+| `recorded_owned_outstanding` | string | yes |
+| `currency` | enum (164 values) | yes |
+| `quoted_on` | string (date) | yes |
+| `settlement_on` | string (date) | yes |
+| `valid_until` | string (date) (nullable) | yes |
+| `quoted_outstanding` | string | yes |
+| `additional_accrued_cost` | string | yes |
+| `settlement_fee` | string | yes |
+| `rebate` | string | yes |
+| `total_payable` | string | yes |
+| `difference_from_recorded_outstanding` | string | yes |
+| `source` | string | yes |
+| `input_digest` | string | yes |
+| `warnings` | array of string | yes |
+| `basis` | string | no |
+| `financial_effect_changed` | boolean | no |
+| `bank_verified` | boolean | no |
+| `confirmation_authority` | boolean | no |
+| `daily_accrual_computed` | boolean | no |
+| `automatic_closure` | boolean | no |

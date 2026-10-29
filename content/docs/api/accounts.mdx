@@ -1,106 +1,335 @@
 ---
-title: Accounts
-description: List personal financial accounts and query individual account balances and metadata.
+title: Accounts and statements
+description: Create and read accounts, card statements, statement comparisons and reconciliations.
 ---
 
-Manage and inspect bank accounts, cash wallets, credit balances, and investment accounts.
+**Status: In testing.** Deployed in the API. Acceptance testing for this area is not complete.
 
----
+Accounts hold balances in one native currency each. Every amount is a decimal string, and every amount has its currency code next to it. Do not convert amounts to floating-point numbers.
 
-## 1. List Accounts
+Balance and statement reads take a date. Reconciliation compares the ledger with a balance you enter.
 
-`GET /accounts`
+## Endpoints
 
-Returns a paginated list of masked personal accounts, native currency balances, and reporting currency conversions.
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/accounts` | Get Accounts | Signed-in user (Clerk bearer) | none | none | none | 200 array of `AccountResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/accounts` | Add Account | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `AccountCreate` | 201 `AccountResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/accounts/adjustments` | Adjust Account | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `AdjustmentWrite` | 200 `TransactionResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/accounts/page` | Get Account Page | Signed-in user (Clerk bearer) | none | `limit`, `cursor`, `currency`, `kind`, `archived`, `as_of` | none | 200 `AccountPage` |
+| `POST /api/v1/workspaces/{workspace_id}/accounts/{account_id}/card-payments` | Record Card Payment | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `CardPaymentWrite` | 201 `CardPaymentResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/accounts/{account_id}/card-statements` | Card Statement History | Signed-in user (Clerk bearer) | none | `limit`, `before_revision` | none | 200 `CardStatementPage` |
+| `POST /api/v1/workspaces/{workspace_id}/accounts/{account_id}/card-statements` | Record Card Statement | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `CardStatementWrite` | 201 `CardStatementResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/accounts/{account_id}/card-statements/preview` | Preview Card Statement | Signed-in user (Clerk bearer) | none | none | `CardFacts` | 200 `CardPreview` |
+| `GET /api/v1/workspaces/{workspace_id}/accounts/{account_id}/daily-balances` | Daily recorded native account balances | Signed-in user (Clerk bearer) | none | `start*`, `end*`, `limit`, `cursor` | none | 200 `BalanceHistory` |
+| `GET /api/v1/workspaces/{workspace_id}/accounts/{account_id}/reconciliation` | Reconciliation History | Signed-in user (Clerk bearer) | none | none | none | 200 array of `ReconciliationResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/accounts/{account_id}/reconciliation` | Reconcile Account | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `ReconciliationWrite` | 200 `ReconciliationResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/accounts/{account_id}/reconciliation/page` | reconciliation_history (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `ReconciliationHistoryPage` |
+| `POST /api/v1/workspaces/{workspace_id}/accounts/{account_id}/settings` | Account Settings | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `AccountUpdate` | 200 `AccountResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/accounts/{account_id}/statement` | Statement | Signed-in user (Clerk bearer) | none | `start*`, `end*`, `limit`, `cursor` | none | 200 `AccountStatement` |
+| `GET /api/v1/workspaces/{workspace_id}/accounts/{account_id}/statement-comparisons` | Statement History | Signed-in user (Clerk bearer) | none | none | none | 200 array of `StatementComparisonResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/accounts/{account_id}/statement-comparisons` | Compare Statement | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `StatementComparisonWrite` | 200 `StatementComparisonResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/accounts/{account_id}/statement-comparisons/page` | statement_history (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `StatementHistoryPage` |
+| `GET /api/v1/workspaces/{workspace_id}/card-statements/{statement_id}` | Selected Card Statement | Signed-in user (Clerk bearer) | none | none | none | 200 `CardStatementResponse` |
 
-### Authorization
-- **Scope Required**: `accounts:read`
-- **Plan Requirement**: Active Paid subscription
+`*` marks a required query parameter. Path parameters are listed in the route.
 
-### Query Parameters
+## Models
 
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `kind` | string | No | Filter by account type: `bank`, `cash`, `credit`, or `investment`. |
-| `archived` | boolean | No | Filter by archived status (`true` or `false`). Omission includes both. |
-| `as_of` | date | No | Balance valuation date (`YYYY-MM-DD`). Defaults to current date. |
-| `limit` | integer | No | Page limit between `1` and `100` (default: `50`). |
-| `cursor` | string | No | Opaque continuation cursor from `next_cursor`. |
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
 
-### Example Request
+### `AccountResponse`
 
-```bash
-curl --fail-with-body --get \
-  "https://api.farz.app/api/developer/v1/accounts" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json' \
-  --data-urlencode 'limit=20' \
-  --data-urlencode 'archived=false'
-```
+| Field | Type | Required |
+| --- | --- | --- |
+| `owner_fraction` | string | no |
+| `owned_balance` | string (nullable) | no |
+| `opening_balance` | string (nullable) | no |
+| `opening_balance_status` | enum: `user_recorded`, `user_confirmed`, `legacy_unconfirmed` | no |
+| `liquidity` | enum: `liquid`, `illiquid`, `unknown` | no |
+| `archived` | boolean | no |
+| `id` | string (uuid) | yes |
+| `name` | string | yes |
+| `institution` | string | yes |
+| `kind` | enum: `bank`, `cash`, `credit`, `investment` | yes |
+| `currency` | enum (164 values) | yes |
+| `balance` | string | yes |
+| `masked_reference` | string | yes |
+| `revision` | integer | yes |
+| `opening_date` | string (date) | yes |
 
-### Example Response
+### `AccountCreate`
 
-```json
-{
-  "items": [
-    {
-      "id": "22222222-2222-4222-8222-222222222222",
-      "revision": 4,
-      "name": "Primary Checking",
-      "kind": "bank",
-      "masked_reference": "4021",
-      "archived": false,
-      "liquidity": "liquid",
-      "balance": {
-        "amount": "14820.50",
-        "currency": "AED"
-      },
-      "base_balance": {
-        "amount": "14820.50",
-        "currency": "AED"
-      },
-      "valuation": {
-        "as_of": "2026-10-10",
-        "timezone": "Asia/Dubai",
-        "freshness": "current",
-        "source": "recorded_balance",
-        "fx_legs": [],
-        "warnings": []
-      }
-    }
-  ],
-  "next_cursor": null,
-  "has_more": false
-}
-```
+| Field | Type | Required |
+| --- | --- | --- |
+| `owner_fraction` | string (nullable) | no |
+| `opening_balance_confirmed` | boolean (nullable) | no |
+| `name` | string | yes |
+| `institution` | string | no |
+| `kind` | enum: `bank`, `cash`, `credit`, `investment` | no |
+| `currency` | enum (164 values) | no |
+| `opening_balance` | string | yes |
+| `opening_date` | string (date) | yes |
+| `masked_reference` | string | no |
 
----
+### `AdjustmentWrite`
 
-## 2. Get an Account
+| Field | Type | Required |
+| --- | --- | --- |
+| `account_id` | string (uuid) | yes |
+| `expected_account_revision` | integer | yes |
+| `observed_balance` | string | yes |
+| `occurred_on` | string (date) | yes |
+| `reason` | string | yes |
 
-`GET /accounts/{account_id}`
+### `TransactionResponse`
 
-Retrieves a single authorized personal account by its UUID.
+| Field | Type | Required |
+| --- | --- | --- |
+| `pending_transfer_id` | string (uuid) (nullable) | no |
+| `recurring_posting_id` | string (uuid) (nullable) | no |
+| `recurring_template_id` | string (uuid) (nullable) | no |
+| `internal_transfer_match_id` | string (uuid) (nullable) | no |
+| `transfer_partner_id` | string (uuid) (nullable) | no |
+| `money_workflow_id` | string (uuid) (nullable) | no |
+| `loan_id` | string (uuid) (nullable) | no |
+| `lending_repayment_id` | string (uuid) (nullable) | no |
+| `fx_transfer` | FXTransferMetadata (nullable) | no |
+| `fx_rounding` | FXRoundingMetadata (nullable) | no |
+| `cash_delta` | string (nullable) | no |
+| `investment_settlement_id` | string (uuid) (nullable) | no |
+| `deposit_payout_id` | string (uuid) (nullable) | no |
+| `refund_id` | string (uuid) (nullable) | no |
+| `original_expense_id` | string (uuid) (nullable) | no |
+| `investment_event_id` | string (uuid) (nullable) | no |
+| `asset_id` | string (uuid) (nullable) | no |
+| `debt_repayment_id` | string (uuid) (nullable) | no |
+| `debt_id` | string (uuid) (nullable) | no |
+| `rule_snapshot` | MerchantRuleResponse (nullable) | no |
+| `classification_revision` | integer | no |
+| `tags` | array of string (uuid) | no |
+| `allocations` | array of TransactionAllocation | no |
+| `id` | string (uuid) | yes |
+| `account_id` | string (uuid) (nullable) | yes |
+| `description` | string | yes |
+| `amount` | string | yes |
+| `currency` | enum (164 values) | yes |
+| `category` | string | yes |
+| `type` | enum (14 values) | yes |
+| `occurred_on` | string (date) | yes |
+| `reviewed` | boolean | no |
+| `reversal_of` | string (uuid) (nullable) | no |
+| `reversed` | boolean | no |
 
-### Path Parameters
+### `AccountPage`
 
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `account_id` | UUID | **Yes** | The account identifier. |
+| Field | Type | Required |
+| --- | --- | --- |
+| `as_of` | string (date) | yes |
+| `items` | array of AccountResponse | yes |
+| `next_cursor` | string (nullable) | yes |
 
-### Query Parameters
+### `CardPaymentWrite`
 
-| Name | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `as_of` | date | No | Balance valuation date (`YYYY-MM-DD`). |
+| Field | Type | Required |
+| --- | --- | --- |
+| `already_paid` | boolean | yes |
+| `source_account_id` | string (uuid) | yes |
+| `expected_source_revision` | integer | yes |
+| `expected_card_revision` | integer | yes |
+| `amount` | string | yes |
+| `occurred_on` | string (date) | yes |
+| `description` | string | yes |
+| `overpayment_confirmed` | boolean | no |
 
-### Example Request
+### `CardPaymentResponse`
 
-```bash
-curl --fail-with-body \
-  "https://api.farz.app/api/developer/v1/accounts/22222222-2222-4222-8222-222222222222" \
-  -H "Authorization: Bearer $FARZ_API_KEY" \
-  -H 'Accept: application/json'
-```
+| Field | Type | Required |
+| --- | --- | --- |
+| `transaction` | TransactionResponse | yes |
+| `source_balance` | string | yes |
+| `card_balance` | string | yes |
+| `card_credit_balance` | string | yes |
 
-Returns a single [Account](/docs/api/schemas#account) JSON object with HTTP status `200 OK`.
+### `CardStatementPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of CardStatementResponse | yes |
+| `next_before_revision` | integer (nullable) | yes |
+
+### `CardStatementWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `period_start` | string (date) | yes |
+| `period_end` | string (date) | yes |
+| `outstanding_principal` | string (nullable) | yes |
+| `pending_charges` | string (nullable) | yes |
+| `payments` | string (nullable) | yes |
+| `credit_balance` | string (nullable) | yes |
+| `credit_limit` | string (nullable) | yes |
+| `reported_balance` | string (nullable) | yes |
+| `source` | string | yes |
+| `expected_revision` | integer | yes |
+| `expected_account_revision` | integer | yes |
+| `expected_change_sequence` | integer | yes |
+| `input_digest` | string | yes |
+| `reason` | string | yes |
+
+### `CardStatementResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `account_id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `recorded_at` | string (date-time) | yes |
+| `recorded_by` | string (uuid) | yes |
+| `previous_statement_id` | string (uuid) (nullable) | yes |
+| `reason` | string | yes |
+| `facts` | CardFacts | yes |
+| `comparison` | CardPreview | yes |
+
+### `CardFacts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `period_start` | string (date) | yes |
+| `period_end` | string (date) | yes |
+| `outstanding_principal` | string (nullable) | yes |
+| `pending_charges` | string (nullable) | yes |
+| `payments` | string (nullable) | yes |
+| `credit_balance` | string (nullable) | yes |
+| `credit_limit` | string (nullable) | yes |
+| `reported_balance` | string (nullable) | yes |
+| `source` | string | yes |
+
+### `CardPreview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `account_id` | string (uuid) | yes |
+| `account_revision` | integer | yes |
+| `change_sequence` | integer | yes |
+| `currency` | enum (164 values) | yes |
+| `period_start` | string (date) | yes |
+| `period_end` | string (date) | yes |
+| `ledger_balance` | string | yes |
+| `ledger_payment_total` | string | yes |
+| `payment_entry_ids` | array of string (uuid) | yes |
+| `statement_net_components` | string (nullable) | yes |
+| `reported_vs_ledger_difference` | string (nullable) | yes |
+| `components_vs_reported_difference` | string (nullable) | yes |
+| `payments_difference` | string (nullable) | yes |
+| `conservative_headroom_estimate` | string (nullable) | yes |
+| `input_digest` | string | yes |
+
+### `BalanceHistory`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `version` | string | no |
+| `summary` | StatementSummary | yes |
+| `history_starts_on` | string (date) | yes |
+| `days` | array of BalanceDay | yes |
+| `provider_verified` | boolean | no |
+
+### `ReconciliationResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `account_id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `recorded_at` | string (date-time) | yes |
+| `action` | enum: `close`, `reopen` | yes |
+| `through` | string (date) | yes |
+| `comparison_id` | string (uuid) | yes |
+| `balance` | string | yes |
+| `currency` | enum (164 values) | yes |
+| `journal_entry_ids` | array of string (uuid) | yes |
+| `classification_revisions` | object | yes |
+| `statement_source` | string | yes |
+| `reason` | string | yes |
+| `previous_event_id` | string (uuid) (nullable) | yes |
+| `account_revision` | integer | yes |
+| `recorded_by` | string (uuid) | yes |
+
+### `ReconciliationWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `action` | enum: `close`, `reopen` | yes |
+| `comparison_id` | string (uuid) (nullable) | no |
+| `expected_revision` | integer | yes |
+| `expected_account_revision` | integer | yes |
+| `reason` | string | yes |
+
+### `ReconciliationHistoryPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of ReconciliationResponse | yes |
+| `next_cursor` | string (nullable) | no |
+
+### `AccountUpdate`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `owner_fraction` | string (nullable) | no |
+| `confirmed_opening_balance` | string (nullable) | no |
+| `liquidity` | enum: `liquid`, `illiquid`, `unknown` (nullable) | no |
+| `expected_revision` | integer | yes |
+| `name` | string | yes |
+| `institution` | string | no |
+| `masked_reference` | string | no |
+| `archived` | boolean | no |
+
+### `AccountStatement`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `version` | string | no |
+| `summary` | StatementSummary | yes |
+| `comparison` | StatementComparisonResponse (nullable) | yes |
+| `comparison_is_current` | boolean | yes |
+| `reconciliation` | ReconciliationResponse (nullable) | yes |
+| `items` | array of StatementItem | yes |
+| `next_cursor` | string (nullable) | yes |
+
+### `StatementComparisonResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `account_id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `through` | string (date) | yes |
+| `statement_balance` | string | yes |
+| `ledger_balance` | string | yes |
+| `difference` | string | yes |
+| `currency` | enum (164 values) | yes |
+| `source` | string | yes |
+| `account_revision` | integer | yes |
+| `status` | enum: `matched`, `discrepant` | yes |
+| `journal_entry_ids` | array of string (uuid) | yes |
+| `recorded_by` | string (uuid) | yes |
+| `recorded_at` | string (date-time) | yes |
+
+### `StatementComparisonWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `through` | string (date) | yes |
+| `statement_balance` | string | yes |
+| `source` | string | yes |
+| `expected_account_revision` | integer | yes |
+| `expected_comparison_revision` | integer | no |
+
+### `StatementHistoryPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of StatementComparisonResponse | yes |
+| `next_cursor` | string (nullable) | no |

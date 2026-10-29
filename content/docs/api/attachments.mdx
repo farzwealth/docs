@@ -1,0 +1,103 @@
+---
+title: Attachments
+description: Attach files, such as receipts, to a transaction.
+---
+
+**Status: In testing.** Deployed in the API. Acceptance testing for this area is not complete.
+
+An upload runs in chunks. The file is then scanned and linked to a transaction. The download-ticket route issues a ticket for a download.
+
+## Endpoints
+
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `POST /api/v1/workspaces/{workspace_id}/attachments/cleanup` | Cleanup | Signed-in user (Clerk bearer) | none | none | `AttachmentCleanup` | 200 `AttachmentCleanupResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/attachments/{attachment_id}` | Status | Signed-in user (Clerk bearer) | none | none | none | 200 `AttachmentStatus` |
+| `PUT /api/v1/workspaces/{workspace_id}/attachments/{attachment_id}/chunks/{position}` | Put Chunk | Signed-in user (Clerk bearer) | none | none | `AttachmentChunkInput` | 200 `AttachmentStatus` |
+| `POST /api/v1/workspaces/{workspace_id}/attachments/{attachment_id}/download` | Download | Signed-in user (Clerk bearer) | none | none | `AttachmentDownload` | 200 (no body) |
+| `POST /api/v1/workspaces/{workspace_id}/attachments/{attachment_id}/download-ticket` | Ticket | Signed-in user (Clerk bearer) | none | none | none | 200 `AttachmentTicketResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/attachments/{attachment_id}/finish` | Finish | Signed-in user (Clerk bearer) | none | none | `AttachmentAction` | 200 `AttachmentStatus` |
+| `POST /api/v1/workspaces/{workspace_id}/attachments/{attachment_id}/link` | Link | Signed-in user (Clerk bearer) | none | none | `AttachmentAction` | 200 `AttachmentStatus` |
+| `POST /api/v1/workspaces/{workspace_id}/attachments/{attachment_id}/remove` | Remove | Signed-in user (Clerk bearer) | none | none | `AttachmentAction` | 200 `AttachmentStatus` |
+| `POST /api/v1/workspaces/{workspace_id}/attachments/{attachment_id}/rescan` | Rescan | Signed-in user (Clerk bearer) | none | none | `AttachmentAction` | 200 `AttachmentStatus` |
+| `GET /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/attachments` | List For Entry | Signed-in user (Clerk bearer) | none | `limit`, `before_id` | none | 200 `AttachmentPage` |
+| `POST /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/attachments` | Create | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `AttachmentInput` | 202 `AttachmentStatus` |
+
+`*` marks a required query parameter. Path parameters are listed in the route.
+
+## Models
+
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
+
+### `AttachmentCleanup`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `confirmed` | boolean | yes |
+
+### `AttachmentCleanupResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `purged` | integer | yes |
+
+### `AttachmentStatus`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `entry_id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `state` | enum (10 values) | yes |
+| `filename` | string (nullable) | yes |
+| `kind` | enum: `pdf`, `png`, `jpeg` (nullable) | yes |
+| `expected_bytes` | integer | yes |
+| `received_bytes` | integer | yes |
+| `created_at` | string (date-time) | yes |
+| `upload_expires_at` | string (date-time) | yes |
+| `linked_at` | string (date-time) (nullable) | yes |
+| `failure_code` | enum: `scanner_unavailable`, `attempt_limit`, `content_unavailable` (nullable) | no |
+| `financial_effect_changed` | boolean | no |
+| `extraction_performed` | boolean | no |
+
+### `AttachmentChunkInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `content_base64` | string | yes |
+
+### `AttachmentDownload`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `ticket` | string | yes |
+
+### `AttachmentTicketResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `ticket` | string | yes |
+| `expires_at` | string (date-time) | yes |
+
+### `AttachmentAction`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_revision` | integer | yes |
+| `confirmed` | boolean | yes |
+
+### `AttachmentPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of AttachmentStatus | yes |
+| `next_before_id` | string (uuid) (nullable) | yes |
+
+### `AttachmentInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `filename` | string | yes |
+| `kind` | enum: `pdf`, `png`, `jpeg` | yes |
+| `size` | integer | yes |
+| `sha256` | string | yes |

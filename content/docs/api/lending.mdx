@@ -1,0 +1,129 @@
+---
+title: Money you lent
+description: Record loans you made, log repayments, and correct or reclaim a loan.
+---
+
+**Status: In testing.** Deployed in the API. Acceptance testing for this area is not complete.
+
+Repayments and their reversals are separate routes.
+
+## Endpoints
+
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/lending` | List Lending | Signed-in user (Clerk bearer) | none | none | none | 200 array of `LendingLoanResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/lending` | Record Lending | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `LendingAdvance` | 200 `LendingLoanResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/lending/page` | Lending Page | Signed-in user (Clerk bearer) | none | `limit`, `cursor`, `q`, `sort`, `currency`, `state`, `overdue` | none | 200 `RecordPage_LendingLoanResponse_` |
+| `GET /api/v1/workspaces/{workspace_id}/lending/{loan_id}` | Get Lending | Signed-in user (Clerk bearer) | none | none | none | 200 `LendingLoanResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/lending/{loan_id}/correct-advance` | Correct Lending Advance | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `LendingCorrection` | 200 `LendingRepaymentResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/lending/{loan_id}/reclaim` | Reclaim Lending | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `LendingReclaim` | 200 `LendingRepaymentResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/lending/{loan_id}/reclaim-preview` | Repayment | Signed-in user (Clerk bearer) | none | none | `LendingReclaim` | 200 `RepaymentPreview` |
+| `GET /api/v1/workspaces/{workspace_id}/lending/{loan_id}/repayments` | Lending Repayments | Signed-in user (Clerk bearer) | none | none | none | 200 array of `LendingRepaymentResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/lending/{loan_id}/repayments/page` | lending_repayments (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `LendingRepaymentsPage` |
+| `POST /api/v1/workspaces/{workspace_id}/lending/{loan_id}/repayments/{repayment_id}/reversal` | Reverse Lending Repayment | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `LendingCorrection` | 200 `LendingRepaymentResponse` |
+
+`*` marks a required query parameter. Path parameters are listed in the route.
+
+## Models
+
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
+
+### `LendingLoanResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `asset_id` | string (uuid) | yes |
+| `advance_entry_id` | string (uuid) | yes |
+| `account_id` | string (uuid) | yes |
+| `borrower` | string | yes |
+| `principal` | string | yes |
+| `outstanding` | string | yes |
+| `currency` | enum (164 values) | yes |
+| `occurred_on` | string (date) | yes |
+| `due_on` | string (date) (nullable) | yes |
+| `source` | string | yes |
+| `state` | enum: `outstanding`, `repaid`, `corrected` | yes |
+| `basis` | string | no |
+| `recorded_at` | string (date-time) | yes |
+
+### `LendingAdvance`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `account_id` | string (uuid) | yes |
+| `expected_account_revision` | integer | yes |
+| `borrower` | string | yes |
+| `amount` | string | yes |
+| `occurred_on` | string (date) | yes |
+| `due_on` | string (date) (nullable) | no |
+| `source` | string | yes |
+
+### `RecordPage_LendingLoanResponse_`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `as_of` | string (date) | yes |
+| `items` | array of LendingLoanResponse | yes |
+| `next_cursor` | string (nullable) | yes |
+
+### `LendingCorrection`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_account_revision` | integer | yes |
+| `expected_loan_revision` | integer | yes |
+| `reason` | string | yes |
+| `correction_confirmed` | boolean | yes |
+
+### `LendingRepaymentResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `kind` | enum: `repayment`, `repayment_reversal`, `advance_correction` | no |
+| `id` | string (uuid) | yes |
+| `loan_id` | string (uuid) | yes |
+| `account_id` | string (uuid) | yes |
+| `entry_id` | string (uuid) | yes |
+| `reversal_of` | string (uuid) (nullable) | no |
+| `amount` | string | yes |
+| `outstanding_before` | string | yes |
+| `outstanding_after` | string | yes |
+| `loan_revision` | integer | yes |
+| `occurred_on` | string (date) | yes |
+| `source` | string | yes |
+| `recorded_at` | string (date-time) | yes |
+
+### `LendingReclaim`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `account_id` | string (uuid) | yes |
+| `expected_account_revision` | integer | yes |
+| `expected_loan_revision` | integer | yes |
+| `amount` | string | yes |
+| `occurred_on` | string (date) | yes |
+| `source` | string | yes |
+| `received_confirmed` | boolean | yes |
+
+### `RepaymentPreview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `loan_id` | string (uuid) | yes |
+| `account_id` | string (uuid) | yes |
+| `amount` | string | yes |
+| `outstanding_before` | string | yes |
+| `outstanding_after` | string | yes |
+| `expected_loan_revision` | integer | yes |
+| `expected_account_revision` | integer | yes |
+| `changes_saved` | boolean | no |
+| `requires_fresh_validation` | boolean | no |
+
+### `LendingRepaymentsPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of LendingRepaymentResponse | yes |
+| `next_cursor` | string (nullable) | no |

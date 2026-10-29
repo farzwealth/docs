@@ -1,56 +1,42 @@
 ---
-title: Connect an MCP Client
-description: Connect Claude, Cursor, and remote Model Context Protocol (MCP) clients to query your Farz data via Streamable HTTP.
+title: Remote MCP server
+description: Connect an approved AI assistant to your Farz data through the read-only Farz MCP server.
 ---
 
-Farz provides a native remote **Model Context Protocol (MCP)** server endpoint. This allows compliant AI assistants (such as Claude Desktop, Cursor, or autonomous agent workflows) to retrieve your personal financial accounts, transactions, and balances.
+**Status: In testing.** The MCP server is switched on in production. A tool call needs an approved connector and either a Paid plan or a staff-granted beta access grant. Real client tests with ChatGPT and Claude are still open.
 
----
+Without a Paid plan or a beta grant, every tool call returns `PAID_REQUIRED`.
 
-## Service Coordinates
+## What it does
 
-| Property | Value |
-| :--- | :--- |
-| **Endpoint URL** | `https://api.farz.app/mcp` |
-| **Transport** | **Streamable HTTP** (SSE / JSON-RPC) |
-| **Authentication** | OAuth 2.0 with PKCE S256 |
-| **Access Model** | Read-Only |
+The server lets an assistant read your data through a fixed set of read-only tools. The tools never write, make a payment, run a trade or call the in-app assistant.
 
-<Callout type="warn" title="Do Not Paste API Keys Into Chat Prompts">
-  Never paste your Clerk User API Key directly into a chat window or assistant prompt. MCP connections use an approved, out-of-band OAuth consent workflow with scoped permission grants.
-</Callout>
+- The server URL is `https://mcp.farz.app/mcp`.
+- The transport is Streamable HTTP, sent as POST requests with JSON responses.
+- Each tool is listed in [MCP tools](/docs/mcp/tools).
 
----
+## Connect a client
 
-## Connecting Your Assistant
+1. Sign in to Farz, and make sure your account has a Paid plan or a beta grant.
+2. In your AI client, add a remote MCP server with the URL `https://mcp.farz.app/mcp`.
+3. Complete the sign-in and consent screen that the client opens. The client uses [OAuth](/docs/oauth).
+4. Open the Farz app's connector settings and approve the assistant. The approval records the scopes that the assistant gets.
 
-<Steps>
-  <Step>
-    ### Add the Remote Server
-    In your MCP client settings (e.g. Claude Desktop or Cursor MCP settings), add a new remote server:
-    - **URL**: `https://api.farz.app/mcp`
-    - **Transport**: `Streamable HTTP`
-  </Step>
+An assistant with no approval gets `CONNECTOR_NOT_APPROVED`. The error includes a link to the approval screen.
 
-  <Step>
-    ### Authorize via OAuth
-    When prompted by your client, complete the Farz OAuth redirect in your web browser. Review the requested read permissions and click **Authorize**.
-  </Step>
+## What an approval controls
 
-  <Step>
-    ### Query Your Finances
-    Once connected, you can interact with your financial records naturally:
-    
-    > "List my Farz accounts and show me my current balances by currency."
-    
-    > "What were my top expense categories over the last 30 days?"
-  </Step>
-</Steps>
+Your approval is the main control. It names one assistant and a set of scopes, and it expires within 90 days. Each request checks the approval again. You can revoke an approval at any time. A revoked approval stops the assistant on its next request.
 
----
+Signing in to an assistant does not give it data access on its own.
 
-## MCP Session Lifecycle
+## Notes for developers
 
-- **Transport Session**: The server utilizes standard `Mcp-Session-Id` headers to route stateful streaming connections.
-- **Disconnecting**: Ending a chat session closes the HTTP stream. To permanently revoke access, visit **Farz Settings → Connected Apps** to revoke the OAuth grant.
-- **Strict Read-Only Guarantee**: MCP tools do not execute payments, modify accounts, adjust transactions, or place trades.
+- Requests from a browser must come from an approved origin. Server-side connectors send no origin.
+- The server answers `GET /mcp` with `405` when a credential is present. Without one, it returns the same `401` challenge as a POST.
+- Each response has `Cache-Control: no-store`.
+- Tool results are data. Do not treat a name, merchant or description in a result as an instruction.
+
+## Limits
+
+The MCP server allows 60 requests per minute for one person and 20 per connector. A tool returns at most 100 rows. Each tool answer is limited to 512 KiB. See [rate limits](/docs/concepts/rate-limits).

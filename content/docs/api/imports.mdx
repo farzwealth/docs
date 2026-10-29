@@ -1,0 +1,514 @@
+---
+title: Statement and file imports
+description: Upload a statement, scan it, review the rows and commit them to the ledger.
+---
+
+**Status: In testing for CSV and XLSX.** Deployed on 28 October 2026. A real file has not yet been run end to end in production. **Planned for PDF and photo reading.** It is not deployed.
+
+The import flow is upload, scan, parse, review, then commit. Nothing is written to the ledger until you commit.
+
+Until PDF and photo reading is built, a PDF or photo import answers that you should enter the rows manually.
+
+## Endpoints
+
+| Route | Operation | Auth | Required headers | Query | Request body | Success |
+| --- | --- | --- | --- | --- | --- | --- |
+| `POST /api/v1/workspaces/{workspace_id}/imports/batch-checkpoints` | Commit Checkpoint | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `StepRequest` | 201 `BatchPage` |
+| `POST /api/v1/workspaces/{workspace_id}/imports/batch-confirmations` | Confirm Batch | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `BatchConfirmationWrite` | 201 object |
+| `POST /api/v1/workspaces/{workspace_id}/imports/batch-review-checks` | Check Batch | Signed-in user (Clerk bearer) | none | none | `BatchSelection` | 200 object |
+| `POST /api/v1/workspaces/{workspace_id}/imports/batches` | Start Batch | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `StartRequest` | 201 `BatchStart` |
+| `GET /api/v1/workspaces/{workspace_id}/imports/batches/{intent_id}` | Read Batch | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `BatchPage` |
+| `POST /api/v1/workspaces/{workspace_id}/imports/commits` | Commit | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `CommitRequest` | 201 object |
+| `GET /api/v1/workspaces/{workspace_id}/imports/commits/{commit_id}` | History | Signed-in user (Clerk bearer) | none | none | none | 200 object |
+| `POST /api/v1/workspaces/{workspace_id}/imports/confirmations` | Confirm | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `ConfirmationWrite` | 201 object |
+| `GET /api/v1/workspaces/{workspace_id}/imports/jobs/{job_id}` | Job Status | Signed-in user (Clerk bearer) | none | none | none | 200 object |
+| `POST /api/v1/workspaces/{workspace_id}/imports/jobs/{job_id}/cancel` | Cancel Job | Signed-in user (Clerk bearer) | none | none | none | 200 object |
+| `GET /api/v1/workspaces/{workspace_id}/imports/jobs/{job_id}/rows` | Source Rows | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 object |
+| `GET /api/v1/workspaces/{workspace_id}/imports/limits` | Intake Limits | Signed-in user (Clerk bearer) | none | none | none | 200 `IntakeLimits` |
+| `GET /api/v1/workspaces/{workspace_id}/imports/native-vision` | Page | Signed-in user (Clerk bearer) | none | `before_id`, `limit` | none | 200 `VisionPage` |
+| `POST /api/v1/workspaces/{workspace_id}/imports/native-vision` | Create | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `VisionInput` | 202 `VisionStatus` |
+| `GET /api/v1/workspaces/{workspace_id}/imports/native-vision/{vision_id}` | Status | Signed-in user (Clerk bearer) | none | none | none | 200 `VisionStatus` |
+| `POST /api/v1/workspaces/{workspace_id}/imports/native-vision/{vision_id}/cancel` | Cancel | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `VisionConfirmation` | 200 `VisionStatus` |
+| `PUT /api/v1/workspaces/{workspace_id}/imports/native-vision/{vision_id}/content` | Content | Signed-in user (Clerk bearer) | none | none | none | 200 `VisionStatus` |
+| `POST /api/v1/workspaces/{workspace_id}/imports/native-vision/{vision_id}/publish` | Publish | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `VisionPublish` | 200 `VisionStatus` |
+| `POST /api/v1/workspaces/{workspace_id}/imports/native-vision/{vision_id}/purge` | Purge | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `VisionConfirmation` | 200 `VisionStatus` |
+| `GET /api/v1/workspaces/{workspace_id}/imports/native-vision/{vision_id}/rows` | Rows | Signed-in user (Clerk bearer) | none | `offset`, `limit` | none | 200 `VisionRowsPage` |
+| `GET /api/v1/workspaces/{workspace_id}/imports/ordinary-replacements/{replacement_id}` | Ordinary Replacement History | Signed-in user (Clerk bearer) | none | none | none | 200 `OrdinaryReplacementHistory` |
+| `GET /api/v1/workspaces/{workspace_id}/imports/ordinary-sources` | Ordinary Source Page | Signed-in user (Clerk bearer) | none | `limit`, `cursor`, `account_id` | none | 200 `OrdinarySourcePage` |
+| `GET /api/v1/workspaces/{workspace_id}/imports/ordinary-sources/{source_id}` | Ordinary Source History | Signed-in user (Clerk bearer) | none | none | none | 200 `OrdinarySourceHistory` |
+| `GET /api/v1/workspaces/{workspace_id}/imports/paired-transfers` | Paired Transfer Page | Signed-in user (Clerk bearer) | none | `limit`, `cursor`, `account_id` | none | 200 `PairHistoryPage` |
+| `GET /api/v1/workspaces/{workspace_id}/imports/paired-transfers/{commit_id}` | Paired Transfer History | Signed-in user (Clerk bearer) | none | none | none | 200 `PairHistory` |
+| `POST /api/v1/workspaces/{workspace_id}/imports/paired-transfers/{commit_id}/reversals` | Paired Transfer Compensation | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `PairReverseRequest` | 201 `PairCompensationResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/imports/pending-records` | Pending Source Page | Signed-in user (Clerk bearer) | none | `limit`, `cursor`, `account_id` | none | 200 `PendingSourcePage` |
+| `GET /api/v1/workspaces/{workspace_id}/imports/pending-records/{pending_id}` | Pending Source History | Signed-in user (Clerk bearer) | none | none | none | 200 `PendingSourceHistory` |
+| `POST /api/v1/workspaces/{workspace_id}/imports/pending-records/{pending_id}/changes` | Pending Source Change | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `PendingChangeRequest` | 201 `PendingSourceChangeResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/imports/pending-settlements` | Pending Settlement Page | Signed-in user (Clerk bearer) | none | `limit`, `cursor`, `account_id` | none | 200 `PendingSettlementPage` |
+| `GET /api/v1/workspaces/{workspace_id}/imports/pending-settlements/{settlement_id}` | Pending Settlement History | Signed-in user (Clerk bearer) | none | none | none | 200 `PendingSettlementHistory` |
+| `POST /api/v1/workspaces/{workspace_id}/imports/pending-settlements/{settlement_id}/reversals` | Pending Settlement Compensation | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `app__import_pending_settlements__ReverseRequest` | 201 `PendingSettlementCompensationResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/imports/reversals` | Reverse | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `app__import_commit__ReverseRequest` | 201 object |
+| `POST /api/v1/workspaces/{workspace_id}/imports/review-checks` | Check Review | Signed-in user (Clerk bearer) | none | none | `PublicSelection` | 200 object |
+| `POST /api/v1/workspaces/{workspace_id}/imports/reviews` | Save Review | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `FinancialReviewWrite` | 201 `ReviewPage` |
+| `GET /api/v1/workspaces/{workspace_id}/imports/reviews/{review_id}` | Read Review | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `ReviewPage` |
+| `POST /api/v1/workspaces/{workspace_id}/imports/uploads` | Upload | Signed-in user (Clerk bearer) | `X-Farz-Account-ID`, `X-Farz-Account-Revision`, `X-Farz-Period-Start`, `X-Farz-Period-End`, `X-Farz-Filename (required)`, `Idempotency-Key (required)` | none | none | 201 object |
+| `GET /api/v1/workspaces/{workspace_id}/imports/uploads/{upload_id}` | Upload Status | Signed-in user (Clerk bearer) | none | none | none | 200 object |
+| `POST /api/v1/workspaces/{workspace_id}/imports/uploads/{upload_id}/cancel` | Cancel Upload | Signed-in user (Clerk bearer) | none | none | none | 200 object |
+| `POST /api/v1/workspaces/{workspace_id}/imports/uploads/{upload_id}/extractions` | Extract | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `ExtractionWrite` | 202 object |
+| `POST /api/v1/workspaces/{workspace_id}/imports/uploads/{upload_id}/scans` | Scan | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | none | 202 object |
+
+`*` marks a required query parameter. Path parameters are listed in the route.
+
+## Models
+
+Field types come from the contract. Money fields are decimal strings. Nullable fields can be `null`.
+
+### `StepRequest`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `approval_id` | string (uuid) | yes |
+| `approval_digest` | string | yes |
+| `confirmed` | boolean | yes |
+| `intent_id` | string (uuid) | yes |
+
+### `BatchPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `account_id` | string (uuid) | yes |
+| `stage_id` | string (uuid) | yes |
+| `planned_rows` | integer | yes |
+| `posted_rows` | integer | yes |
+| `remaining_rows` | integer | yes |
+| `state` | enum: `completed`, `partial`, `not_started` | yes |
+| `expired` | boolean | yes |
+| `globally_atomic` | boolean | yes |
+| `source_rows_consumed` | integer | yes |
+| `compensated_checkpoints` | integer | yes |
+| `partially_compensated_checkpoints` | integer | yes |
+| `automatic_financial_undo` | boolean | yes |
+| `next_rows` | array of integer | yes |
+| `checkpoints` | array of Checkpoint | yes |
+| `requires_fresh_confirmation` | boolean | yes |
+| `total_checkpoints` | integer | yes |
+| `next_cursor` | string (nullable) | yes |
+| `page_size` | integer | yes |
+
+### `BatchConfirmationWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `selection` | BatchSelection | yes |
+| `reconciliation` | ReconciliationDecision | yes |
+| `period` | PeriodDecision | yes |
+
+### `BatchSelection`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `review_id` | string (uuid) | yes |
+| `expected_review_revision` | integer | yes |
+| `expected_account_revision` | integer | yes |
+| `review_digest` | string | yes |
+| `selected_spans` | array of RowSpan | yes |
+| `excluded_spans` | array of RowSpan | yes |
+| `duplicate_acknowledgment_spans` | array of RowSpan | yes |
+| `confirmed` | boolean | yes |
+
+### `StartRequest`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `approval_id` | string (uuid) | yes |
+| `approval_digest` | string | yes |
+| `confirmed` | boolean | yes |
+| `batch_size` | integer | yes |
+| `acknowledge_partial_commit` | boolean | yes |
+
+### `BatchStart`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `planned_rows` | integer | yes |
+| `batch_size` | integer | yes |
+| `globally_atomic` | boolean | yes |
+| `posted_rows` | integer | yes |
+| `expires_at` | string (date-time) | yes |
+
+### `CommitRequest`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `approval_id` | string (uuid) | yes |
+| `approval_digest` | string | yes |
+| `confirmed` | boolean | yes |
+
+### `ConfirmationWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `selection` | PublicSelection | yes |
+| `reconciliation` | ReconciliationDecision | yes |
+| `period` | PeriodDecision | yes |
+
+### `IntakeLimits`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `supported_formats` | array of enum: `csv`, `xlsx` | yes |
+| `max_upload_bytes` | integer | yes |
+| `csv` | CsvIntakeLimits | yes |
+| `xlsx` | XlsxIntakeLimits | yes |
+| `policy_revision` | string | yes |
+| `pdf_available` | boolean | no |
+| `manual_entry_available` | boolean | no |
+
+### `VisionPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of VisionStatus | yes |
+| `next_before_id` | string (uuid) (nullable) | yes |
+
+### `VisionInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `account_id` | string (uuid) (nullable) | no |
+| `expected_account_revision` | integer (nullable) | no |
+| `period_start` | string (date) (nullable) | no |
+| `period_end` | string (date) (nullable) | no |
+| `source_format` | enum: `pdf`, `png`, `jpeg` | yes |
+| `source_size` | integer | yes |
+| `source_sha256` | string | yes |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` | yes |
+
+### `VisionStatus`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `state` | enum (11 values) | yes |
+| `revision` | integer | yes |
+| `created_at` | string (date-time) | yes |
+| `expires_at` | string (date-time) | yes |
+| `source_format` | enum: `pdf`, `png`, `jpeg` (nullable) | yes |
+| `page_count` | integer (nullable) | no |
+| `row_count` | integer (nullable) | no |
+| `failure_code` | string (nullable) | no |
+| `message_key` | string (nullable) | no |
+| `manual_entry_code` | string (nullable) | no |
+| `user_action` | string (nullable) | no |
+| `result_upload_id` | string (uuid) (nullable) | no |
+| `review_digest` | string (nullable) | no |
+| `review_required` | boolean | no |
+| `financial_records_posted` | boolean | no |
+| `semantic_completeness_verified` | boolean | no |
+
+### `VisionConfirmation`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_revision` | integer | yes |
+| `confirmed` | boolean | yes |
+
+### `VisionPublish`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_revision` | integer | yes |
+| `confirmed` | boolean | yes |
+| `review_digest` | string | yes |
+| `expected_account_revision` | integer | yes |
+| `account_id` | string (uuid) (nullable) | no |
+
+### `VisionRowsPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `review_digest` | string | yes |
+| `statement` | object (nullable) | no |
+| `rows` | array of object | yes |
+| `next_offset` | integer (nullable) | yes |
+| `review_required` | boolean | no |
+| `semantic_completeness_verified` | boolean | no |
+
+### `OrdinaryReplacementHistory`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `root_match_id` | string (uuid) | yes |
+| `entry_id` | string (uuid) | yes |
+| `account_id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `previous_id` | string (uuid) (nullable) | yes |
+| `currency` | enum (164 values) | yes |
+| `direction` | enum: `income`, `expense` | yes |
+| `amount` | string | yes |
+| `occurred_on` | string (date) | yes |
+| `source_description` | string | yes |
+| `recorded_category` | string | yes |
+| `recorded_classification_revision` | integer | yes |
+| `reason` | string | yes |
+| `recorded_at` | string (date-time) | yes |
+| `transaction_reversed` | boolean | yes |
+| `source_consumed` | boolean | no |
+| `new_cash_amount` | string | no |
+| `claims_released` | boolean | no |
+| `description_amended` | boolean | no |
+
+### `OrdinarySourcePage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of OrdinarySourceHistory | yes |
+| `next_cursor` | string (nullable) | no |
+
+### `OrdinarySourceHistory`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `entry_id` | string (uuid) | yes |
+| `account_id` | string (uuid) | yes |
+| `currency` | enum (164 values) | yes |
+| `direction` | enum: `income`, `expense` | yes |
+| `amount` | string | yes |
+| `occurred_on` | string (date) | yes |
+| `posted_description` | string | yes |
+| `source_description` | string | yes |
+| `recorded_category` | string | yes |
+| `recorded_at` | string (date-time) | yes |
+| `recorded_classification_revision` | integer | yes |
+| `current_classification_revision` | integer | yes |
+| `current_account_revision` | integer | yes |
+| `replacement_revision` | integer | yes |
+| `latest_replacement_id` | string (uuid) (nullable) | yes |
+| `transaction_reversed` | boolean | yes |
+| `source_consumed` | boolean | no |
+| `new_cash_amount` | string | no |
+| `claims_released` | boolean | no |
+| `description_amended` | boolean | no |
+
+### `PairHistoryPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of PairHistory | yes |
+| `next_cursor` | string (nullable) | no |
+
+### `PairHistory`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `kind` | enum: `native`, `native_with_fees`, `fx` | yes |
+| `entry_id` | string (uuid) | yes |
+| `journal_entry_ids` | array of string (uuid) | yes |
+| `occurred_on` | string (date) | yes |
+| `description` | string | yes |
+| `recorded_at` | string (date-time) | yes |
+| `sides` | array of PairSide | yes |
+| `fees` | array of PairFee | yes |
+| `functional_currency` | enum (164 values) (nullable) | yes |
+| `principal_functional_amount` | string (nullable) | yes |
+| `reversed` | boolean | yes |
+| `source_consumed` | boolean | no |
+| `claims_released` | boolean | no |
+| `payment_initiated` | boolean | no |
+
+### `PairReverseRequest`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `commit_id` | string (uuid) | yes |
+| `outgoing_revision` | integer | yes |
+| `incoming_revision` | integer | yes |
+| `reason` | string | yes |
+| `confirmed` | boolean | yes |
+
+### `PairCompensationResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `commit_id` | string (uuid) | yes |
+| `reversal_entry_ids` | array of string (uuid) | yes |
+| `source_consumed` | boolean | no |
+| `claims_released` | boolean | no |
+| `payment_initiated` | boolean | no |
+
+### `PendingSourcePage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of PendingSourceHistory | yes |
+| `next_cursor` | string (nullable) | no |
+
+### `PendingSourceHistory`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `account_id` | string (uuid) | yes |
+| `state` | enum: `pending_unposted`, `pending_canceled`, `pending_posted`, `pending_compensated` | yes |
+| `currency` | enum (164 values) | yes |
+| `original_proposed_cash_amount` | string | yes |
+| `recorded_at` | string (date-time) | yes |
+| `pending_revision` | integer | yes |
+| `current_account_revision` | integer | yes |
+| `changes` | array of PendingSourceChange | yes |
+| `settlement_id` | string (uuid) (nullable) | yes |
+| `source_consumed` | boolean | no |
+| `claims_released` | boolean | no |
+| `verifies_provider_status` | boolean | no |
+
+### `PendingChangeRequest`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `pending_id` | string (uuid) | yes |
+| `action` | enum: `cancel`, `restore` | yes |
+| `expected_pending_revision` | integer | yes |
+| `expected_account_revision` | integer | yes |
+| `reason` | string | yes |
+| `confirmed` | boolean | yes |
+
+### `PendingSourceChangeResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `pending_id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `state` | enum: `pending_unposted`, `pending_canceled` | yes |
+| `account_revision` | integer | yes |
+| `new_cash_amount` | string | no |
+| `claims_released` | boolean | no |
+| `changes_bank_status` | boolean | no |
+| `journal_entries_created` | integer | no |
+
+### `PendingSettlementPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of PendingSettlementHistory | yes |
+| `next_cursor` | string (nullable) | no |
+
+### `PendingSettlementHistory`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `pending_id` | string (uuid) | yes |
+| `account_id` | string (uuid) | yes |
+| `state` | enum: `pending_posted`, `pending_compensated` | yes |
+| `currency` | enum (164 values) | yes |
+| `original_proposed_cash_amount` | string | yes |
+| `actual_cash_amount` | string | yes |
+| `cash_direction` | enum: `income`, `expense` | yes |
+| `occurred_on` | string (date) | yes |
+| `recorded_at` | string (date-time) | yes |
+| `recorded_account_revision` | integer | yes |
+| `current_account_revision` | integer | yes |
+| `components` | array of PendingSettlementComponent | yes |
+| `compensation_id` | string (uuid) (nullable) | yes |
+| `compensated_at` | string (date-time) (nullable) | yes |
+| `claims_released` | boolean | no |
+| `verifies_provider_status` | boolean | no |
+
+### `app__import_pending_settlements__ReverseRequest`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `settlement_id` | string (uuid) | yes |
+| `expected_account_revision` | integer | yes |
+| `reason` | string | yes |
+| `confirmed` | boolean | yes |
+
+### `PendingSettlementCompensationResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `settlement_id` | string (uuid) | yes |
+| `account_id` | string (uuid) | yes |
+| `account_revision` | integer | yes |
+| `reversal_entry_ids` | array of string (uuid) | yes |
+| `state` | string | yes |
+| `claims_released` | boolean | no |
+| `verifies_provider_status` | boolean | no |
+
+### `app__import_commit__ReverseRequest`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `commit_id` | string (uuid) | yes |
+| `expected_account_revision` | integer | yes |
+| `reason` | string | yes |
+| `confirmed` | boolean | yes |
+
+### `PublicSelection`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `review_id` | string (uuid) | yes |
+| `expected_review_revision` | integer | yes |
+| `expected_account_revision` | integer | yes |
+| `review_digest` | string | yes |
+| `selected_rows` | array of integer | yes |
+| `excluded_rows` | array of integer | yes |
+| `duplicate_acknowledgments` | array of integer | yes |
+| `confirmed` | boolean | yes |
+
+### `FinancialReviewWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `preview_task_id` | string (uuid) | yes |
+| `account_id` | string (uuid) | yes |
+| `expected_account_revision` | integer | yes |
+| `expected_review_revision` | integer | yes |
+| `period_start` | string (date) | yes |
+| `period_end` | string (date) | yes |
+| `mapping` | ColumnMapping or DebitCreditMapping | yes |
+| `balances` | StatementBalances | no |
+| `resolutions` | array of RowResolution | no |
+| `financial` | FinancialRules | yes |
+
+### `ReviewPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `stage_id` | string (uuid) | yes |
+| `account_id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `recorded_at` | string (date-time) | yes |
+| `review_digest` | string | yes |
+| `preview_task_id` | string (uuid) | yes |
+| `format` | enum: `import_full_review_v1`, `import_full_review_v2`, `import_full_review_v3` | yes |
+| `parser_policy` | string | yes |
+| `parser_image` | string | yes |
+| `request` | FullReviewWrite or FinancialReviewWrite or MultipleFeeReviewWrite | yes |
+| `stage_digest` | string | yes |
+| `source_size` | integer | yes |
+| `account_revision` | integer | yes |
+| `currency` | enum (164 values) | yes |
+| `content_digest` | string | yes |
+| `classification_snapshot` | array of ClassificationSnapshot (nullable) | no |
+| `review` | ReviewMaterialization | yes |
+| `total_review_rows` | integer | yes |
+| `next_cursor` | string (nullable) | yes |
+| `page_size` | integer | yes |
+
+### `ExtractionWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `scan_task_id` | string (uuid) | yes |
+| `source_format` | enum: `csv`, `xlsx` | yes |
+| `selector` | string | yes |
