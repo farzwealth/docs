@@ -22,6 +22,8 @@ Balance and statement reads take a date. Reconciliation compares the ledger with
 | `GET /api/v1/workspaces/{workspace_id}/accounts/{account_id}/daily-balances` | Daily recorded native account balances | Signed-in user (Clerk bearer) | none | `start*`, `end*`, `limit`, `cursor` | none | 200 `BalanceHistory` |
 | `GET /api/v1/workspaces/{workspace_id}/accounts/{account_id}/reconciliation` | Reconciliation History | Signed-in user (Clerk bearer) | none | none | none | 200 array of `ReconciliationResponse` |
 | `POST /api/v1/workspaces/{workspace_id}/accounts/{account_id}/reconciliation` | Reconcile Account | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `ReconciliationWrite` | 200 `ReconciliationResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/accounts/{account_id}` | Account Detail | Signed-in user (Clerk bearer) | none | none | none | 200 `AccountResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/accounts/{account_id}/summary` | Balance, activity, last reconciliation and latest card statement of one account | Signed-in user (Clerk bearer) | none | none | none | 200 `AccountSummary` |
 | `GET /api/v1/workspaces/{workspace_id}/accounts/{account_id}/reconciliation/page` | reconciliation_history (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `ReconciliationHistoryPage` |
 | `POST /api/v1/workspaces/{workspace_id}/accounts/{account_id}/settings` | Account Settings | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `AccountUpdate` | 200 `AccountResponse` |
 | `GET /api/v1/workspaces/{workspace_id}/accounts/{account_id}/statement` | Statement | Signed-in user (Clerk bearer) | none | `start*`, `end*`, `limit`, `cursor` | none | 200 `AccountStatement` |
@@ -126,6 +128,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `as_of` | string (date) | yes |
 | `items` | array of AccountResponse | yes |
 | `next_cursor` | string (nullable) | yes |
+| `total_count` | integer | no |
 
 ### `CardPaymentWrite`
 
@@ -270,6 +273,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | --- | --- | --- |
 | `items` | array of ReconciliationResponse | yes |
 | `next_cursor` | string (nullable) | no |
+| `total_count` | integer | no |
 
 ### `AccountUpdate`
 
@@ -331,3 +335,14 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | --- | --- | --- |
 | `items` | array of StatementComparisonResponse | yes |
 | `next_cursor` | string (nullable) | no |
+| `total_count` | integer | no |
+
+### `AccountSummary`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `account` | AccountResponse | yes |
+| `transaction_count` | integer | yes |
+| `last_transaction_on` | string (date) (nullable) | yes |
+| `reconciliation` | ReconciliationState | yes |
+| `latest_card_statement` | CardStatementResponse (nullable) | no |

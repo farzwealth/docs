@@ -46,6 +46,9 @@ Reports are generated files. JSON and CSV exports are machine-readable. HTML rou
 | `GET /api/v1/workspaces/{workspace_id}/reports/transactions.csv` | Export Transactions | Signed-in user (Clerk bearer) | none | `start*`, `end*`, `account_id` | none | 200 (no body) |
 | `GET /api/v1/workspaces/{workspace_id}/reports/transactions.html` | Print Transactions | Signed-in user (Clerk bearer) | none | `start*`, `end*`, `account_id` | none | 200 (no body) |
 | `GET /api/v1/workspaces/{workspace_id}/reports/upcoming-obligations/{format}` | Upcoming Report | Signed-in user (Clerk bearer) | none | `start*`, `end*`, `account_id`, `category`, `native_currency`, `origin`, `direction`, `due_state`, `include_skipped`, `limit`, `cursor` | none | 200 (no body) |
+| `GET /api/v1/workspaces/{workspace_id}/investments/overview` | Overview | Signed-in user (Clerk bearer) | none | `asset_class`, `status`, `q`, `sort`, `base_currency`, `limit`, `cursor` | none | 200 `InvestmentOverview` |
+| `GET /api/v1/workspaces/{workspace_id}/investments/income` | Income | Signed-in user (Clerk bearer) | none | `from*`, `to*`, `group_by`, `base_currency` | none | 200 `IncomeReport` |
+| `GET /api/v1/workspaces/{workspace_id}/investments/realized-gains` | Realized Gains | Signed-in user (Clerk bearer) | none | `from*`, `to*`, `asset_id`, `limit`, `cursor` | none | 200 `RealizedGainPage` |
 
 `*` marks a required query parameter. Path parameters are listed in the route.
 
@@ -243,3 +246,39 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `items` | array of ExportRecord | yes |
 | `next_cursor` | string (nullable) | yes |
 | `complete_account_portability` | boolean | no |
+
+### `InvestmentOverview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `as_of` | string (date) | yes |
+| `base_currency` | enum (164 values) | yes |
+| `items` | array of HoldingRow | yes |
+| `next_cursor` | string (nullable) | yes |
+| `totals` | OverviewTotals | yes |
+| `by_class` | array of ClassTotals | yes |
+| `basis` | string | no |
+| `contributed_cash_separate` | boolean | no |
+
+### `IncomeReport`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `start` | string (date) | yes |
+| `end` | string (date) | yes |
+| `group_by` | enum: `none`, `month`, `year`, `asset` | yes |
+| `buckets` | array of IncomeBucket | yes |
+| `totals_by_currency` | array of IncomeBucket | yes |
+| `base_totals` | BaseIncomeTotals | yes |
+| `basis` | string | no |
+| `voided_events_excluded` | boolean | no |
+
+### `RealizedGainPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `start` | string (date) | yes |
+| `end` | string (date) | yes |
+| `items` | array of RealizedSale | yes |
+| `next_cursor` | string (nullable) | yes |
+| `basis` | string | no |

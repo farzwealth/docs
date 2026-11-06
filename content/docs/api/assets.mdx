@@ -29,6 +29,14 @@ The vehicle depreciation route returns an estimate and labels it as one.
 | `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/investment-settlements/preview` | Preview Investment Settlement | Signed-in user (Clerk bearer) | none | none | `SettlementReview` | 200 `app__investment_schemas__SettlementPreview` |
 | `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}/lifecycle` | Asset Lifecycle History | Signed-in user (Clerk bearer) | none | none | none | 200 array of `AssetLifecycleResponse` |
 | `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/lifecycle` | Record Asset Lifecycle | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `AssetLifecycleWrite` | 200 `AssetLifecycleResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}` | Get One Asset | Signed-in user (Clerk bearer) | none | none | none | 200 `AssetResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}/summary` | Asset Summary | Signed-in user (Clerk bearer) | none | none | none | 200 `AssetSummary` |
+| `PATCH /api/v1/workspaces/{workspace_id}/assets/{asset_id}/metadata` | Asset Metadata | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `AssetMetadataWrite` | 200 `AssetResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/void` | Void Asset | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `AssetVoidWrite` | 200 `AssetVoidResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/cash-postings/preview` | Preview Cash Posting | Signed-in user (Clerk bearer) | none | none | `CashPostingReview` | 200 `CashPostingPreview` |
+| `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}/cash-postings` | Cash Posting History | Signed-in user (Clerk bearer) | none | `limit` | none | 200 array of `CashPostingReceipt` |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/cash-postings` | Post Cash Posting | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `CashPostingReview` | 200 `CashPostingReceipt` |
+| `POST /api/v1/workspaces/{workspace_id}/assets/{asset_id}/cash-postings/{posting_id}/reversal` | Reverse Cash Posting | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `CashPostingReversal` | 200 `CashPostingReceipt` |
 | `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}/lifecycle/page` | asset_lifecycle_history (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `AssetLifecycleHistoryPage` |
 | `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}/valuations` | Get Asset History | Signed-in user (Clerk bearer) | none | none | none | 200 array of `AssetValuationResponse` |
 | `GET /api/v1/workspaces/{workspace_id}/assets/{asset_id}/valuations/page` | get_asset_history (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `GetAssetHistoryPage` |
@@ -88,6 +96,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `as_of` | string (date) | yes |
 | `items` | array of AssetResponse | yes |
 | `next_cursor` | string (nullable) | yes |
+| `total_count` | integer | no |
 
 ### `DepositPayoutResponse`
 
@@ -219,6 +228,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `recorded_at` | string (date-time) | yes |
 | `input` | InvestmentReview | yes |
 | `confirmation_digest` | string (nullable) | no |
+| `applied_valuation_id` | string (uuid) (nullable) | no |
 
 ### `InvestmentWrite`
 
@@ -226,10 +236,12 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | --- | --- | --- |
 | `instrument_id` | string | yes |
 | `currency` | enum (164 values) | yes |
-| `event` | Trade or Split or Dividend or Void or TickerChange or Merger or SpinOff | yes |
+| `event` | one of 7 models | yes |
 | `expected_asset_revision` | integer | yes |
 | `expected_revision` | integer | yes |
 | `method` | string | yes |
+| `apply_to_valuation` | boolean | no |
+| `allow_recompute` | boolean | no |
 | `input_digest` | string | yes |
 
 ### `InvestmentReview`
@@ -238,10 +250,12 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | --- | --- | --- |
 | `instrument_id` | string | yes |
 | `currency` | enum (164 values) | yes |
-| `event` | Trade or Split or Dividend or Void or TickerChange or Merger or SpinOff | yes |
+| `event` | one of 7 models | yes |
 | `expected_asset_revision` | integer | yes |
 | `expected_revision` | integer | yes |
 | `method` | string | yes |
+| `apply_to_valuation` | boolean | no |
+| `allow_recompute` | boolean | no |
 
 ### `InvestmentPreview`
 
@@ -251,6 +265,9 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `input_digest` | string | yes |
 | `input` | InvestmentReview | yes |
 | `position` | InvestmentPosition | yes |
+| `recompute` | boolean | no |
+| `change` | PositionChange (nullable) | no |
+| `valuation_effect` | ValuationEffect (nullable) | no |
 
 ### `SettlementResponse`
 
@@ -308,6 +325,8 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `cash_posted` | boolean | no |
 | `valuation_updated` | boolean | no |
 | `quantity_rounding` | string | no |
+| `valued_quantity` | string (nullable) | no |
+| `quantity_matches_valuation` | boolean (nullable) | no |
 
 ### `SettlementWrite`
 
@@ -377,6 +396,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | --- | --- | --- |
 | `items` | array of AssetLifecycleResponse | yes |
 | `next_cursor` | string (nullable) | no |
+| `total_count` | integer | no |
 
 ### `AssetValuationResponse`
 
@@ -407,6 +427,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | --- | --- | --- |
 | `items` | array of AssetValuationResponse | yes |
 | `next_cursor` | string (nullable) | no |
+| `total_count` | integer | no |
 
 ### `VehicleScheduleView`
 
@@ -472,3 +493,106 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `points` | array of DepreciationPoint | yes |
 | `label` | string | no |
 | `valuation_saved` | boolean | no |
+
+### `AssetSummary`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `asset` | AssetResponse | yes |
+| `valuations` | ValuationSection | yes |
+| `lifecycle` | LifecycleSection | yes |
+| `investment` | InvestmentSection (nullable) | no |
+| `deposit_payouts` | PayoutSection (nullable) | no |
+| `vehicle` | VehicleSection (nullable) | no |
+| `linked_debts` | array of LinkedDebt | no |
+| `rent_plans` | array of LinkedRentPlan | no |
+| `property_charges` | array of LinkedCharge | no |
+| `equity` | EquityEstimate (nullable) | no |
+| `cash_postings` | integer | no |
+| `attachments_supported` | boolean | no |
+
+### `AssetMetadataWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_revision` | integer | yes |
+| `name` | string (nullable) | no |
+| `liquidity` | enum: `liquid`, `illiquid`, `unknown` (nullable) | no |
+| `ownership_note` | string (nullable) | no |
+| `reference_note` | string (nullable) | no |
+
+### `AssetVoidWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_revision` | integer | yes |
+| `reason` | string | yes |
+
+### `AssetVoidResponse`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `voided_at` | string (date-time) | yes |
+| `reason` | string | yes |
+| `rows_kept_for_audit` | boolean | no |
+
+### `CashPostingReview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `kind` | enum: `purchase`, `sale` | yes |
+| `account_id` | string (uuid) | yes |
+| `expected_account_revision` | integer | yes |
+| `expected_asset_revision` | integer | yes |
+| `occurred_on` | string (date) | yes |
+| `amount` | string | yes |
+| `fees` | string | no |
+| `fee_category` | string | no |
+| `source` | string | yes |
+| `dispose_asset` | boolean | no |
+
+### `CashPostingPreview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `input` | CashPostingReview | yes |
+| `postings` | array of CashPosting | yes |
+| `net_cash_delta` | string | yes |
+| `disposes_asset` | boolean | yes |
+| `spending_reports_exclude_principal` | boolean | no |
+
+### `CashPostingReceipt`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `action` | enum: `record`, `reverse` | yes |
+| `kind` | enum: `purchase`, `sale` | yes |
+| `asset_id` | string (uuid) | yes |
+| `account_id` | string (uuid) | yes |
+| `entry_id` | string (uuid) (nullable) | yes |
+| `fee_entry_id` | string (uuid) (nullable) | yes |
+| `reversal_of` | string (uuid) (nullable) | yes |
+| `reversed` | boolean | yes |
+| `occurred_on` | string (date) | yes |
+| `recorded_at` | string (date-time) | yes |
+| `currency` | enum (164 values) | yes |
+| `amount` | string | yes |
+| `fees` | string | yes |
+| `net_cash_delta` | string | yes |
+| `account_revision` | integer (nullable) | yes |
+| `asset_revision` | integer (nullable) | yes |
+| `disposed_asset` | boolean | yes |
+| `restored_asset` | boolean | yes |
+| `source` | string | yes |
+| `money_moved_by_farz` | boolean | no |
+
+### `CashPostingReversal`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_account_revision` | integer | yes |
+| `expected_asset_revision` | integer | yes |
+| `reason` | string | yes |

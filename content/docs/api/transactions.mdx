@@ -11,13 +11,14 @@ Send an `Idempotency-Key` header with every create request. Send the same key ag
 
 | Route | Operation | Auth | Required headers | Query | Request body | Success |
 | --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/correction-options` | Transaction Correction Options | Signed-in user (Clerk bearer) | none | none | none | 200 `CorrectionOptions` |
 | `GET /api/v1/workspaces/{workspace_id}/transaction-drafts` | Draft Page | Signed-in user (Clerk bearer) | none | `after`, `limit` | none | 200 array of `DraftView` |
 | `POST /api/v1/workspaces/{workspace_id}/transaction-drafts` | Create Draft | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `DraftWrite` | 201 `DraftReceipt` |
 | `GET /api/v1/workspaces/{workspace_id}/transaction-drafts/{draft_id}` | Draft | Signed-in user (Clerk bearer) | none | none | none | 200 `DraftView` |
 | `PUT /api/v1/workspaces/{workspace_id}/transaction-drafts/{draft_id}` | Update Draft | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `DraftWrite` | 200 `DraftReceipt` |
 | `POST /api/v1/workspaces/{workspace_id}/transaction-drafts/{draft_id}/commit` | Commit Draft | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `DraftCommit` | 201 `TransactionResponse` |
 | `POST /api/v1/workspaces/{workspace_id}/transaction-drafts/{draft_id}/discard` | Discard Draft | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `DiscardDraft` | 200 `DraftReceipt` |
-| `GET /api/v1/workspaces/{workspace_id}/transactions` | Get Transactions | Signed-in user (Clerk bearer) | none | `offset`, `limit`, `account_id`, `start`, `end`, `cursor` | none | 200 `TransactionPage` |
+| `GET /api/v1/workspaces/{workspace_id}/transactions` | Get Transactions | Signed-in user (Clerk bearer) | none | `offset`, `limit`, `account_id`, `start`, `end`, `cursor`, `category`, `tag_id`, `type`, `q`, `currency`, `min_amount`, `max_amount`, `amount_basis`, `reviewed`, `sort` | none | 200 `TransactionPage` |
 | `POST /api/v1/workspaces/{workspace_id}/transactions/classification-batches` | Classify | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `ClassificationBatchInput` | 201 `ClassificationBatchResponse` |
 | `GET /api/v1/workspaces/{workspace_id}/transactions/manual-corrections` | Page | Signed-in user (Clerk bearer) | none | `before_id`, `original_entry_id`, `limit` | none | 200 `CorrectionPage` |
 | `POST /api/v1/workspaces/{workspace_id}/transactions/manual-corrections` | Prepare | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `CorrectionInput` | 201 `CorrectionView` |
@@ -29,6 +30,7 @@ Send an `Idempotency-Key` header with every create request. Send the same key ag
 | `POST /api/v1/workspaces/{workspace_id}/transactions/review` | Review Transactions | Signed-in user (Clerk bearer) | none | none | `ReviewInput` | 200 `ReviewResponse` |
 | `POST /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/classification` | Classify Transaction | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `AnnotationWrite` | 201 `AnnotationResponse` |
 | `GET /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/classification-history` | Classification History | Signed-in user (Clerk bearer) | none | none | none | 200 array of `AnnotationResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/transactions/{entry_id}` | One transaction with its splits, tags, refunds, receipts and import source | Signed-in user (Clerk bearer) | none | none | none | 200 `TransactionDetail` |
 | `GET /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/classification-history/page` | classification_history (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `ClassificationHistoryPage` |
 | `GET /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/refunds` | Expense Refund History | Signed-in user (Clerk bearer) | none | `before`, `limit` | none | 200 array of `RefundResponse` |
 | `POST /api/v1/workspaces/{workspace_id}/transactions/{entry_id}/refunds` | Record Expense Refund | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `RefundWrite` | 200 `RefundResponse` |
@@ -138,6 +140,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `next_cursor` | string (nullable) | no |
 | `items` | array of TransactionResponse | yes |
 | `next_offset` | integer (nullable) | yes |
+| `total_count` | integer (nullable) | no |
 
 ### `ClassificationBatchInput`
 
@@ -244,6 +247,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | --- | --- | --- |
 | `items` | array of AnnotationResponse | yes |
 | `next_cursor` | string (nullable) | no |
+| `total_count` | integer | no |
 
 ### `RefundResponse`
 
@@ -390,3 +394,28 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | --- | --- | --- |
 | `expected_revision` | integer | yes |
 | `reason` | string | yes |
+
+### `CorrectionOptions`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `entry_id` | string (uuid) | yes |
+| `origin` | enum: `manual`, `import`, `linked_workflow` | yes |
+| `imported` | boolean | yes |
+| `import_commit_id` | string (uuid) (nullable) | no |
+| `manual_correction_allowed` | boolean | yes |
+| `lock_code` | enum: `IMPORTED_TRANSACTION_LOCKED`, `LINKED_WORKFLOW_LOCKED` (nullable) | no |
+| `fields` | object | yes |
+| `alternatives` | array of enum: `reclassify_in_place`, `mark_reviewed`, `reverse_import_commit_then_reimport`, `review_linked_workflow_history` | yes |
+
+### `TransactionDetail`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `transaction` | TransactionResponse | yes |
+| `reversed_by` | string (uuid) (nullable) | no |
+| `classification_revisions` | integer | no |
+| `refund_count` | integer | no |
+| `refunds` | array of RefundResponse | no |
+| `attachment_count` | integer | no |
+| `import_source` | ImportSource (nullable) | no |

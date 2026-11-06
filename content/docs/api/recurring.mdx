@@ -16,6 +16,7 @@ Each occurrence is recorded with its own route.
 | `GET /api/v1/workspaces/{workspace_id}/recurring/{template_id}/postings` | Recorded Occurrences | Signed-in user (Clerk bearer) | none | `limit`, `before_id` | none | 200 `OccurrencePage` |
 | `POST /api/v1/workspaces/{workspace_id}/recurring/{template_id}/postings` | Record Occurrence | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `OccurrenceWrite` | 201 `OccurrenceReceipt` |
 | `POST /api/v1/workspaces/{workspace_id}/recurring/{template_id}/postings/preview` | Occurrence Preview | Signed-in user (Clerk bearer) | none | none | `OccurrenceFacts` | 200 `OccurrencePreview` |
+| `GET /api/v1/workspaces/{workspace_id}/recurring/{template_id}` | Recurring Detail | Signed-in user (Clerk bearer) | none | none | none | 200 `RecurringResponse` |
 
 `*` marks a required query parameter. Path parameters are listed in the route.
 
@@ -101,6 +102,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `as_of` | string (date) | yes |
 | `items` | array of RecurringResponse | yes |
 | `next_cursor` | string (nullable) | yes |
+| `total_count` | integer | no |
 
 ### `OccurrencePage`
 

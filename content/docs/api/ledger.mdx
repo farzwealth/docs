@@ -34,11 +34,14 @@ Ledger search returns records that match your filters. Results are paged with a 
 | `POST /api/v1/workspaces/{workspace_id}/pending-transfers/{transfer_id}/arrivals` | Record Arrival | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `TransferArrival` | 200 `PendingTransferReceipt` |
 | `POST /api/v1/workspaces/{workspace_id}/pending-transfers/{transfer_id}/corrections` | Correct Transfer | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `TransferCorrection` | 200 `PendingTransferReceipt` |
 | `POST /api/v1/workspaces/{workspace_id}/pending-transfers/{transfer_id}/returns` | Record Return | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `TransferReturn` | 200 `PendingTransferReceipt` |
-| `GET /api/v1/workspaces/{workspace_id}/portfolio-query` | Selected Portfolio | Signed-in user (Clerk bearer) | none | `as_of*`, `base_currency`, `account_id`, `kind`, `asset_class`, `ownership`, `liquidity`, `native_currency`, `limit`, `cursor` | none | 200 `PortfolioPage` |
-| `GET /api/v1/workspaces/{workspace_id}/portfolio-query/history` | Selected History | Signed-in user (Clerk bearer) | none | `as_of*`, `base_currency`, `account_id`, `kind`, `asset_class`, `ownership`, `liquidity`, `native_currency`, `limit`, `cursor`, `start*` | none | 200 `PortfolioHistory` |
-| `GET /api/v1/workspaces/{workspace_id}/portfolio-query/{kind}/{entity_id}` | Selected Contribution | Signed-in user (Clerk bearer) | none | `as_of*`, `base_currency`, `account_id`, `kind`, `asset_class`, `ownership`, `liquidity`, `native_currency`, `limit`, `cursor` | none | 200 `PortfolioItem` |
+| `GET /api/v1/workspaces/{workspace_id}/portfolio-query` | Selected Portfolio | Signed-in user (Clerk bearer) | none | `as_of*`, `base_currency`, `account_id`, `kind`, `asset_class`, `ownership`, `liquidity`, `native_currency`, `q`, `sort`, `limit`, `cursor` | none | 200 `PortfolioPage` |
+| `GET /api/v1/workspaces/{workspace_id}/portfolio-query/history` | Selected History | Signed-in user (Clerk bearer) | none | `as_of*`, `base_currency`, `account_id`, `kind`, `asset_class`, `ownership`, `liquidity`, `native_currency`, `q`, `sort`, `limit`, `cursor`, `start*` | none | 200 `PortfolioHistory` |
+| `GET /api/v1/workspaces/{workspace_id}/portfolio-query/{kind}/{entity_id}` | Selected Contribution | Signed-in user (Clerk bearer) | none | `as_of*`, `base_currency`, `account_id`, `kind`, `asset_class`, `ownership`, `liquidity`, `native_currency`, `q`, `sort`, `limit`, `cursor` | none | 200 `PortfolioItem` |
 | `GET /api/v1/workspaces/{workspace_id}/reconciliation-overview` | Review account reconciliation coverage | Signed-in user (Clerk bearer) | none | none | none | 200 `ReconciliationOverview` |
 | `GET /api/v1/workspaces/{workspace_id}/records/search` | Record Search | Signed-in user (Clerk bearer) | none | `limit`, `cursor`, `q*`, `sort`, `currency`, `collection`, `period` | none | 200 `RecordPage_SearchHit_` |
+| `POST /api/v1/workspaces/{workspace_id}/pending-transfers/remittance-analysis` | Measure remittance FX spread and recorded fees on actual transfers | Signed-in user (Clerk bearer) | none | none | `RemittanceInput` | 200 `RemittanceAnalysis` |
+| `POST /api/v1/workspaces/{workspace_id}/fx-transfers` | Move money between two of your accounts in different currencies in one call | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `FXTransferWrite` | 201 `FXTransferReceipt` |
+| `POST /api/v1/workspaces/{workspace_id}/fx-transfers/{entry_id}/reversal` | Reverse a cross-currency transfer and its fee together | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `FXTransferReversalWrite` | 201 `FXTransferReversal` |
 
 `*` marks a required query parameter. Path parameters are listed in the route.
 
@@ -137,7 +140,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | --- | --- | --- |
 | `asset_type` | enum: `gold`, `silver`, `platinum`, `palladium` (nullable) | no |
 | `id` | string (uuid) | yes |
-| `kind` | enum: `metal_purchase`, `bnpl_purchase`, `creditor_refund`, `reverse` | yes |
+| `kind` | enum: `metal_purchase`, `bnpl_purchase`, `creditor_refund`, `reverse`, `asset_purchase`, `asset_sale` | yes |
 | `account_id` | string (uuid) (nullable) | yes |
 | `asset_id` | string (uuid) (nullable) | yes |
 | `debt_id` | string (uuid) (nullable) | yes |
@@ -347,6 +350,8 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `gross_native_amount` | string (nullable) | yes |
 | `conversion` | FXConversionResponse (nullable) | yes |
 | `provenance` | enum: `recorded_account`, `owned_valuation`, `recorded_debt`, `unpriced_position` | yes |
+| `unrealized_gain` | string (nullable) | no |
+| `valued_on` | string (date) (nullable) | no |
 
 ### `ReconciliationOverview`
 
@@ -366,3 +371,106 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `as_of` | string (date) | yes |
 | `items` | array of SearchHit | yes |
 | `next_cursor` | string (nullable) | yes |
+| `total_count` | integer | no |
+
+### `JournalCommand`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `applied_rule` | RuleSelection (nullable) | no |
+| `tags` | array of string (uuid) | no |
+| `type` | enum: `expense`, `income`, `transfer` | yes |
+| `account_id` | string (uuid) | yes |
+| `expected_account_revision` | integer | yes |
+| `destination_account_id` | string (uuid) (nullable) | no |
+| `expected_destination_revision` | integer (nullable) | no |
+| `amount` | string | yes |
+| `occurred_on` | string (date) | yes |
+| `description` | string | yes |
+| `category` | string | no |
+| `allocations` | array of TransactionAllocation | no |
+
+### `BuyAsset`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `type` | string | yes |
+| `source_account_id` | string (uuid) | yes |
+| `expected_account_revision` | integer | yes |
+| `asset_type` | enum: `gold`, `silver`, `platinum`, `palladium` | yes |
+| `quantity` | string | yes |
+| `quantity_unit` | enum: `gram`, `kilogram`, `troy_ounce` | yes |
+| `fineness` | string | yes |
+| `cash_amount` | string | yes |
+| `cash_currency` | enum (164 values) | yes |
+| `fees` | string | yes |
+| `trade_date` | string (date) | yes |
+| `description` | string | no |
+| `source` | string | no |
+| `fee_category` | string | no |
+
+### `RemittanceInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `transfer_ids` | array of string (uuid) | yes |
+
+### `RemittanceAnalysis`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of RemittanceResult | yes |
+| `assumptions` | array of string | yes |
+| `basis` | string | no |
+| `financial_effect_changed` | boolean | no |
+| `movements_created` | boolean | no |
+| `provider_verified` | boolean | no |
+
+### `FXTransferWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `source_account_id` | string (uuid) | yes |
+| `destination_account_id` | string (uuid) | yes |
+| `expected_source_revision` | integer | yes |
+| `expected_destination_revision` | integer | yes |
+| `source_amount` | string | yes |
+| `destination_amount` | string (nullable) | no |
+| `rate` | string (nullable) | no |
+| `use_stored_rate` | boolean | no |
+| `occurred_on` | string (date) | yes |
+| `description` | string | no |
+| `source_fee` | string | no |
+| `fee_category` | string | no |
+| `record_rate_observation` | boolean | no |
+
+### `FXTransferReceipt`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `transfer` | TransactionResponse | yes |
+| `fee` | TransactionResponse (nullable) | no |
+| `source_currency` | enum (164 values) | yes |
+| `destination_currency` | enum (164 values) | yes |
+| `source_amount` | string | yes |
+| `destination_amount` | string | yes |
+| `effective_rate` | string | yes |
+| `rate_basis` | string | yes |
+| `rate_stale` | boolean | no |
+| `rate_observation_id` | string (uuid) (nullable) | no |
+| `source_account_revision` | integer | yes |
+| `destination_account_revision` | integer | yes |
+| `reversible` | boolean | no |
+
+### `FXTransferReversalWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `reason` | string | yes |
+
+### `FXTransferReversal`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `reversal` | TransactionResponse | yes |
+| `fee_reversal` | TransactionResponse (nullable) | no |

@@ -16,6 +16,9 @@ Read the inbox and your preferences. Check delivery status for a notification th
 | `GET /api/v1/workspaces/{workspace_id}/notifications/preferences` | Get Preferences | Signed-in user (Clerk bearer) | none | none | none | 200 `PreferenceResponse` |
 | `PUT /api/v1/workspaces/{workspace_id}/notifications/preferences` | Put Preferences | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `PreferenceWrite` | 200 `PreferenceResponse` |
 | `POST /api/v1/workspaces/{workspace_id}/notifications/schedule` | Schedule | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `ScheduleInput` | 200 `ScheduleReceipt` |
+| `GET /api/v1/workspaces/{workspace_id}/notifications/push-tokens` | Read | Signed-in user (Clerk bearer) | none | none | none | 200 `PushTokenList` |
+| `POST /api/v1/workspaces/{workspace_id}/notifications/push-tokens` | Create | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `PushTokenInput` | 201 `PushTokenView` |
+| `POST /api/v1/workspaces/{workspace_id}/notifications/push-tokens/{token_id}/revoke` | Revoke Route | Signed-in user (Clerk bearer) | none | none | none | 200 `PushTokenView` |
 | `POST /api/v1/workspaces/{workspace_id}/notifications/schedule-preview` | Reminders | Signed-in user (Clerk bearer) | none | none | none | 200 `ReminderPreview` |
 | `GET /api/v1/workspaces/{workspace_id}/notifications/{notification_id}/delivery` | Delivery Status | Signed-in user (Clerk bearer) | none | none | none | 200 `DeliveryResponse` |
 | `POST /api/v1/workspaces/{workspace_id}/notifications/{notification_id}/delivery/cancel` | Delivery Cancel | Signed-in user (Clerk bearer) | none | none | none | 200 `DeliveryResponse` |
@@ -79,13 +82,14 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `in_app` | boolean | no |
 | `email` | boolean | no |
 | `push` | boolean | no |
-| `kinds` | array of enum: `due`, `maturity`, `goal`, `reconciliation` | no |
+| `kinds` | array of enum: `due`, `maturity`, `goal`, `reconciliation`, `budget` | no |
 | `timezone` | string | no |
 | `local_time` | string | no |
 | `quiet_hours` | QuietHours (nullable) | no |
 | `advance_days` | integer | no |
 | `reconciliation_accounts` | array of string (uuid) | no |
 | `reconciliation_interval_days` | integer | no |
+| `budget_alert_percent` | integer | no |
 | `revision` | integer | yes |
 | `recorded_at` | string (date-time) (nullable) | yes |
 | `email_delivery_available` | boolean | no |
@@ -98,13 +102,14 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `in_app` | boolean | no |
 | `email` | boolean | no |
 | `push` | boolean | no |
-| `kinds` | array of enum: `due`, `maturity`, `goal`, `reconciliation` | no |
+| `kinds` | array of enum: `due`, `maturity`, `goal`, `reconciliation`, `budget` | no |
 | `timezone` | string | no |
 | `local_time` | string | no |
 | `quiet_hours` | QuietHours (nullable) | no |
 | `advance_days` | integer | no |
 | `reconciliation_accounts` | array of string (uuid) | no |
 | `reconciliation_interval_days` | integer | no |
+| `budget_alert_percent` | integer | no |
 | `expected_revision` | integer | yes |
 
 ### `ScheduleInput`
@@ -152,3 +157,33 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | Field | Type | Required |
 | --- | --- | --- |
 | `provider_message_id` | string (uuid) | yes |
+
+### `PushTokenList`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of PushTokenView | yes |
+| `delivery` | string | no |
+
+### `PushTokenInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `platform` | enum: `android`, `ios`, `web` | yes |
+| `token` | string | yes |
+| `label` | string (nullable) | no |
+| `app_version` | string (nullable) | no |
+| `confirmed` | boolean | yes |
+
+### `PushTokenView`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `platform` | enum: `android`, `ios`, `web` | yes |
+| `state` | enum: `active`, `revoked` | yes |
+| `label` | string (nullable) | no |
+| `app_version` | string (nullable) | no |
+| `created_at` | string (date-time) | yes |
+| `revoked_at` | string (date-time) (nullable) | no |
+| `delivery` | string | no |

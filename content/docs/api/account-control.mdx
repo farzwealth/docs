@@ -5,6 +5,16 @@ description: Change the state of one account, read its history and check job hea
 
 The account actions route changes an account's state. The account history route lists past actions.
 
+The terms-acceptance routes let an adult account owner accept the current published Terms and Privacy Policy again. An account created before the current text was published holds an earlier version. The assistant and statement reading ask for the current Terms, and when the stored acceptance is older they answer `TERMS_UPDATE_REQUIRED` (see the `reason` field in the [assistant guide](/docs/api/assistant)).
+
+## Accept the current Terms
+
+1. `GET /api/v1/workspaces/{workspace_id}/terms-acceptance` returns the version in force, the SHA-256 of the text in the language you ask for (`locale`), and `current`, which is `true` when your stored acceptance is the current one. It also returns `revision`, which you send back when you accept.
+2. `POST` the same path with the `revision` as `expected_revision`, the `locale`, both versions and both text digests you were shown, and `confirmed: true`. Send an `Idempotency-Key` header.
+3. The response is the new state. The call answers `409` when the published text has moved on since the digests you sent, or when another device accepted first. Fetch the state again and show the text again before retrying.
+
+If the account is already current, the call changes nothing and returns the state, so a double click or a second device is harmless. Only the account owner can accept, and only an adult account.
+
 ## Endpoints
 
 | Route | Operation | Auth | Required headers | Query | Request body | Success |
@@ -12,6 +22,8 @@ The account actions route changes an account's state. The account history route 
 | `GET /api/v1/workspaces/{workspace_id}/account` | Account Status | Signed-in user (Clerk bearer) | none | none | none | 200 `AccountState` |
 | `POST /api/v1/workspaces/{workspace_id}/account/actions` | Account Action | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `AccountAction` | 200 `AccountState` |
 | `GET /api/v1/workspaces/{workspace_id}/account/history` | Account History | Signed-in user (Clerk bearer) | none | `offset`, `limit` | none | 200 array of `AccountEvent` |
+| `GET /api/v1/workspaces/{workspace_id}/terms-acceptance` | Terms Acceptance Status | Signed-in user (Clerk bearer) | none | `locale` | none | 200 `TermsAcceptanceState` |
+| `POST /api/v1/workspaces/{workspace_id}/terms-acceptance` | Accept Current Terms | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `TermsAcceptanceInput` | 200 `TermsAcceptanceState` |
 | `GET /api/v1/workspaces/{workspace_id}/jobs/health` | Health | Signed-in user (Clerk bearer) | none | none | none | 200 `QueueHealth` |
 
 `*` marks a required query parameter. Path parameters are listed in the route.
@@ -72,3 +84,32 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `attention_required` | boolean | yes |
 | `worker_liveness_verified` | boolean | no |
 | `changes_saved` | boolean | no |
+
+### `TermsAcceptanceState`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `workspace_id` | string (uuid) | yes |
+| `revision` | integer | yes |
+| `current` | boolean | yes |
+| `terms_version` | string | yes |
+| `privacy_version` | string | yes |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` | yes |
+| `terms_text_sha256` | string | yes |
+| `privacy_text_sha256` | string | yes |
+| `accepted_terms_version` | string (nullable) | yes |
+| `accepted_privacy_version` | string (nullable) | yes |
+| `accepted_locale` | string (nullable) | yes |
+| `accepted_at` | string (date-time) (nullable) | yes |
+
+### `TermsAcceptanceInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_revision` | integer | yes |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` | yes |
+| `terms_version` | string | yes |
+| `privacy_version` | string | yes |
+| `terms_text_sha256` | string | yes |
+| `privacy_text_sha256` | string | yes |
+| `confirmed` | boolean | yes |

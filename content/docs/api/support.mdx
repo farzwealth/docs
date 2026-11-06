@@ -14,6 +14,13 @@ Use a ticket for account or product problems. Do not put a password or a full ca
 | `GET /api/v1/workspaces/{workspace_id}/support/tickets/{ticket_id}` | Selected | Signed-in user (Clerk bearer) | none | none | none | 200 `TicketView` |
 | `POST /api/v1/workspaces/{workspace_id}/support/tickets/{ticket_id}/actions` | Act | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `TicketAction` | 200 `TicketView` |
 | `GET /api/v1/workspaces/{workspace_id}/support/tickets/{ticket_id}/messages` | Messages | Signed-in user (Clerk bearer) | none | `after_sequence`, `limit` | none | 200 `MessagePage` |
+| `GET /api/v1/workspaces/{workspace_id}/support/complaints` | Complaints | Signed-in user (Clerk bearer) | none | `before_id`, `limit` | none | 200 `TicketPage` |
+| `POST /api/v1/workspaces/{workspace_id}/support/complaints` | Create Complaint | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `ComplaintInput` | 201 `TicketView` |
+| `GET /api/v1/workspaces/{workspace_id}/support/reports` | Reports | Signed-in user (Clerk bearer) | none | `before_id`, `limit` | none | 200 `TicketPage` |
+| `POST /api/v1/workspaces/{workspace_id}/support/reports` | Create Report | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `ReportInput` | 201 `TicketView` |
+| `GET /api/v1/workspaces/{workspace_id}/support/receipts/{reference}` | Receipt | Signed-in user (Clerk bearer) | none | none | none | 200 `ReceiptView` |
+| `POST /api/v1/public/contact` | Send a message to Farz support without an account | None (public) | none | none | `ContactInput` | 202 `ContactReceipt` |
+| `GET /api/v1/public/contact/receipts/{reference}` | Receipt | None (public) | none | none | none | 200 `ContactReceipt` |
 
 `*` marks a required query parameter. Path parameters are listed in the route.
 
@@ -52,6 +59,13 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `updated_at` | string (date-time) | yes |
 | `email_delivered` | boolean | no |
 | `staff_response_received` | boolean | no |
+| `kind` | enum: `ticket`, `complaint`, `report` | no |
+| `reference` | string (nullable) | no |
+| `respond_by` | string (date-time) (nullable) | no |
+| `complaint_type` | string (nullable) | no |
+| `area` | string (nullable) | no |
+| `error_code` | string (nullable) | no |
+| `app_version` | string (nullable) | no |
 
 ### `TicketAction`
 
@@ -68,3 +82,61 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | --- | --- | --- |
 | `items` | array of MessageView | yes |
 | `next_after_sequence` | integer (nullable) | yes |
+
+### `ComplaintInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `complaint_type` | enum: `service`, `billing`, `privacy`, `security`, `data_accuracy`, `conduct`, `other` | yes |
+| `subject` | string | yes |
+| `details` | string | yes |
+| `platform` | enum: `web`, `android`, `ios`, `api` | yes |
+| `confirmed` | boolean | yes |
+
+### `ReportInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `report_kind` | enum: `error`, `feature` | yes |
+| `summary` | string | yes |
+| `details` | string | yes |
+| `area` | string | yes |
+| `platform` | enum: `web`, `android`, `ios`, `api` | yes |
+| `error_code` | string (nullable) | no |
+| `app_version` | string (nullable) | no |
+| `confirmed` | boolean | yes |
+
+### `ReceiptView`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `reference` | string | yes |
+| `kind` | enum: `ticket`, `complaint`, `report` | yes |
+| `ticket_id` | string (uuid) | yes |
+| `state` | enum: `open`, `closed` | yes |
+| `created_at` | string (date-time) | yes |
+| `updated_at` | string (date-time) | yes |
+| `respond_by` | string (date-time) (nullable) | no |
+| `staff_response_received` | boolean | no |
+
+### `ContactInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `topic` | enum: `general`, `complaint`, `privacy`, `security`, `billing`, `bug`, `feature` | no |
+| `name` | string (nullable) | no |
+| `email` | string | yes |
+| `message` | string | yes |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` | no |
+| `confirmed` | boolean | yes |
+
+### `ContactReceipt`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `reference` | string | yes |
+| `topic` | enum: `general`, `complaint`, `privacy`, `security`, `billing`, `bug`, `feature` | yes |
+| `state` | enum: `pending`, `forwarded`, `failed` | yes |
+| `received_at` | string (date-time) | yes |
+| `finished_at` | string (date-time) (nullable) | no |
+| `reply_promised` | boolean | no |

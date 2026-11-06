@@ -39,6 +39,18 @@ Every `POST` that creates a record requires an `Idempotency-Key` header. The val
 - A successful empty list is `[]` or a page with no items. It is not an error.
 - A record that you cannot see returns `404`. The API does not confirm that the record exists.
 
+## Value status
+
+Plans, forecasts and quotes carry a `value_status` field next to the figure. The API decides it, so a client should show it as given and never work it out from another field. The values are:
+
+- `manual`: you typed the figure and nothing has checked it against a ledger or a provider.
+- `estimated`: a plan, forecast, projection, scenario or your own assumption.
+- `confirmed`: a current provider quote. Nothing else is `confirmed`.
+- `stale`: a quote that is out of date.
+- `missing`: a quote with no price.
+
+`value_status` is `null` when the figure is already settled in the ledger, or when its basis has no label. An unknown basis stays unlabelled; the API does not guess. The field appears on debts and payoff plans, goals, budgets, cash flow, rent plans, scenarios, lending, quotes and the dashboard breakdown items.
+
 ## Languages
 
 Language values are `en`, `ar`, `fr` and `ru`. English is complete. The Arabic, French and Russian text is an AI-reviewed draft until a human reviewer signs it off.

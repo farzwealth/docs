@@ -5,12 +5,15 @@ description: Upload a statement, scan it, review the rows and commit them to the
 
 The import flow is upload, scan, parse, review, then commit. Nothing is written to the ledger until you commit.
 
-Until PDF and photo reading is built, a PDF or photo import answers that you should enter the rows manually.
+PDF and photo statements are read only when `GET /api/v1/workspaces/{workspace_id}/imports/native-vision/availability` answers `available` for your account. Otherwise the import answers that you should enter the rows manually, and the availability response gives a fixed `reason`. An `available` answer does not show that a reading worker or a model provider is running right now. If a read is refused, the error carries a stable code such as `STATEMENT_READING_FREE_PLAN` or `STATEMENT_READING_TERMS_UPDATE_REQUIRED`, and the message offers manual entry.
 
 ## Endpoints
 
 | Route | Operation | Auth | Required headers | Query | Request body | Success |
 | --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/imports/formats` | Launch Formats | Signed-in user (Clerk bearer) | none | none | none | 200 `LaunchFormats` |
+| `GET /api/v1/workspaces/{workspace_id}/imports/uploads` | In Flight Uploads | Signed-in user (Clerk bearer) | none | `state`, `account_id`, `before_id`, `limit` | none | 200 `InFlightUploadPage` |
+| `GET /api/v1/workspaces/{workspace_id}/imports/reviews` | Open Reviews | Signed-in user (Clerk bearer) | none | `state`, `account_id`, `latest_only`, `before_id`, `limit` | none | 200 `ReviewListPage` |
 | `POST /api/v1/workspaces/{workspace_id}/imports/batch-checkpoints` | Commit Checkpoint | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `StepRequest` | 201 `BatchPage` |
 | `POST /api/v1/workspaces/{workspace_id}/imports/batch-confirmations` | Confirm Batch | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `BatchConfirmationWrite` | 201 object |
 | `POST /api/v1/workspaces/{workspace_id}/imports/batch-review-checks` | Check Batch | Signed-in user (Clerk bearer) | none | none | `BatchSelection` | 200 object |
@@ -23,8 +26,12 @@ Until PDF and photo reading is built, a PDF or photo import answers that you sho
 | `POST /api/v1/workspaces/{workspace_id}/imports/jobs/{job_id}/cancel` | Cancel Job | Signed-in user (Clerk bearer) | none | none | none | 200 object |
 | `GET /api/v1/workspaces/{workspace_id}/imports/jobs/{job_id}/rows` | Source Rows | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 object |
 | `GET /api/v1/workspaces/{workspace_id}/imports/limits` | Intake Limits | Signed-in user (Clerk bearer) | none | none | none | 200 `IntakeLimits` |
+| `GET /api/v1/workspaces/{workspace_id}/imports/uploads/{upload_id}/wizard` | Wizard State | Signed-in user (Clerk bearer) | none | none | none | 200 `InFlightUpload` |
+| `POST /api/v1/workspaces/{workspace_id}/imports/jobs/{job_id}/mapping-suggestions` | Mapping Suggestions | Signed-in user (Clerk bearer) | none | none | `SuggestionContext` | 200 `MappingSuggestion` |
+| `POST /api/v1/workspaces/{workspace_id}/imports/jobs/{job_id}/category-suggestions` | Category Suggestions | Signed-in user (Clerk bearer) | none | none | `CategorySuggestionRequest` | 200 `CategorySuggestions` |
 | `GET /api/v1/workspaces/{workspace_id}/imports/native-vision` | Page | Signed-in user (Clerk bearer) | none | `before_id`, `limit` | none | 200 `VisionPage` |
 | `POST /api/v1/workspaces/{workspace_id}/imports/native-vision` | Create | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `VisionInput` | 202 `VisionStatus` |
+| `GET /api/v1/workspaces/{workspace_id}/imports/native-vision/availability` | Availability | Signed-in user (Clerk bearer) | none | none | none | 200 `VisionAvailability` |
 | `GET /api/v1/workspaces/{workspace_id}/imports/native-vision/{vision_id}` | Status | Signed-in user (Clerk bearer) | none | none | none | 200 `VisionStatus` |
 | `POST /api/v1/workspaces/{workspace_id}/imports/native-vision/{vision_id}/cancel` | Cancel | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `VisionConfirmation` | 200 `VisionStatus` |
 | `PUT /api/v1/workspaces/{workspace_id}/imports/native-vision/{vision_id}/content` | Content | Signed-in user (Clerk bearer) | none | none | none | 200 `VisionStatus` |
@@ -304,7 +311,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | Field | Type | Required |
 | --- | --- | --- |
 | `id` | string (uuid) | yes |
-| `kind` | enum: `native`, `native_with_fees`, `fx` | yes |
+| `kind` | enum: `native`, `native_with_fees`, `fx`, `delayed` | yes |
 | `entry_id` | string (uuid) | yes |
 | `journal_entry_ids` | array of string (uuid) | yes |
 | `occurred_on` | string (date) | yes |
@@ -510,3 +517,117 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `scan_task_id` | string (uuid) | yes |
 | `source_format` | enum: `csv`, `xlsx` | yes |
 | `selector` | string | yes |
+
+### `LaunchFormats`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `formats` | array of FormatRoute | yes |
+| `refused_extensions` | array of string | yes |
+| `max_upload_bytes` | integer | yes |
+| `manual_entry_available` | boolean | no |
+
+### `InFlightUploadPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of InFlightUpload | yes |
+| `next_before_id` | string (uuid) (nullable) | no |
+
+### `ReviewListPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of ReviewListItem | yes |
+| `next_before_id` | string (uuid) (nullable) | no |
+
+### `InFlightUpload`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `filename` | string | yes |
+| `format` | string | yes |
+| `size` | integer | yes |
+| `created_at` | string (date-time) | yes |
+| `expires_at` | string (date-time) | yes |
+| `account_id` | string (uuid) (nullable) | no |
+| `period_start` | string (date) (nullable) | no |
+| `period_end` | string (date) (nullable) | no |
+| `state` | string | yes |
+| `terminal` | boolean | yes |
+| `step` | integer | yes |
+| `steps_total` | integer | yes |
+| `reason` | string (nullable) | no |
+| `resume_step` | enum: `scan`, `wait`, `extract`, `review`, `confirm`, `commit`, `none`, `manual_entry` | yes |
+| `lifecycle` | object | yes |
+| `scan_task_id` | string (uuid) (nullable) | no |
+| `extraction` | ExtractionRef (nullable) | no |
+| `stage_id` | string (uuid) (nullable) | no |
+| `stage_expires_at` | string (date-time) (nullable) | no |
+| `reviews` | array of ReviewRef | yes |
+| `manual_entry_available` | boolean | no |
+
+### `SuggestionContext`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `account_id` | string (uuid) | yes |
+| `period_start` | string (date) | yes |
+| `period_end` | string (date) | yes |
+
+### `MappingSuggestion`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `job_id` | string (uuid) | yes |
+| `account_id` | string (uuid) | yes |
+| `header_row` | integer (nullable) | no |
+| `start_row` | integer (nullable) | no |
+| `columns` | object | yes |
+| `ambiguous_roles` | array of string | yes |
+| `date_format` | enum: `iso`, `dmy`, `mdy` (nullable) | no |
+| `decimal_separator` | enum: `.`, `,` (nullable) | no |
+| `locale_normalization` | boolean | no |
+| `mapping` | object (nullable) | no |
+| `verification` | Verification (nullable) | no |
+| `assumptions` | array of string | yes |
+| `previous` | PreviousMapping (nullable) | no |
+| `suggestion_only` | boolean | no |
+| `applied` | boolean | no |
+| `money_posted` | boolean | no |
+
+### `CategorySuggestionRequest`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `account_id` | string (uuid) | yes |
+| `period_start` | string (date) | yes |
+| `period_end` | string (date) | yes |
+| `mapping` | ColumnMapping or DebitCreditMapping | yes |
+| `offset` | integer | no |
+| `limit` | integer | no |
+
+### `CategorySuggestions`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `job_id` | string (uuid) | yes |
+| `account_id` | string (uuid) | yes |
+| `total_candidates` | integer | yes |
+| `offset` | integer | yes |
+| `items` | array of RowSuggestion | yes |
+| `matched_rows` | integer | yes |
+| `next_offset` | integer (nullable) | no |
+| `suggestion_only` | boolean | no |
+| `applied` | boolean | no |
+| `money_posted` | boolean | no |
+
+### `VisionAvailability`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `state` | enum: `available`, `not_configured` | yes |
+| `reason` | enum: `ai_disabled`, `vision_policy` (nullable) | no |
+| `manual_entry_available` | boolean | no |
+| `worker_observable` | boolean | no |

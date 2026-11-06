@@ -16,6 +16,9 @@ Goal and scenario projections are estimates under the assumptions shown with the
 | `POST /api/v1/workspaces/{workspace_id}/scenarios` | Save Scenario | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `ScenarioWrite` | 200 `ScenarioResponse` |
 | `GET /api/v1/workspaces/{workspace_id}/scenarios/page` | Scenario Page | Signed-in user (Clerk bearer) | none | `limit`, `cursor`, `q`, `sort`, `currency`, `kind`, `has_deficit` | none | 200 `RecordPage_ScenarioResponse_` |
 | `POST /api/v1/workspaces/{workspace_id}/scenarios/preview` | Preview Scenario | Signed-in user (Clerk bearer) | none | none | `ScenarioWrite` | 200 `ScenarioPreview` |
+| `GET /api/v1/workspaces/{workspace_id}/goals/{goal_id}` | Goal Detail | Signed-in user (Clerk bearer) | none | none | none | 200 `GoalResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/goals/{goal_id}/contributions` | The contributions the owner recorded toward one goal, newest first | Signed-in user (Clerk bearer) | none | none | none | 200 `GoalContributionPage` |
+| `POST /api/v1/workspaces/{workspace_id}/goals/{goal_id}/contributions` | Record money put aside for a goal (a record only; no ledger entry is posted) | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `GoalContributionWrite` | 201 `GoalContributionPage` |
 
 `*` marks a required query parameter. Path parameters are listed in the route.
 
@@ -43,6 +46,10 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `achieved` | boolean | yes |
 | `on_track` | boolean | yes |
 | `basis` | string | no |
+| `account_id` | string (uuid) (nullable) | no |
+| `saved_source` | enum: `manual`, `account`, `account_unconverted` | no |
+| `value_status` | enum: `manual`, `confirmed`, `estimated`, `stale`, `missing` (nullable) | no |
+| `contribution_count` | integer | no |
 
 ### `GoalWrite`
 
@@ -57,6 +64,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `monthly_contribution` | string | no |
 | `target_date` | string (date) | yes |
 | `active` | boolean | no |
+| `account_id` | string (uuid) (nullable) | no |
 
 ### `RecordPage_GoalResponse_`
 
@@ -65,6 +73,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `as_of` | string (date) | yes |
 | `items` | array of GoalResponse | yes |
 | `next_cursor` | string (nullable) | yes |
+| `total_count` | integer | no |
 
 ### `ScenarioResponse`
 
@@ -83,6 +92,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `first_deficit_month` | integer (nullable) | yes |
 | `points` | array of ScenarioPoint | yes |
 | `basis` | enum: `user_assumptions_no_returns_or_fx`, `user_assumptions_explicit_stress` | no |
+| `value_status` | enum: `manual`, `confirmed`, `estimated`, `stale`, `missing` (nullable) | no |
 | `stress` | IncomeStress or PaymentStress or CurrencyStress or PurchaseStress or EmergencyStress (nullable) | no |
 | `id` | string (uuid) | yes |
 | `revision` | integer | yes |
@@ -122,6 +132,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `as_of` | string (date) | yes |
 | `items` | array of ScenarioResponse | yes |
 | `next_cursor` | string (nullable) | yes |
+| `total_count` | integer | no |
 
 ### `ScenarioPreview`
 
@@ -129,3 +140,22 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | --- | --- | --- |
 | `inputs` | ScenarioWrite | yes |
 | `calculation` | ScenarioCalculation | yes |
+
+### `GoalContributionPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `goal_id` | string (uuid) | yes |
+| `goal_revision` | integer | yes |
+| `total_count` | integer | yes |
+| `items` | array of GoalContribution | yes |
+| `goal` | GoalResponse | yes |
+
+### `GoalContributionWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_revision` | integer | yes |
+| `amount` | string | yes |
+| `contributed_on` | string (date) | yes |
+| `note` | string (nullable) | no |

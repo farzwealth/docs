@@ -9,7 +9,8 @@ A value that cannot be calculated is `null`. It is not `0`. Read the coverage fi
 
 | Route | Operation | Auth | Required headers | Query | Request body | Success |
 | --- | --- | --- | --- | --- | --- | --- |
-| `GET /api/v1/workspaces/{workspace_id}/dashboard` | Get Dashboard | Signed-in user (Clerk bearer) | none | none | none | 200 `DashboardResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/dashboard` | Get Dashboard | Signed-in user (Clerk bearer) | none | `month`, `account_id`, `ownership`, `display_currency`, `history_points`, `to_review_limit`, `to_review_offset` | none | 200 `DashboardResponse` |
+| `GET /api/v1/workspaces/{workspace_id}/dashboard/breakdowns/{total}` | Drill down from a dashboard total to the items, rates and exclusions behind it | Signed-in user (Clerk bearer) | none | `month`, `account_id`, `ownership`, `display_currency`, `history_points`, `to_review_limit`, `to_review_offset` | none | 200 `TotalBreakdown` |
 
 `*` marks a required query parameter. Path parameters are listed in the route.
 
@@ -21,6 +22,12 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 
 | Field | Type | Required |
 | --- | --- | --- |
+| `flow_conversion` | FlowConversion (nullable) | no |
+| `view` | DashboardViewEcho (nullable) | no |
+| `to_review_total` | integer | no |
+| `to_review_offset` | integer | no |
+| `to_review_next_offset` | integer (nullable) | no |
+| `upcoming_total` | integer | no |
 | `totals_provenance` | TotalsProvenance (nullable) | no |
 | `drilldown` | array of TotalDrilldown | no |
 | `spending_comparison` | SpendingComparison (nullable) | no |
@@ -51,3 +58,21 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `to_review` | array of TransactionResponse | yes |
 | `account_count` | integer | yes |
 | `synthetic` | boolean | yes |
+
+### `TotalBreakdown`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `total` | enum: `allocation`, `liquidity`, `coverage`, `budget_variance`, `monthly_spending`, `monthly_income`, `timeline` | yes |
+| `base_currency` | string | yes |
+| `period_start` | string (nullable) | no |
+| `period_end` | string (nullable) | no |
+| `amount` | string (nullable) | yes |
+| `provenance` | TotalProvenance | yes |
+| `contributing` | array of BreakdownItem | yes |
+| `groups` | array of BreakdownGroup | yes |
+| `rates` | array of DrilldownRate | yes |
+| `assumptions` | array of DrilldownAssumption | yes |
+| `included_asset_ids` | array of string (uuid) | yes |
+| `excluded` | array of BreakdownExclusion | yes |
+| `truncated` | boolean | no |

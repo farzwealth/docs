@@ -45,6 +45,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `state` | enum: `outstanding`, `repaid`, `corrected` | yes |
 | `basis` | string | no |
 | `recorded_at` | string (date-time) | yes |
+| `value_status` | enum: `manual`, `confirmed`, `estimated`, `stale`, `missing` (nullable) | no |
 
 ### `LendingAdvance`
 
@@ -65,6 +66,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `as_of` | string (date) | yes |
 | `items` | array of LendingLoanResponse | yes |
 | `next_cursor` | string (nullable) | yes |
+| `total_count` | integer | no |
 
 ### `LendingCorrection`
 
@@ -125,3 +127,4 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | --- | --- | --- |
 | `items` | array of LendingRepaymentResponse | yes |
 | `next_cursor` | string (nullable) | no |
+| `total_count` | integer | no |

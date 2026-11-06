@@ -14,6 +14,8 @@ Preview a repeat before you apply it.
 | `GET /api/v1/workspaces/{workspace_id}/budgets/page` | Budget Page | Signed-in user (Clerk bearer) | none | `limit`, `cursor`, `q`, `sort`, `currency`, `period*`, `category`, `over_budget` | none | 200 `RecordPage_BudgetResponse_` |
 | `POST /api/v1/workspaces/{workspace_id}/budgets/repeat` | Repeat | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `BudgetRepeatWrite` | 200 `BudgetRepeatReceipt` |
 | `POST /api/v1/workspaces/{workspace_id}/budgets/repeat/preview` | Preview | Signed-in user (Clerk bearer) | none | none | `BudgetRepeatSelection` | 200 `BudgetRepeatPreview` |
+| `GET /api/v1/workspaces/{workspace_id}/budgets/{budget_id}` | Budget Detail | Signed-in user (Clerk bearer) | none | none | none | 200 `BudgetResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/budgets/{budget_id}/archive` | Remove (or restore) one budget line; its history is kept | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `BudgetArchive` | 200 `BudgetResponse` |
 
 `*` marks a required query parameter. Path parameters are listed in the route.
 
@@ -33,6 +35,8 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `spent` | string | yes |
 | `remaining` | string | yes |
 | `revision` | integer | yes |
+| `value_status` | enum: `manual`, `confirmed`, `estimated`, `stale`, `missing` (nullable) | no |
+| `archived` | boolean | no |
 
 ### `BudgetWrite`
 
@@ -51,6 +55,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `as_of` | string (date) | yes |
 | `items` | array of BudgetResponse | yes |
 | `next_cursor` | string (nullable) | yes |
+| `total_count` | integer | no |
 
 ### `BudgetRepeatWrite`
 
@@ -95,3 +100,10 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `targets` | array of BudgetRepeatTarget | yes |
 | `change_sequence` | integer | yes |
 | `input_digest` | string | yes |
+
+### `BudgetArchive`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `expected_revision` | integer | yes |
+| `archived` | boolean | no |

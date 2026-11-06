@@ -7,10 +7,21 @@ The assistant can ask a clarifying question and prepare an action. Nothing runs 
 
 After an action runs, you can review it or undo it.
 
+The `reason` field of the availability and response models says why the assistant is not available. `TERMS_UPDATE_REQUIRED` means the stored acceptance of the Terms is older than the current text; accept the current Terms with the [terms-acceptance routes](/docs/api/account-control) and try again.
+
+## Conversations, turns and tool proposals
+
+The chat routes take one turn: `chat` answers in one response and `chat/stream` sends the turn as server-sent events. The conversation routes keep a thread of turns. A queued or running turn can be cancelled, a failed or refused turn can be retried in place, and a turn has its own stream route. The tool routes read data for the assistant (`tools/read`) and prepare changes as proposals. A proposal can be confirmed or undone, an expired proposal can be restaged without a new model call, and a compound call groups several proposals. A change is saved only after you confirm its proposal.
+
+## Hand-off outcomes
+
+When the assistant needs you to act on another screen, such as uploading a statement, confirming records or signing in again, the client opens that screen and then calls `POST /api/v1/workspaces/{workspace_id}/assistant/handoff-outcomes` with the `target`, what it believes happened (`claimed`) and up to ten related IDs. The API checks its own state and answers with `verified` and a short `message` in the language you give. Viewing or closing a screen is never a verified result. A claim the state does not back comes back with `verified: false` and the result `not_verified`. The route reads and changes nothing, and a client should send the message as the next turn only when `verified` is `true`.
+
 ## Endpoints
 
 | Route | Operation | Auth | Required headers | Query | Request body | Success |
 | --- | --- | --- | --- | --- | --- | --- |
+| `POST /api/v1/workspaces/{workspace_id}/assistant/handoff-outcomes` | Check Handoff Outcome | Signed-in user (Clerk bearer) | none | none | `HandoffOutcomeClaim` | 200 `HandoffOutcomeResult` |
 | `GET /api/v1/me/ai-availability` | Availability | Signed-in user (Clerk bearer) | none | none | none | 200 `AIAvailability` |
 | `POST /api/v1/me/ai-help` | Help Response | Signed-in user (Clerk bearer) | none | none | `AIHelpInput` | 200 `AIHelpResponse` |
 | `POST /api/v1/workspaces/{workspace_id}/assistant/clarification` | Clarify | Signed-in user (Clerk bearer) | none | none | `ClarificationInput` | 200 `ClarificationResponse` |
@@ -23,6 +34,28 @@ After an action runs, you can review it or undo it.
 | `POST /api/v1/workspaces/{workspace_id}/assistant/requests/{request_id}/action/undo-review` | Review Undo | Signed-in user (Clerk bearer) | none | none | none | 200 `ActionReview` |
 | `POST /api/v1/workspaces/{workspace_id}/assistant/requests/{request_id}/cancel` | Cancel | Signed-in user (Clerk bearer) | none | none | none | 200 `AssistantResponse` |
 | `POST /api/v1/workspaces/{workspace_id}/assistant/requests/{request_id}/execute` | Execute | Signed-in user (Clerk bearer) | none | none | none | 200 `AssistantResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/assistant/chat/stream` | Chat Stream | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | `progress` | `ChatInput` | 200 event stream |
+| `GET /api/v1/workspaces/{workspace_id}/assistant/conversations` | Page | Signed-in user (Clerk bearer) | none | `before_id`, `limit` | none | 200 `ConversationPage` |
+| `POST /api/v1/workspaces/{workspace_id}/assistant/conversations` | Create | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `ConversationInput` | 201 `ConversationView` |
+| `GET /api/v1/workspaces/{workspace_id}/assistant/conversations/{conversation_id}` | Read | Signed-in user (Clerk bearer) | none | none | none | 200 `ConversationView` |
+| `PATCH /api/v1/workspaces/{workspace_id}/assistant/conversations/{conversation_id}` | Rename | Signed-in user (Clerk bearer) | none | none | `ConversationRename` | 200 `ConversationView` |
+| `DELETE /api/v1/workspaces/{workspace_id}/assistant/conversations/{conversation_id}` | Delete | Signed-in user (Clerk bearer) | none | none | none | 204 (no body) |
+| `GET /api/v1/workspaces/{workspace_id}/assistant/conversations/{conversation_id}/turns` | Turns | Signed-in user (Clerk bearer) | none | `after_sequence`, `limit` | none | 200 `TurnPage` |
+| `POST /api/v1/workspaces/{workspace_id}/assistant/conversations/{conversation_id}/turns` | Send | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `TurnInput` | 202 `TurnView` |
+| `GET /api/v1/workspaces/{workspace_id}/assistant/conversations/{conversation_id}/turns/{turn_id}` | Turn | Signed-in user (Clerk bearer) | none | none | none | 200 `TurnView` |
+| `POST /api/v1/workspaces/{workspace_id}/assistant/conversations/{conversation_id}/turns/{turn_id}/cancel` | Cancel | Signed-in user (Clerk bearer) | none | none | none | 200 `TurnView` |
+| `POST /api/v1/workspaces/{workspace_id}/assistant/conversations/{conversation_id}/turns/{turn_id}/retry` | Retry | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | none | 202 `TurnView` |
+| `GET /api/v1/workspaces/{workspace_id}/assistant/conversations/{conversation_id}/turns/{turn_id}/stream` | Stream | Signed-in user (Clerk bearer) | none | none | none | 200 event stream |
+| `POST /api/v1/workspaces/{workspace_id}/assistant/tools/read` | Read | Signed-in user (Clerk bearer) | none | none | `ToolReadRequest` | 200 `ToolCard` |
+| `POST /api/v1/workspaces/{workspace_id}/assistant/tools/proposals` | Propose | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `ToolProposalRequest` | 201 `ToolReview` |
+| `POST /api/v1/workspaces/{workspace_id}/assistant/tools/compound` | Compound | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | object | 201 `StagedGroup` |
+| `GET /api/v1/workspaces/{workspace_id}/assistant/tools/proposals/{request_id}` | Get | Signed-in user (Clerk bearer) | none | none | none | 200 `ToolReview` |
+| `GET /api/v1/workspaces/{workspace_id}/assistant/tools/groups/{group_id}` | Group | Signed-in user (Clerk bearer) | none | none | none | 200 `StagedGroup` |
+| `POST /api/v1/workspaces/{workspace_id}/assistant/tools/proposals/{request_id}/confirm` | Confirm | Signed-in user (Clerk bearer) | none | none | `ActionConfirmation` | 200 `ToolReview` |
+| `POST /api/v1/workspaces/{workspace_id}/assistant/tools/proposals/{request_id}/undo-review` | Undo Review | Signed-in user (Clerk bearer) | none | none | none | 200 `ToolReview` |
+| `POST /api/v1/workspaces/{workspace_id}/assistant/tools/proposals/{request_id}/undo` | Undo | Signed-in user (Clerk bearer) | none | none | `ActionConfirmation` | 200 `ToolReview` |
+| `POST /api/v1/workspaces/{workspace_id}/assistant/tools/proposals/{request_id}/restage` | Restage | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | none | 200 `ToolReview` |
+| `POST /api/v1/workspaces/{workspace_id}/assistant/chat` | Chat | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `ChatInput` | 200 `ChatReply` |
 
 `*` marks a required query parameter. Path parameters are listed in the route.
 
@@ -35,7 +68,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | Field | Type | Required |
 | --- | --- | --- |
 | `available` | boolean | yes |
-| `reason` | enum: `AVAILABLE`, `FREE_PLAN`, `TRIAL_EXPIRED`, `CONSENT_REQUIRED`, `POLICY_RESTRICTED`, `AI_UNAVAILABLE`, `AI_BUSY`, `AI_MONTHLY_LIMIT_REACHED` | yes |
+| `reason` | enum (9 values) | yes |
 | `resets_at` | string (date-time) (nullable) | no |
 
 ### `AIHelpInput`
@@ -54,7 +87,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `locale` | enum: `en`, `ar`, `fr`, `ru` | yes |
 | `input_disposition` | enum: `standalone_question_required`, `choose_supported_task` (nullable) | no |
 | `available` | boolean | yes |
-| `reason` | enum: `AVAILABLE`, `FREE_PLAN`, `TRIAL_EXPIRED`, `CONSENT_REQUIRED`, `POLICY_RESTRICTED`, `AI_UNAVAILABLE`, `AI_BUSY`, `AI_MONTHLY_LIMIT_REACHED` | yes |
+| `reason` | enum (9 values) | yes |
 | `message` | string | yes |
 | `resets_at` | string (date-time) (nullable) | yes |
 | `reset_timezone` | string | no |
@@ -115,7 +148,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `locale` | enum: `en`, `ar`, `fr`, `ru` | yes |
 | `created_at` | string (date-time) | yes |
 | `expires_at` | string (date-time) | yes |
-| `reason` | enum: `AVAILABLE`, `FREE_PLAN`, `TRIAL_EXPIRED`, `CONSENT_REQUIRED`, `POLICY_RESTRICTED`, `AI_UNAVAILABLE`, `AI_BUSY`, `AI_MONTHLY_LIMIT_REACHED` (nullable) | no |
+| `reason` | enum (9 values) (nullable) | no |
 | `message` | string (nullable) | no |
 | `resets_at` | string (date-time) (nullable) | no |
 | `cards` | array of ExplanationCard | no |
@@ -150,3 +183,199 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | --- | --- | --- |
 | `review_digest` | string | yes |
 | `confirmed` | boolean | yes |
+
+### `HandoffOutcomeClaim`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `target` | enum (11 values) | yes |
+| `claimed` | enum: `uploaded`, `confirmed`, `reauthenticated`, `deletion_scheduled`, `plan_checked`, `viewed`, `canceled` | yes |
+| `ids` | array of string (uuid) | no |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` | no |
+
+### `HandoffOutcomeResult`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `target` | enum (11 values) | yes |
+| `verified` | boolean | yes |
+| `result` | enum: `uploaded`, `confirmed`, `reauthenticated`, `deletion_scheduled`, `plan_checked`, `not_verified` | yes |
+| `message` | string | yes |
+| `ids` | array of string (uuid) | yes |
+
+### `ChatInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `message` | string | yes |
+| `history` | array of ChatTurn | no |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` | no |
+
+### `ConversationPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of ConversationView | yes |
+| `next_before_id` | string (uuid) (nullable) | yes |
+
+### `ConversationInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `title` | string (nullable) | no |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` | no |
+
+### `ConversationView`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `title` | string | yes |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` | yes |
+| `revision` | integer | yes |
+| `turn_count` | integer | yes |
+| `created_at` | string (date-time) | yes |
+| `updated_at` | string (date-time) | yes |
+| `expires_at` | string (date-time) | yes |
+| `preview` | string (nullable) | no |
+| `last_turn_state` | enum: `pending`, `running`, `done`, `refused`, `failed`, `canceled` (nullable) | no |
+| `pending_card_count` | integer | no |
+
+### `ConversationRename`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `title` | string | yes |
+| `expected_revision` | integer | yes |
+
+### `TurnPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of TurnView | yes |
+| `next_after_sequence` | integer (nullable) | yes |
+
+### `TurnInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `message` | string | yes |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` | no |
+
+### `TurnView`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | string (uuid) | yes |
+| `conversation_id` | string (uuid) | yes |
+| `sequence` | integer | yes |
+| `state` | enum: `pending`, `running`, `done`, `refused`, `failed`, `canceled` | yes |
+| `message` | string | yes |
+| `reply` | string (nullable) | no |
+| `proposals` | array of ToolReview | no |
+| `handoffs` | array of HumanHandoff | no |
+| `refused` | boolean | no |
+| `denial` | AssistantDenial (nullable) | no |
+| `failure` | string (nullable) | no |
+| `progress` | TurnProgress (nullable) | no |
+| `retry_count` | integer | no |
+| `created_at` | string (date-time) | yes |
+| `finished_at` | string (date-time) (nullable) | no |
+
+### `ToolReadRequest`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` | no |
+| `call` | one of 34 models | yes |
+
+### `ToolCard`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `tool` | string | yes |
+| `kind` | enum: `read`, `navigation`, `needs_human_ui` | yes |
+| `code` | string | yes |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` | yes |
+| `facts` | object | yes |
+| `educational_only` | boolean | no |
+| `mutated` | boolean | no |
+
+### `ToolProposalRequest`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` | no |
+| `call` | one of 60 models | yes |
+
+### `ToolReview`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `proposal_id` | string (uuid) | yes |
+| `request_id` | string (uuid) | yes |
+| `tool` | string | yes |
+| `state` | enum: `prepared`, `expired`, `committed`, `undone` | yes |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` | yes |
+| `created_at` | string (date-time) | yes |
+| `expires_at` | string (date-time) | yes |
+| `review_digest` | string | yes |
+| `args` | object | yes |
+| `before` | JsonValue | yes |
+| `after` | JsonValue | yes |
+| `reversible` | boolean | yes |
+| `preview_basis` | enum: `current`, `isolated` | no |
+| `group_id` | string (uuid) (nullable) | no |
+| `group_index` | integer (nullable) | no |
+| `assumptions` | array of Assumption | no |
+| `receipt` | object (nullable) | no |
+| `undo` | UndoReview (nullable) | no |
+| `initiates_payment` | boolean | no |
+| `atomic_card_count` | integer | no |
+
+### `BatchRequest`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `preset` | string | no |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` | no |
+| `calls` | array of one of 60 models | yes |
+
+### `GoldPurchaseRequest`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `preset` | string | yes |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` | no |
+| `account_id` | string (uuid) | yes |
+| `expected_account_revision` | integer | yes |
+| `weight` | string | yes |
+| `weight_unit` | enum: `g`, `kg`, `troy_oz` | no |
+| `price` | string | yes |
+| `fees` | string | no |
+| `currency` | enum (164 values) | yes |
+| `trade_date` | string (date) | yes |
+| `fineness` | string (nullable) | no |
+| `spot_per_troy_ounce` | string (nullable) | no |
+| `description` | string | no |
+| `fee_category` | string | no |
+
+### `StagedGroup`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `group_id` | string (uuid) | yes |
+| `cards` | array of ToolReview | yes |
+| `assumptions` | array of Assumption | yes |
+| `independent_confirmation` | boolean | no |
+| `atomic` | boolean | no |
+
+### `ChatReply`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `reply` | string | yes |
+| `proposals` | array of ToolReview | no |
+| `handoffs` | array of HumanHandoff | no |
+| `refused` | boolean | no |
+| `unavailable` | boolean | no |

@@ -13,11 +13,13 @@ A payoff preview is an estimate from the figures you enter. It is not a payoff q
 | `POST /api/v1/workspaces/{workspace_id}/debts` | Save Debt | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `DebtWrite` | 200 `DebtResponse` |
 | `POST /api/v1/workspaces/{workspace_id}/debts/amortization/preview` | Preview Amortization | Signed-in user (Clerk bearer) | none | none | `AmortizationPreviewInput` | 200 `AmortizationProjection` |
 | `POST /api/v1/workspaces/{workspace_id}/debts/bnpl-purchases` | Bnpl | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `BnplPurchase` | 201 `WorkflowReceipt` |
-| `GET /api/v1/workspaces/{workspace_id}/debts/page` | Debt Page | Signed-in user (Clerk bearer) | none | `limit`, `cursor`, `q`, `sort`, `currency`, `kind`, `active`, `overdue` | none | 200 `RecordPage_DebtResponse_` |
+| `GET /api/v1/workspaces/{workspace_id}/debts/page` | Debt Page | Signed-in user (Clerk bearer) | none | `limit`, `cursor`, `q`, `sort`, `currency`, `kind`, `linked_asset_id`, `active`, `overdue` | none | 200 `RecordPage_DebtResponse_` |
 | `POST /api/v1/workspaces/{workspace_id}/debts/representation-preview` | Preview Debt Representation | Signed-in user (Clerk bearer) | none | none | `DebtRepresentationPreview` | 200 array of `DebtRepresentationWarning` |
 | `POST /api/v1/workspaces/{workspace_id}/debts/{debt_id}/creditor-refunds` | Refund | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `CreditorRefund` | 201 `WorkflowReceipt` |
 | `GET /api/v1/workspaces/{workspace_id}/debts/{debt_id}/installment-overrides` | Get Debt Overrides | Signed-in user (Clerk bearer) | none | none | none | 200 array of `DebtInstallmentOverrideResponse` |
 | `POST /api/v1/workspaces/{workspace_id}/debts/{debt_id}/installment-overrides` | Save Debt Override | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `DebtInstallmentOverrideWrite` | 200 `DebtInstallmentOverrideResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/debts/payoff-plan` | Compare snowball and avalanche payoff with your own rate assumptions | Signed-in user (Clerk bearer) | none | none | `PayoffInput` | 200 `PayoffPlan` |
+| `GET /api/v1/workspaces/{workspace_id}/debts/{debt_id}` | Debt Detail | Signed-in user (Clerk bearer) | none | none | none | 200 `DebtResponse` |
 | `GET /api/v1/workspaces/{workspace_id}/debts/{debt_id}/installment-overrides/page` | get_debt_overrides (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `GetDebtOverridesPage` |
 | `GET /api/v1/workspaces/{workspace_id}/debts/{debt_id}/lifecycle` | Debt Lifecycle History | Signed-in user (Clerk bearer) | none | `before`, `limit` | none | 200 array of `DebtLifecycleResponse` |
 | `POST /api/v1/workspaces/{workspace_id}/debts/{debt_id}/lifecycle` | Record Debt Lifecycle | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `DebtLifecycleWrite` | 200 `DebtLifecycleResponse` |
@@ -70,6 +72,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `overdue` | string | yes |
 | `as_of` | string (date) | yes |
 | `basis` | string | no |
+| `value_status` | enum: `manual`, `confirmed`, `estimated`, `stale`, `missing` (nullable) | no |
 
 ### `DebtWrite`
 
@@ -140,7 +143,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | --- | --- | --- |
 | `asset_type` | enum: `gold`, `silver`, `platinum`, `palladium` (nullable) | no |
 | `id` | string (uuid) | yes |
-| `kind` | enum: `metal_purchase`, `bnpl_purchase`, `creditor_refund`, `reverse` | yes |
+| `kind` | enum: `metal_purchase`, `bnpl_purchase`, `creditor_refund`, `reverse`, `asset_purchase`, `asset_sale` | yes |
 | `account_id` | string (uuid) (nullable) | yes |
 | `asset_id` | string (uuid) (nullable) | yes |
 | `debt_id` | string (uuid) (nullable) | yes |
@@ -175,6 +178,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `as_of` | string (date) | yes |
 | `items` | array of DebtResponse | yes |
 | `next_cursor` | string (nullable) | yes |
+| `total_count` | integer | no |
 
 ### `DebtRepresentationPreview`
 
@@ -255,6 +259,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | --- | --- | --- |
 | `items` | array of DebtInstallmentOverrideResponse | yes |
 | `next_cursor` | string (nullable) | no |
+| `total_count` | integer | no |
 
 ### `DebtLifecycleResponse`
 
@@ -309,6 +314,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | --- | --- | --- |
 | `items` | array of DebtObservationResponse | yes |
 | `next_cursor` | string (nullable) | no |
+| `total_count` | integer | no |
 
 ### `DebtRepaymentResponse`
 
@@ -370,6 +376,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | --- | --- | --- |
 | `items` | array of DebtRepaymentResponse | yes |
 | `next_cursor` | string (nullable) | no |
+| `total_count` | integer | no |
 
 ### `DebtRepaymentReverse`
 
@@ -424,3 +431,32 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `confirmation_authority` | boolean | no |
 | `daily_accrual_computed` | boolean | no |
 | `automatic_closure` | boolean | no |
+
+### `PayoffInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `debts` | array of PayoffDebtInput | yes |
+| `monthly_budget` | string | yes |
+| `starts_on` | string (date) | yes |
+| `assumptions_are_owner_entered` | boolean | yes |
+
+### `PayoffPlan`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `currency` | enum (164 values) | yes |
+| `monthly_budget` | string | yes |
+| `minimum_total` | string | yes |
+| `starts_on` | string (date) | yes |
+| `horizon_months` | integer | yes |
+| `strategies` | array of PayoffStrategy | yes |
+| `interest_difference_snowball_minus_avalanche` | string (nullable) | yes |
+| `assumptions` | array of string | yes |
+| `input_digest` | string | yes |
+| `basis` | string | no |
+| `financial_effect_changed` | boolean | no |
+| `automatic_cash_posting` | boolean | no |
+| `lender_verified` | boolean | no |
+| `advice` | boolean | no |
+| `value_status` | enum: `manual`, `confirmed`, `estimated`, `stale`, `missing` (nullable) | no |

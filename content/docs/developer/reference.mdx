@@ -1,6 +1,6 @@
 ---
 title: Developer REST reference
-description: The three routes of the personal developer API, with their models.
+description: The routes of the personal developer API, with their models.
 ---
 
 The routes below come from the contract. A route that is listed here is not proof that the API is enabled for your account. Use the [quickstart](/docs/quickstart) to start once it is enabled.
@@ -12,6 +12,14 @@ The routes below come from the contract. A route that is listed here is not proo
 | `GET /api/developer/v1/accounts` | Accounts | Personal API key | none | `limit`, `cursor` | none | 200 `PersonalAccountPage` |
 | `GET /api/developer/v1/profile` | Profile | Personal API key | none | none | none | 200 `PersonalPreferences` |
 | `GET /api/developer/v1/transactions` | Transactions | Personal API key | none | `limit`, `cursor`, `start*`, `end*` | none | 200 `PersonalTransactionPage` |
+| `GET /api/developer/v1/summary` | Summary | Personal API key | none | none | none | 200 `SummaryView` |
+| `GET /api/developer/v1/reports/net-worth` | Net Worth Report | Personal API key | none | none | none | 200 `ReportView` |
+| `GET /api/developer/v1/assets` | Assets | Personal API key | none | `limit`, `cursor` | none | 200 `AssetPage` |
+| `GET /api/developer/v1/liabilities` | Liabilities | Personal API key | none | `limit`, `cursor` | none | 200 `LiabilityPage` |
+| `GET /api/developer/v1/liabilities/{liability_id}/schedule` | Liability Schedule | Personal API key | none | `limit`, `cursor` | none | 200 `SchedulePage` |
+| `GET /api/developer/v1/budgets` | Budgets | Personal API key | none | `limit`, `cursor`, `month` | none | 200 `BudgetPage` |
+| `GET /api/developer/v1/goals` | Goals | Personal API key | none | `limit`, `cursor` | none | 200 `GoalPage` |
+| `GET /api/developer/v1/valuations` | Valuations | Personal API key | none | `limit`, `cursor`, `asset_id`, `start`, `end` | none | 200 `ValuationPage` |
 
 `*` marks a required query parameter.
 
@@ -71,3 +79,114 @@ The routes below come from the contract. A route that is listed here is not proo
 | `code` | string | yes |
 | `message` | string | yes |
 | `request_id` | string | yes |
+
+### `SummaryView`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `as_of` | string (date-time) | yes |
+| `timezone` | string | yes |
+| `revision` | integer | yes |
+| `base_currency` | enum (164 values) | yes |
+| `total_assets` | string | yes |
+| `total_debts` | string | yes |
+| `net_worth` | string | yes |
+| `monthly_income` | string | yes |
+| `monthly_spending` | string | yes |
+| `last_month_spending` | string | yes |
+| `coverage_percent` | string | yes |
+| `stale_items` | integer | yes |
+| `excluded_items` | integer | yes |
+| `caveat` | string | no |
+
+### `ReportView`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `as_of` | string (date-time) | yes |
+| `timezone` | string | yes |
+| `revision` | integer | yes |
+| `base_currency` | enum (164 values) | yes |
+| `kind` | string | no |
+| `total_assets` | string | yes |
+| `total_debts` | string | yes |
+| `net_worth` | string | yes |
+| `coverage_percent` | string | yes |
+| `allocation` | array of AllocationItem | yes |
+| `spending_month_to_date` | string (nullable) | no |
+| `spending_baseline` | string (nullable) | no |
+| `stale_items` | integer | yes |
+| `excluded_items` | integer | yes |
+
+### `AssetPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of AssetView | yes |
+| `next_cursor` | string (nullable) | no |
+| `truncated` | boolean | yes |
+| `revision` | integer | yes |
+| `as_of` | string (date) | yes |
+| `timezone` | string | yes |
+| `base_currency` | enum (164 values) | yes |
+
+### `LiabilityPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of LiabilityView | yes |
+| `next_cursor` | string (nullable) | no |
+| `truncated` | boolean | yes |
+| `revision` | integer | yes |
+| `as_of` | string (date) | yes |
+| `timezone` | string | yes |
+| `base_currency` | enum (164 values) | yes |
+
+### `SchedulePage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of Installment | yes |
+| `next_cursor` | string (nullable) | no |
+| `truncated` | boolean | yes |
+| `revision` | integer | yes |
+| `as_of` | string (date) | yes |
+| `timezone` | string | yes |
+| `base_currency` | enum (164 values) | yes |
+| `liability_id` | string (uuid) | yes |
+
+### `BudgetPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of BudgetView | yes |
+| `next_cursor` | string (nullable) | no |
+| `truncated` | boolean | yes |
+| `revision` | integer | yes |
+| `as_of` | string (date) | yes |
+| `timezone` | string | yes |
+| `base_currency` | enum (164 values) | yes |
+
+### `GoalPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of GoalView | yes |
+| `next_cursor` | string (nullable) | no |
+| `truncated` | boolean | yes |
+| `revision` | integer | yes |
+| `as_of` | string (date) | yes |
+| `timezone` | string | yes |
+| `base_currency` | enum (164 values) | yes |
+
+### `ValuationPage`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | array of ValuationPoint | yes |
+| `next_cursor` | string (nullable) | no |
+| `truncated` | boolean | yes |
+| `revision` | integer | yes |
+| `as_of` | string (date) | yes |
+| `timezone` | string | yes |
+| `base_currency` | enum (164 values) | yes |

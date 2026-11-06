@@ -13,6 +13,11 @@ Until live providers are configured, a quote is manual or stale. Check the fresh
 | `POST /api/v1/workspaces/{workspace_id}/fx-conversions` | Fx Conversion | Signed-in user (Clerk bearer) | none | none | `FXConversionInput` | 200 `FXConversionResponse` |
 | `GET /api/v1/workspaces/{workspace_id}/fx-observations` | Get Fx Observations | Signed-in user (Clerk bearer) | none | none | none | 200 array of `FXObservationResponse` |
 | `POST /api/v1/workspaces/{workspace_id}/fx-observations` | Save Fx Observation | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `FXWrite` | 200 `FXObservationResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/market/assets/{asset_id}/apply-quote` | Apply Quote | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `ApplyQuoteRequest` | 200 `ApplyQuoteResult` |
+| `POST /api/v1/workspaces/{workspace_id}/market/refreshes` | Refresh Many | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `BatchRefreshRequest` | 202 `RefreshBatchView` |
+| `GET /api/v1/workspaces/{workspace_id}/market/refresh-batches/{batch_id}` | Refresh Batch | Signed-in user (Clerk bearer) | none | none | none | 200 `RefreshBatchView` |
+| `POST /api/v1/workspaces/{workspace_id}/market/refresh-batches/{batch_id}/cancel` | Cancel Batch | Signed-in user (Clerk bearer) | none | none | none | 200 `RefreshBatchView` |
+| `POST /api/v1/workspaces/{workspace_id}/market/refresh-batches/{batch_id}/execute` | Execute Batch | Signed-in user (Clerk bearer) | none | none | none | 200 `RefreshBatchView` |
 | `GET /api/v1/workspaces/{workspace_id}/fx-observations/page` | get_fx_observations (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `GetFxObservationsPage` |
 | `GET /api/v1/workspaces/{workspace_id}/market/assets/{asset_id}/history` | History | Signed-in user (Clerk bearer) | none | `as_of*`, `limit`, `cursor` | none | 200 `QuoteHistory` |
 | `POST /api/v1/workspaces/{workspace_id}/market/assets/{asset_id}/manual-quotes` | Manual | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `ManualQuote` | 200 `QuoteObservation` |
@@ -104,6 +109,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | --- | --- | --- |
 | `items` | array of FXObservationResponse | yes |
 | `next_cursor` | string (nullable) | no |
+| `total_count` | integer | no |
 
 ### `QuoteHistory`
 
@@ -165,6 +171,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `history_revision` | integer | yes |
 | `refresh_id` | string (uuid) (nullable) | no |
 | `refresh_state` | string (nullable) | no |
+| `value_status` | enum: `manual`, `confirmed`, `estimated`, `stale`, `missing` (nullable) | no |
 
 ### `RefreshRequest`
 
@@ -261,3 +268,49 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | --- | --- | --- |
 | `as_of` | string (date) | yes |
 | `items` | array of BatchQuoteItem | yes |
+
+### `ApplyQuoteRequest`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `as_of` | string (date) | yes |
+| `expected_asset_revision` | integer | yes |
+| `quote_id` | string (uuid) | yes |
+| `accept_stale` | boolean | no |
+
+### `ApplyQuoteResult`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `asset_id` | string (uuid) | yes |
+| `asset_revision` | integer | yes |
+| `valuation` | AssetValuationResponse | yes |
+| `previous_owned_value` | string | yes |
+| `new_owned_value` | string | yes |
+| `change` | string | yes |
+| `quote` | QuoteObservation | yes |
+| `warnings` | array of string | yes |
+| `cash_posted` | boolean | no |
+| `changes_saved` | boolean | no |
+
+### `BatchRefreshRequest`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `as_of` | string (date) | yes |
+| `asset_ids` | array of string (uuid) (nullable) | no |
+| `all_market_assets` | boolean | no |
+| `disclosure_digest` | string | yes |
+| `disclosure_accepted` | boolean | yes |
+
+### `RefreshBatchView`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `kind` | string | no |
+| `id` | string (uuid) | yes |
+| `as_of` | string (date) | yes |
+| `items` | array of BatchItem | yes |
+| `queued` | integer | yes |
+| `skipped` | integer | yes |
+| `settled` | boolean | yes |

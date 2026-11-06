@@ -14,7 +14,7 @@ Zakat results are educational estimates. Each result lists its assumptions.
 | `GET /api/v1/workspaces/{workspace_id}/account-funding-plan` | Upcoming account funding gaps | Signed-in user (Clerk bearer) | none | `end*`, `account_id` | none | 200 `FundingPlan` |
 | `GET /api/v1/workspaces/{workspace_id}/calendar/display` | Display | Signed-in user (Clerk bearer) | none | `calendar*`, `dates*` | none | 200 `CalendarDisplay` |
 | `GET /api/v1/workspaces/{workspace_id}/cashflow` | Get Cashflow | Signed-in user (Clerk bearer) | none | `start*` | none | 200 `CashflowResponse` |
-| `GET /api/v1/workspaces/{workspace_id}/forecast` | Get Forecast | Signed-in user (Clerk bearer) | none | `start*`, `end*` | none | 200 `ForecastPage` |
+| `GET /api/v1/workspaces/{workspace_id}/forecast` | Get Forecast | Signed-in user (Clerk bearer) | none | `start*`, `end*`, `limit`, `cursor` | none | 200 `ForecastPage` |
 | `POST /api/v1/workspaces/{workspace_id}/funding-comparison` | Compare pending money and hypothetical account funding | Signed-in user (Clerk bearer) | none | none | `FundingComparisonInput` | 200 `FundingComparison` |
 | `GET /api/v1/workspaces/{workspace_id}/rent` | Get Rent | Signed-in user (Clerk bearer) | none | none | none | 200 array of `RentResponse` |
 | `POST /api/v1/workspaces/{workspace_id}/rent` | Save Rent | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `RentWrite` | 200 `RentResponse` |
@@ -23,6 +23,10 @@ Zakat results are educational estimates. Each result lists its assumptions.
 | `POST /api/v1/workspaces/{workspace_id}/rent/proration/preview` | Preview Rent Proration | Signed-in user (Clerk bearer) | none | none | `RentProrationInput` | 200 `RentProrationPreview` |
 | `GET /api/v1/workspaces/{workspace_id}/rent/{plan_id}/amendments` | Rent Amendment History | Signed-in user (Clerk bearer) | none | none | none | 200 array of `RentAmendmentResponse` |
 | `POST /api/v1/workspaces/{workspace_id}/rent/{plan_id}/amendments` | Amend Rent | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `RentAmendmentWrite` | 200 `RentAmendmentResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/planning/net-worth-projection` | Project net worth under up to three owner-entered return scenarios | Signed-in user (Clerk bearer) | none | none | `ProjectionInput` | 200 `NetWorthProjection` |
+| `GET /api/v1/workspaces/{workspace_id}/planning/recurring-candidates` | Suggest bills and subscriptions from repeated recorded expenses | Signed-in user (Clerk bearer) | none | none | none | 200 `RecurringDetection` |
+| `GET /api/v1/workspaces/{workspace_id}/rent/{plan_id}` | Rent Detail | Signed-in user (Clerk bearer) | none | none | none | 200 `RentResponse` |
+| `POST /api/v1/workspaces/{workspace_id}/upcoming-obligations/settle` | Record an upcoming bill as actually paid or received, whatever created it | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `SettleWrite` | 201 `SettleReceipt` |
 | `GET /api/v1/workspaces/{workspace_id}/rent/{plan_id}/amendments/page` | rent_amendment_history (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `RentAmendmentHistoryPage` |
 | `GET /api/v1/workspaces/{workspace_id}/rent/{plan_id}/effective` | Effective Rent | Signed-in user (Clerk bearer) | none | none | none | 200 `RentAmendmentState` |
 | `POST /api/v1/workspaces/{workspace_id}/rent/{plan_id}/entries` | Record a security deposit, agency fee or renewal fee for a rent plan | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `RentEntryWrite` | 200 `RentResponse` |
@@ -92,6 +96,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `basis` | string | no |
 | `forecast_only` | boolean | no |
 | `payment_recorded` | boolean | no |
+| `value_status` | enum: `manual`, `confirmed`, `estimated`, `stale`, `missing` (nullable) | no |
 
 ### `ForecastPage`
 
@@ -101,6 +106,8 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `truncated` | boolean | no |
 | `start` | string (date) | yes |
 | `end` | string (date) | yes |
+| `next_cursor` | string (nullable) | no |
+| `total_count` | integer (nullable) | no |
 
 ### `FundingComparisonInput`
 
@@ -158,6 +165,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `scheduled_payments` | array of RentPayment | yes |
 | `minor_digits` | integer | yes |
 | `basis` | string | no |
+| `value_status` | enum: `manual`, `confirmed`, `estimated`, `stale`, `missing` (nullable) | no |
 
 ### `RentWrite`
 
@@ -183,6 +191,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `as_of` | string (date) | yes |
 | `items` | array of RentResponse | yes |
 | `next_cursor` | string (nullable) | yes |
+| `total_count` | integer | no |
 
 ### `RentPaymentSource`
 
@@ -258,6 +267,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | --- | --- | --- |
 | `items` | array of RentAmendmentResponse | yes |
 | `next_cursor` | string (nullable) | no |
+| `total_count` | integer | no |
 
 ### `RentAmendmentState`
 
@@ -332,6 +342,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | --- | --- | --- |
 | `items` | array of RentReceiptResponse | yes |
 | `next_cursor` | string (nullable) | no |
+| `total_count` | integer | no |
 
 ### `RentReceiptUnmatch`
 
@@ -480,3 +491,76 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `country` | string | yes |
 | `calculation` | ZakatCalculation | yes |
 | `method_guidance` | ZakatMethodGuidance | no |
+
+### `ProjectionInput`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `years` | integer | yes |
+| `monthly_contribution` | string | yes |
+| `scenarios` | array of ProjectionScenarioInput | yes |
+| `target_amount` | string (nullable) | no |
+| `assumptions_are_owner_entered` | boolean | yes |
+
+### `NetWorthProjection`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `base_currency` | enum (164 values) | yes |
+| `starting_net_worth` | string | yes |
+| `starting_net_worth_status` | string | yes |
+| `excluded_items` | integer | yes |
+| `monthly_contribution` | string | yes |
+| `years` | integer | yes |
+| `target_amount` | string (nullable) | yes |
+| `scenarios` | array of ProjectionScenario | yes |
+| `range_low` | string | yes |
+| `range_high` | string | yes |
+| `assumptions` | array of string | yes |
+| `basis` | string | no |
+| `financial_effect_changed` | boolean | no |
+| `guaranteed` | boolean | no |
+| `inflation_adjusted` | boolean | no |
+| `advice` | boolean | no |
+
+### `RecurringDetection`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `start` | string (date) | yes |
+| `end` | string (date) | yes |
+| `examined_expenses` | integer | yes |
+| `candidates` | array of RecurringCandidate | yes |
+| `assumptions` | array of string | yes |
+| `basis` | string | no |
+| `financial_effect_changed` | boolean | no |
+| `plans_created` | boolean | no |
+| `payment_status_proven` | boolean | no |
+
+### `SettleWrite`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `origin` | enum: `recurring`, `rent`, `debt` | yes |
+| `template_id` | string (uuid) | yes |
+| `original_date` | string (date) | yes |
+| `account_id` | string (uuid) | yes |
+| `amount` | string (nullable) | no |
+| `occurred_on` | string (date) (nullable) | no |
+| `confirmed_actual` | boolean | yes |
+| `reason` | string | yes |
+
+### `SettleReceipt`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `origin` | enum: `recurring`, `rent`, `debt` | yes |
+| `template_id` | string (uuid) | yes |
+| `original_date` | string (date) | yes |
+| `occurred_on` | string (date) | yes |
+| `currency` | enum (164 values) | yes |
+| `amount` | string | yes |
+| `account_id` | string (uuid) | yes |
+| `entry_ids` | array of string (uuid) | yes |
+| `record_id` | string (uuid) (nullable) | no |
+| `initiates_payments` | boolean | no |

@@ -11,6 +11,7 @@ A connector approval lets one assistant client read your data. You can revoke it
 
 | Route | Operation | Auth | Required headers | Query | Request body | Success |
 | --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/workspaces/{workspace_id}/integrations/keys/scopes` | Scope Catalogue | Signed-in user (Clerk bearer) | none | `locale` | none | 200 `ScopeCatalogue` |
 | `GET /api/v1/workspaces/{workspace_id}/integrations/keys` | Inventory | Signed-in user (Clerk bearer) | none | none | none | 200 array of `KeyView` |
 | `POST /api/v1/workspaces/{workspace_id}/integrations/keys` | Issue | Signed-in user (Clerk bearer) | `Idempotency-Key (required)` | none | `KeyRequest` | 200 `KeyIssued` |
 | `GET /api/v1/workspaces/{workspace_id}/integrations/keys/page` | inventory (paged) | Signed-in user (Clerk bearer) | none | `limit`, `cursor` | none | 200 `InventoryPage` |
@@ -38,18 +39,19 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | --- | --- | --- |
 | `id` | string (uuid) | yes |
 | `name` | string | yes |
-| `scopes` | array of enum: `profile:read`, `accounts:read`, `transactions:read` | yes |
+| `scopes` | array of enum (9 values) | yes |
 | `state` | enum: `pending`, `active`, `unknown`, `failed`, `revoked`, `expired` | yes |
 | `expires_at` | string (date-time) | yes |
 | `created_at` | string (date-time) | yes |
 | `terms_version` | string | yes |
+| `usage` | GrantUsage (nullable) | no |
 
 ### `KeyRequest`
 
 | Field | Type | Required |
 | --- | --- | --- |
 | `name` | string | yes |
-| `scopes` | array of enum: `profile:read`, `accounts:read`, `transactions:read` | yes |
+| `scopes` | array of enum (9 values) | yes |
 | `expires_in_days` | integer | no |
 | `terms_version` | string | yes |
 | `personal_use_accepted` | boolean | yes |
@@ -71,6 +73,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | --- | --- | --- |
 | `items` | array of KeyView | yes |
 | `next_cursor` | string (nullable) | no |
+| `total_count` | integer | no |
 
 ### `TermsNotice`
 
@@ -99,6 +102,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `expires_at` | string (date-time) | yes |
 | `created_at` | string (date-time) | yes |
 | `terms_version` | string | yes |
+| `usage` | GrantUsage (nullable) | no |
 
 ### `ConnectorApproval`
 
@@ -121,6 +125,7 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | --- | --- | --- |
 | `items` | array of ConnectorView | yes |
 | `next_cursor` | string (nullable) | no |
+| `total_count` | integer | no |
 
 ### `AppealPage`
 
@@ -170,3 +175,10 @@ Field types come from the contract. Money fields are decimal strings. Nullable f
 | `review_alerts` | integer | yes |
 | `truncated` | boolean | yes |
 | `automatic_suspension` | boolean | yes |
+
+### `ScopeCatalogue`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `locale` | enum: `en`, `ar`, `fr`, `ru` | yes |
+| `items` | array of ScopeEntry | yes |

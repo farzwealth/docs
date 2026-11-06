@@ -12,8 +12,14 @@ A scope is a read permission that you grant to a credential. A scope lets a cred
 | `profile:read` | Locale, base currency and timezone |
 | `accounts:read` | Your accounts, as masked summaries |
 | `transactions:read` | Your posted transactions in a date range |
+| `assets:read` | Your assets (`/assets`) |
+| `liabilities:read` | Your liabilities and a liability's repayment schedule (`/liabilities`) |
+| `budgets:read` | Your budgets (`/budgets`) |
+| `goals:read` | Your goals (`/goals`) |
+| `valuations:read` | Your valuation history (`/valuations`) |
+| `reports:read` | Your financial summary and net-worth report (`/summary`, `/reports/net-worth`) |
 
-The developer API does not return account balances. Its account summaries have an ID, a currency, a kind, up to four masked digits, a revision and an archived flag.
+The developer API does not return account balances through `/accounts`. Its account summaries have an ID, a currency, a kind, up to four masked digits, a revision and an archived flag.
 
 ## MCP tool scopes
 
